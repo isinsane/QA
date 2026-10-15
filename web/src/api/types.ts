@@ -87,6 +87,7 @@ export interface AppSettings {
   tickets_pull_hour: number
   reply_buckets_top: number
   default_queue_limit: number
+  default_password: string
   rotation_cases_per_week: number
   wrong_sheet_percent: number
   new_task_type: {

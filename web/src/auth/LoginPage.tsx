@@ -115,7 +115,10 @@ export function LoginPage() {
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-          <p className="auth-hint">No password yet? Ask your supervisor to set one for you on the Team page.</p>
+          <p className="auth-hint">
+            First time here? Sign in with your work email and the default password from your supervisor; you'll choose your own right
+            after.
+          </p>
         </div>
       </div>
 

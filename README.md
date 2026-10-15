@@ -23,18 +23,32 @@ npm --prefix web run dev           # web app on http://localhost:5174
 go test ./...                      # scorecard, sampling, assignment
 ```
 
-## Run it with Docker
+## Deploy on a server
 
-Needs Docker only; everything is built inside the image.
+The server needs Docker (with compose) and git. Everything else is built inside the image.
 
 ```bash
-cp .env.example .env               # set POSTGRES_PASSWORD (and QA_API_*, EDESK_API_TOKEN if used)
-docker compose up -d --build       # Postgres + the portal on http://localhost:8080
-docker compose exec app set-password -email you@company.com -name "Your Name"   # first admin
+git clone https://github.com/isinsane/QA.git ~/QA && ~/QA/deploy-script.sh
 ```
 
-The app container runs the migrations when it starts. Data lives in the `db-data` volume. Update with
-`git pull && docker compose up -d --build`.
+The first run creates `.env` with a generated Postgres password and a free port (8090 or the next one up), builds,
+starts Postgres and the portal, and waits until it answers. Later deploys are just `~/QA/deploy-script.sh`
+(`-b <branch>` for another branch, `-n` to rebuild without pulling). `.env` and the database volume are never
+touched; the app runs the migrations when it starts.
+
+Then, once:
+
+```bash
+cd ~/QA && docker compose exec app set-password -email you@company.com -name "Your Name"   # first admin
+```
+
+Fill `QA_API_KEY`, `QA_API_BASE_URL` and `EDESK_API_TOKEN` in `~/QA/.env` to turn on the ticket pull, then run the
+deploy script again.
+
+**Signing in:** anyone without a password signs in with the default password from Settings (`Welcome1` until an admin
+changes it there) and must choose their own right away. Set it empty in Settings to turn that off.
+
+Without the script: `cp .env.example .env`, set `POSTGRES_PASSWORD`, then `docker compose up -d --build`.
 
 ## How it fits together
 

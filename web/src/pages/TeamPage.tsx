@@ -130,7 +130,7 @@ export function TeamPage() {
                     )}
                   </td>
                   <td>{u.role === 'qa_agent' ? u.queue_limit || 'no cap' : ''}</td>
-                  <td>{u.has_password ? 'Yes' : <span className="text-tertiary">No</span>}</td>
+                  <td>{u.has_password ? 'Yes' : <span className="text-tertiary">default</span>}</td>
                   <td>
                     {!u.active ? (
                       <span className="badge badge-gray">inactive</span>

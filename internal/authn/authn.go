@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/oaldesi/qa-portal/internal/model"
+	"github.com/oaldesi/qa-portal/internal/settings"
 )
 
 var (
@@ -59,9 +61,20 @@ func (s *Service) Login(ctx context.Context, email, password string) (*model.Use
 		return nil, "", ErrInactive
 	}
 	if u.PasswordHash == "" {
-		return nil, "", ErrPasswordNotSet
-	}
-	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) != nil {
+		// Nobody has given them a password yet: the default (an admin
+		// setting) lets them in once, and they must choose their own.
+		def := settings.Load(ctx, s.db).DefaultPassword
+		if def == "" {
+			return nil, "", ErrPasswordNotSet
+		}
+		if subtle.ConstantTimeCompare([]byte(password), []byte(def)) != 1 {
+			return nil, "", ErrInvalidCredentials
+		}
+		if err := s.db.WithContext(ctx).Model(&u).Update("must_change_password", true).Error; err != nil {
+			return nil, "", err
+		}
+		u.MustChangePassword = true
+	} else if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) != nil {
 		return nil, "", ErrInvalidCredentials
 	}
 	token, err := s.issueSession(ctx, u.ID)
@@ -146,8 +159,17 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, userID uuid.UUID, curre
 	if err := s.db.WithContext(ctx).First(&u, "id = ?", userID).Error; err != nil {
 		return "", ErrSessionNotFound
 	}
-	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(current)) != nil {
+	if u.PasswordHash == "" {
+		// Still on the default password: that is the current one.
+		def := settings.Load(ctx, s.db).DefaultPassword
+		if def == "" || subtle.ConstantTimeCompare([]byte(current), []byte(def)) != 1 {
+			return "", ErrWrongCurrentPassword
+		}
+	} else if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(current)) != nil {
 		return "", ErrWrongCurrentPassword
+	}
+	if def := settings.Load(ctx, s.db).DefaultPassword; def != "" && next == def {
+		return "", errors.New("choose a password of your own, not the default one")
 	}
 	return s.SetPassword(ctx, userID, next, false)
 }

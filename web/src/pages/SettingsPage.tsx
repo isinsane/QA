@@ -287,6 +287,30 @@ export function SettingsPage() {
 
       <section className="card settings-card">
         <header className="settings-head">
+          <h2 className="card-title">Sign-in</h2>
+          <p className="card-subtitle">How people who have no password yet get in.</p>
+        </header>
+        <Row
+          title="Default password"
+          hint={
+            s.default_password
+              ? "Anyone who hasn't chosen a password signs in with this once, then must choose their own. Changing it applies to everyone who hasn't signed in yet. Empty turns it off."
+              : 'Off: an admin or supervisor sets each person a temporary password on the Team page.'
+          }
+        >
+          <input
+            className="input mono"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="off"
+            value={s.default_password}
+            onChange={(e) => set({ default_password: e.target.value })}
+          />
+        </Row>
+      </section>
+
+      <section className="card settings-card">
+        <header className="settings-head">
           <h2 className="card-title">Defaults</h2>
           <p className="card-subtitle">What new QA agents and new task types start with. Existing ones keep their own values.</p>
         </header>

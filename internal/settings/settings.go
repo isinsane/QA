@@ -33,6 +33,10 @@ type Settings struct {
 	TicketsPullHour int `json:"tickets_pull_hour"`
 	// ReplyBucketsTop: ticket picks are spread over 1, 2, … and N+ replies.
 	ReplyBucketsTop int `json:"reply_buckets_top"`
+	// DefaultPassword lets anyone who hasn't chosen a password yet sign in
+	// once, then makes them choose their own. Empty: off (an admin sets
+	// passwords one by one).
+	DefaultPassword string `json:"default_password"`
 	// DefaultQueueLimit is the queue cap a new QA agent starts with.
 	DefaultQueueLimit int `json:"default_queue_limit"`
 	// WrongSheetPercent: an upload is refused when this share of its rows
@@ -66,6 +70,7 @@ func Defaults() Settings {
 		TicketsPullHour:      6,
 		ReplyBucketsTop:      3,
 		DefaultQueueLimit:    12,
+		DefaultPassword:      "Welcome1",
 		RotationCasesPerWeek: 3,
 		WrongSheetPercent:    30,
 		NewTaskType: TaskTypeDefaults{
@@ -120,6 +125,8 @@ func (s Settings) Validate() error {
 		return fmt.Errorf("the ticket pull hour must be 0 to 23")
 	case s.ReplyBucketsTop < 1 || s.ReplyBucketsTop > 20:
 		return fmt.Errorf("reply buckets must top out between 1 and 20")
+	case s.DefaultPassword != "" && (len(s.DefaultPassword) < 8 || len(s.DefaultPassword) > 72):
+		return fmt.Errorf("the default password must be 8 to 72 characters, or empty to turn it off")
 	case s.DefaultQueueLimit < 0:
 		return fmt.Errorf("the default queue cap can't be negative")
 	case s.WrongSheetPercent < 1 || s.WrongSheetPercent > 100:

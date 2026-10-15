@@ -1,5 +1,7 @@
 # QA Portal, deployed: `docker compose up -d --build` starts Postgres and the
-# app (API + web app on one port; migrations run when it starts).
+# app (API + web app on one port, 8090 by default; migrations run when it
+# starts). On a server, use ./deploy-script.sh instead: it pulls, checks and
+# waits for the portal to come up.
 #
 # Configuration lives in .env next to this file; see .env.example.
 name: qa-portal
@@ -38,7 +40,7 @@ services:
       DATABASE_URL: host=db port=5432 user=${POSTGRES_USER:-qa} password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env} dbname=${POSTGRES_DB:-qa} sslmode=disable
       APP_ENV: prod
     ports:
-      - "${HTTP_PORT:-8080}:8080"
+      - "${HTTP_PORT:-8090}:8080"
     depends_on:
       db:
         condition: service_healthy
