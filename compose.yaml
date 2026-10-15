@@ -39,6 +39,12 @@ services:
       # break the connection string.
       DATABASE_URL: host=db port=5432 user=${POSTGRES_USER:-qa} password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env} dbname=${POSTGRES_DB:-qa} sslmode=disable
       APP_ENV: prod
+      # The container's own listener and web folder. Pinned here because
+      # .env (made from .env.example) carries local-dev values for these,
+      # and env_file would otherwise override the image's defaults; then the
+      # app listens where neither the port mapping nor the health check look.
+      HTTP_ADDR: ":8080"
+      WEB_DIR: /app/web
     ports:
       - "${HTTP_PORT:-8090}:8080"
     depends_on:
