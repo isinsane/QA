@@ -1,0 +1,4900 @@
+/* Shared primitives: buttons, badges, cards, inputs, tables. */
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--transition), border-color var(--transition),
+    color var(--transition), box-shadow var(--transition);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.btn-lg {
+  height: 44px;
+  padding: 0 20px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--brand-solid);
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-surface);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--gray-50);
+  color: var(--text-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: var(--bg-surface);
+  border-color: var(--error-100);
+  color: var(--error-600);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--error-50);
+}
+
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+.btn-icon.btn-sm {
+  width: 34px;
+  height: 34px;
+}
+
+/* ---------- Badges ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* How long a task has waited, as an escalating signal rather than another grey
+   fact. The assignment pass hands out strictly oldest-first, so this column is
+   the queue explaining its own ordering.
+
+   Fresh work is deliberately almost invisible — no chip, no colour, just quiet
+   text. Ink is spent only once a task starts to drift, so a glance down the
+   list lands on the ones that have been waiting, not on all of them equally.
+   Tabular numerals keep the column from jittering as values change width. */
+.age-pill {
+  flex: none;
+  margin-left: 2px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.age-fresh {
+  /* Same day: business as usual. No chip at all. */
+  font-weight: 500;
+}
+
+.age-aging {
+  /* Over a day: worth noticing, not worth alarming about. */
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.age-late {
+  /* Three days+: the customer is visibly waiting. */
+  color: var(--warning-700);
+  background: var(--warning-50);
+}
+
+.age-stale {
+  /* A week+: a failure that should be legible across the room. */
+  color: var(--error-700);
+  background: var(--error-50);
+  font-weight: 700;
+}
+
+/* ── Queue control ──────────────────────────────────────────────────────
+   The admin's operations screen. Four numbers up top answer "is anything
+   wrong", the hand-over row answers "do something about it", and the agent
+   table answers "who". */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 18px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.stat-tile-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.stat-tile-value {
+  font-size: 26px;
+  font-weight: 680;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  /* Proportional figures deliberately: tabular-nums gives every digit the
+     width of a zero, which makes a standalone number like 121 look gappy at
+     display size. Tabular belongs in table columns and axis ticks, where
+     digits must line up vertically. */
+}
+
+/* Value and its trend share a line, so the sparkline reads as part of the
+   number rather than as a second thing to look at. */
+.stat-tile-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The trend line is context, not the number — so it is the part that gives
+   when a tile gets narrow. Left at flex: none it kept its full 96px and
+   pushed the value out past the tile's edge on a 1280px window, where five
+   tiles share the row. */
+.sparkline {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  opacity: 0.9;
+}
+
+.stat-tile-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Change against the previous window. Colour carries the judgement, so it is
+   only ever applied where a direction is genuinely better or worse — see the
+   Delta component's goodWhen. */
+.stat-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px 1px 4px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.stat-delta.is-good {
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+.stat-delta.is-bad {
+  background: var(--error-50);
+  color: var(--error-700);
+}
+
+/* The day-by-day table is the page's centrepiece and is read by scanning
+   down a column, so its figures are tabular-lining and its rows invite the
+   click that opens the day. */
+.table-daily td {
+  font-variant-numeric: tabular-nums;
+}
+
+.table tr.is-clickable {
+  cursor: pointer;
+}
+
+.table tr.is-clickable:hover {
+  background: var(--bg-subtle);
+}
+
+.table tr.is-picked {
+  background: var(--brand-50);
+}
+
+.daily-open {
+  color: var(--text-tertiary);
+  width: 28px;
+  text-align: right;
+}
+
+.day-detail {
+  margin-top: 16px;
+}
+
+.day-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.day-detail-stats {
+  margin-bottom: 0;
+}
+
+.day-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* One day's types as chips rather than another table: the interesting thing
+   is which few types dominated, not an exhaustive matrix. */
+.type-day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.type-day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--bg-subtle);
+}
+
+.type-day-chip .mono {
+  color: var(--text-tertiary);
+}
+
+/* Backlog age reuses the queue's age vocabulary, as text rather than a chip —
+   at this size a coloured pill would shout louder than the number itself. */
+.age-text-fresh  { color: var(--text-primary); }
+.age-text-aging  { color: var(--text-primary); }
+.age-text-late   { color: var(--warning-700); }
+.age-text-stale  { color: var(--error-700); }
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.handover-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px 20px;
+  padding: 20px;
+  flex-wrap: wrap;
+}
+
+.handover-row .field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.handover-count {
+  flex: 0 0 120px;
+  min-width: 120px;
+}
+
+.handover-row .btn {
+  margin-bottom: 1px;
+}
+
+.handover .inline-warning {
+  margin: 0 20px 20px;
+}
+
+/* Load against cap, drawn rather than written — "can this person take more"
+   is a proportion, and a proportion reads faster as a bar than as a ratio. */
+.capacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capacity-track {
+  flex: 1;
+  height: 6px;
+  min-width: 60px;
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.capacity-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 200ms ease;
+}
+
+.capacity-ok    { background: var(--success-500); }
+.capacity-busy  { background: var(--warning-500); }
+.capacity-full  { background: var(--error-500); }
+.capacity-over  { background: var(--error-600); }
+
+.capacity-label {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.capacity-text-full,
+.capacity-text-over { color: var(--error-700); font-weight: 600; }
+
+.capacity-uncapped {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.agent-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.agent-cell .text-tertiary { font-size: 12px; }
+
+.done-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--success-700);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preferred types. The rank number is the whole point — it is what tells the
+   fill pass that a first choice pulls harder than a third — so it is carried
+   in the chip rather than implied by position alone. */
+.prefs-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  border-radius: var(--radius-sm);
+}
+
+.prefs-view:hover { background: var(--bg-hover); }
+
+.pref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 3px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--brand-200);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pref-chip.is-static { cursor: inherit; }
+
+.pref-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--brand-solid);
+  color: var(--text-on-brand);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.prefs-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prefs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.prefs-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ── Reports ────────────────────────────────────────────────────────────
+   Chart chrome is deliberately recessive: hairline grid, muted axes, thin
+   marks. The data is the only thing allowed to be saturated. */
+
+/* One filter row scoping every chart below it. Period on the left picks the
+   bucket size, dates on the right pick the window; both feed the charts and
+   the export from the same state, so what you see is what you download. */
+.report-filters {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.report-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.report-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-range-field .input {
+  height: 34px;
+  min-width: 148px;
+}
+
+.report-range-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding-bottom: 8px;
+}
+
+/* Refetching holds the previous render at reduced opacity instead of
+   collapsing to skeletons: no layout jump, and the old numbers stay readable
+   until the new ones land. Pointer events go too, so nothing is clicked
+   against data that is about to be replaced. */
+.report-body {
+  transition: opacity var(--transition);
+}
+
+.report-body.is-stale {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.report-section {
+  margin-bottom: 32px;
+}
+
+.report-section-head {
+  margin-bottom: 12px;
+}
+
+/* A section that carries its own control beside the heading. Wraps rather
+   than squeezing the prose, which is the part that reads badly narrow. */
+.report-section-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.report-section-head-row > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.daily-days {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.daily-days .field-label {
+  margin: 0;
+}
+
+.report-section-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.report-section-head p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
+.report-charts,
+.report-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.report-charts .chart-card-head {
+  padding: 20px 24px 8px;
+}
+
+.report-charts .chart-card-titles {
+  gap: 6px;
+}
+
+.report-charts .chart-card-body {
+  padding: 8px 16px 20px;
+}
+
+.outcome-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 12px;
+  margin: 0;
+}
+
+.outcome-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.2fr) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+}
+
+.outcome-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.outcome-bar {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.outcome-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.outcome-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5rem;
+  justify-content: flex-end;
+}
+
+.outcome-share {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 12px;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.chart-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 8px;
+}
+
+.chart-card-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chart-card-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* A legend is present whenever there are two or more series, so identity is
+   never carried by colour alone. */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 0 16px 4px;
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.chart-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.chart-card-body {
+  padding: 4px 8px 12px;
+}
+
+/* The container grows with its content so the x-axis band is never clipped
+   into a nested scrollbar. */
+.chart-table-wrap {
+  max-height: 320px;
+  overflow: auto;
+  padding: 0 8px;
+}
+
+.chart-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+/* Part-to-whole for one total. A 2px surface gap separates segments instead
+   of a drawn border. */
+.mix-bar-wrap {
+  padding: 8px 8px 4px;
+}
+
+.mix-bar {
+  display: flex;
+  gap: 2px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.mix-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3px;
+  transition: filter 120ms ease;
+}
+
+.mix-seg:hover { filter: brightness(1.06); }
+
+/* Only rendered when the segment is wide enough to hold it — a clipped label
+   is worse than no label, and the value is in the legend and table anyway. */
+.mix-seg-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+}
+
+.mix-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px 16px;
+  margin: 14px 0 0;
+}
+
+.mix-legend div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.mix-legend dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.mix-legend dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Recharts ships an unstyled tooltip that ignores the theme entirely. */
+.viz-tooltip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 8px 10px;
+  font-size: 12px;
+  min-width: 140px;
+}
+
+.viz-tooltip-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.viz-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.7;
+}
+
+.viz-tooltip-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.viz-tooltip-name {
+  color: var(--text-secondary);
+  margin-right: auto;
+}
+
+.viz-tooltip-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.badge-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge-gray {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.badge-brand {
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+.badge-success {
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+.badge-warning {
+  background: var(--warning-50);
+  color: var(--warning-700);
+}
+
+.badge-error {
+  background: var(--error-50);
+  color: var(--error-700);
+}
+
+.badge-purple {
+  background: var(--purple-50);
+  color: var(--purple-700);
+}
+
+/* ---------- Cards ---------- */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.card-body {
+  padding: 20px;
+}
+
+.card-body-flush {
+  padding: 0;
+}
+
+/* Action bar at the bottom of an editable card. */
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle, transparent);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+/* ---------- Inputs ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.textarea-note {
+  min-height: 36px;
+  height: 36px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  resize: none;
+}
+
+
+.input.is-invalid,
+.textarea.is-invalid {
+  border-color: var(--danger, #c0392b);
+}
+
+.field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger, #c0392b);
+}
+
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted, var(--bg-surface));
+}
+
+.segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+}
+
+.segmented-btn.is-active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+.segmented-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-placeholder);
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--brand-400);
+  box-shadow: 0 0 0 4px var(--brand-50);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+
+/* Stacked edit form. One column: these are long labels, and a task edit is
+   read top-to-bottom rather than scanned. */
+.form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+/* Two fields side by side; collapses to one column when there is no room. */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.form-row-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .form-row,
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Group heading inside a form, e.g. "References", "Customer". */
+.form-section {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.form-section:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Plain-language gloss next to a group heading. */
+.form-section-hint {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+
+/* Fields that are rarely touched, folded away by default. */
+.form-advanced {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0 14px;
+}
+
+.form-advanced > summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  list-style: none;
+}
+
+.form-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-advanced > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--text-tertiary);
+  transition: transform var(--transition);
+}
+
+.form-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.form-advanced[open] > summary {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+
+.form-advanced .field + .field {
+  margin-top: 14px;
+}
+
+.form-advanced .field:last-child {
+  margin-bottom: 14px;
+}
+
+/* Checkbox and its label on one line. */
+.field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.field-inline input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-solid);
+  flex-shrink: 0;
+}
+
+.input:disabled,
+.textarea:disabled,
+.select:disabled {
+  background: var(--bg-subtle, var(--bg-page));
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-group .input {
+  padding-left: 38px;
+}
+
+.input-group-icon {
+  position: absolute;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--text-placeholder);
+  pointer-events: none;
+}
+
+.input-group-action {
+  position: absolute;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  transition: color var(--transition), background var(--transition);
+}
+
+.input-group-action:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.input-group:has(.input-group-action) .input {
+  padding-right: 38px;
+}
+
+/* ---------- Tables ---------- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+/* Identifiers are read as one token — a task reference or a marketplace order
+ * broken across two lines ("T-" / "AEB97987") is harder to scan and harder to
+ * read out loud to a customer. These cells keep their value on one line; the
+ * table already scrolls horizontally, so nothing is ever cut off. */
+.table td.mono,
+.table th.mono {
+  white-space: nowrap;
+}
+
+/* All tasks is a scanning table: one task per line, so the eye travels down a
+ * column rather than hopping over stacked text. Scoped to this table because
+ * .table is shared with screens whose cells hold real prose. Horizontal
+ * scrolling on .table-scroll means nothing is truncated. */
+.tasks-table td,
+.tasks-table th {
+  white-space: nowrap;
+}
+
+.subs-table .reason-type::before,
+.tasks-table .reason-type::before {
+  content: '·';
+  margin: 0 0.4em;
+  opacity: 0.5;
+}
+
+/* The widest column, and the one that grew most when cells stopped wrapping.
+ * Capped so a long reason truncates instead of shunting the assignee control
+ * out of view; the cell's title carries the untruncated text. */
+.subs-table .reason-cell,
+.tasks-table .reason-cell {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The assignee control is the point of the row for an admin, so it must never
+ * be the thing that gets clipped. */
+.tasks-table .assign-inline select {
+  min-width: 8rem;
+}
+
+/* A platform badge is ~110px of content in a 155px column. Capped so the
+ * columns that carry real data get the difference. */
+.tasks-table .platform-cell {
+  max-width: 118px;
+}
+
+/* Cells whose contents come from a form field a person types freely. The rest
+ * of this table is nowrap, which keeps short identifiers on one line but means
+ * a cell grows to fit whatever it is given — and an order number that is
+ * really a sentence ("8/17 released DT pull submitted...") widened its column
+ * by hundreds of pixels, forcing the table to scroll sideways and pushing the
+ * assignee control out of reach.
+ *
+ * Bounding the content and letting it wrap inverts that: the column can never
+ * grow, and only the offending row gets taller. overflow-wrap: anywhere is
+ * what handles a single unbroken 90-character string, which no amount of
+ * ordinary wrapping would break. */
+.subs-table .cell-clamp,
+.tasks-table .cell-clamp {
+  display: inline-block;
+  /* The floor matters as much as the ceiling. A wrappable column can be
+   * squeezed by the table down to its longest word, which had ordinary
+   * values like "Customer" wrapping in a 60px column and every row two lines
+   * tall. min-width holds the column at what a normal value needs, so only
+   * content longer than max-width ever wraps. */
+  min-width: 13ch;
+  max-width: 18ch;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+/* Marketplace order numbers run to 19 characters ("114-5301101-7181848"), so
+ * this one gets enough room to keep a real order on a single line — only
+ * genuine junk wraps. */
+.subs-table .cell-clamp-order,
+.tasks-table .cell-clamp-order {
+  min-width: 15ch;
+  max-width: 21ch;
+}
+
+/* What a task is waiting on is a sentence, not an identifier. Left to itself
+   it took 432px of a 1174px table — more than any column carrying real data —
+   and was the largest single reason the table scrolled sideways. */
+.tasks-table .wait-cell {
+  max-width: 136px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Submissions is the other scanning table fed by the same free-typed form
+ * fields, so it gets the same one-line + clamp treatment as All tasks. The
+ * notes column is prose (issues, the source filename) and would otherwise be
+ * the widest thing on the page. */
+.subs-table td,
+.subs-table th {
+  white-space: nowrap;
+}
+
+/* Order and tracking here hold real 19-char Amazon ids and 18-char UPS
+ * numbers; the shared 15ch floor let the table squeeze them into wrapping,
+ * which made ordinary rows two lines tall. */
+.subs-table .cell-clamp-order {
+  min-width: 19ch;
+}
+
+.subs-table .notes-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ten columns at 20px a side spent 400px on padding alone — the single
+ * largest use of width in the table, and what pushed the last columns out of
+ * view on a 1440 screen. Tighter here only; the roomier default still suits
+ * the shorter tables elsewhere. */
+.subs-table td,
+.subs-table th,
+.tasks-table td,
+.tasks-table th {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr {
+  transition: background var(--transition);
+}
+
+.table-hover tbody tr:hover {
+  background: var(--gray-25);
+  cursor: pointer;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+/* ---------- Avatars ---------- */
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.avatar-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.avatar-lg {
+  width: 44px;
+  height: 44px;
+  font-size: 15px;
+}
+
+/* ---------- Misc ---------- */
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  border: none;
+  margin: 0;
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-tertiary {
+  color: var(--text-tertiary);
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.empty-state-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background: var(--gray-100);
+  color: var(--gray-500);
+}
+
+.empty-state-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- Charts ---------- */
+
+.chart-tooltip {
+  background: var(--bg-inverse);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-lg);
+  color: var(--text-on-inverse);
+  font-size: 12px;
+  min-width: 140px;
+}
+
+.chart-tooltip-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-on-inverse);
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.chart-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chart-tooltip-name {
+  flex: 1;
+  color: var(--text-tertiary);
+}
+
+.chart-tooltip-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.recharts-surface:focus {
+  outline: none;
+}
+
+/* ---------- Animation ---------- */
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Inline messages ---------- */
+
+.inline-note,
+.inline-warning,
+.inline-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.inline-note {
+  background: var(--brand-25);
+  border: 1px solid var(--brand-100);
+  color: var(--brand-800);
+}
+
+.inline-warning {
+  background: var(--warning-50);
+  border: 1px solid var(--warning-100);
+  color: var(--warning-700);
+}
+
+.inline-success {
+  background: var(--success-50);
+  border: 1px solid var(--success-100);
+  color: var(--success-700);
+}
+
+.done-refund-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.hint-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+  margin: 10px 0 0;
+}
+
+.error-list {
+  margin: 8px 0 0 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.code-block {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-inverse);
+  color: var(--text-on-inverse);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Why an admin opened the page, so it reads before the edit form. */
+.review-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--warning-100);
+  border-left: 3px solid var(--warning-500);
+  border-radius: var(--radius-md);
+  background: var(--warning-50);
+  color: var(--warning-700);
+}
+
+.review-banner-icon {
+  display: flex;
+  padding-top: 1px;
+}
+
+.review-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.review-banner-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.review-banner-reason {
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* A quieter destructive action for a page header, where a solid red button
+   would shout over the page title. */
+.btn-danger-ghost {
+  color: var(--error-700);
+}
+
+.btn-danger-ghost:hover:not(:disabled) {
+  background: var(--error-50);
+}
+
+/* The confirm step for marking a task invalid. Full width under the header
+   so the explanation is read before the reason is typed. */
+.invalid-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--error-100);
+  border-left: 3px solid var(--error-500);
+  border-radius: var(--radius-md);
+  background: var(--error-50);
+}
+
+.invalid-bar-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--error-700);
+}
+
+.invalid-bar-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invalid-bar-form .input {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Splits a second dl inside one card, so related reference data reads as
+   sections rather than as another box. */
+.detail-subhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.detail-subhead span {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+
+/* Tabs inside a card header — reuses .filter-chip for the buttons. */
+.tab-row {
+  display: flex;
+  gap: 4px;
+}
+
+.tab-row .filter-chip {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.inline-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.inline-edit-row .input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.assign-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.assign-inline .select,
+.select-sm {
+  height: 30px;
+  min-width: 140px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.inline-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--success-700);
+}
+
+/* Bulk selection on the admin task list. The bar only exists while something
+   is selected, so it is allowed to be loud — it is the current action. */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--brand-300, var(--border));
+  border-radius: var(--radius-md, 8px);
+  background: var(--brand-50, var(--surface-2));
+}
+
+.bulk-bar-count {
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+/* Narrow enough that the checkbox column never competes with real data. */
+.table-check {
+  width: 36px;
+  text-align: center;
+  padding-right: 0;
+}
+
+.table-check input {
+  cursor: pointer;
+}
+
+/* The flag reason sits directly under the toolbar that opened it. */
+.task-flag-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--warning-300, var(--border));
+  border-radius: var(--radius-md, 8px);
+  background: var(--warning-50, var(--surface-2));
+}
+
+.task-flag-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------- Upload ---------- */
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 32px 20px;
+  border: 1.5px dashed var(--border-strong, var(--border));
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle, var(--gray-50));
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.dropzone:hover,
+.dropzone:focus-visible,
+.dropzone.dragging {
+  border-color: var(--brand-500);
+  background: var(--brand-25);
+}
+
+.dropzone-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--brand-50);
+  color: var(--brand-600);
+}
+
+.dropzone-title {
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--text-primary);
+}
+
+.dropzone-hint {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.import-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.import-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle, var(--gray-50));
+}
+
+.import-tile-value {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.import-tile-label {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.import-tile.success {
+  border-color: var(--success-100);
+  background: var(--success-50);
+}
+
+.import-tile.warning {
+  border-color: var(--warning-100);
+  background: var(--warning-50);
+}
+
+.import-tile.error {
+  border-color: var(--error-100);
+  background: var(--error-50);
+}
+
+.detail-cta {
+  padding: 0 20px 18px;
+}
+
+.plain-list {
+  display: grid;
+  gap: 2px;
+}
+
+.plain-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.plain-list li:last-child {
+  border-bottom: none;
+}
+
+.plain-list strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ---------- Templates ---------- */
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.template-subject {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.template-body {
+  margin: 0;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.template-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-edit-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.muted {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Toast ---------- */
+
+.toast-stack {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 420px;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-inverse);
+  color: var(--text-on-inverse);
+  border: 1px solid var(--border-strong);
+  font-size: 14px;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.toast-success .toast-icon {
+  color: var(--success-500);
+}
+
+.toast-info .toast-icon {
+  color: var(--brand-300);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Marks a task as one parcel of a submission that listed several tracking
+   numbers. Deliberately quiet — it sits beside the ticket number in a row that
+   is scanned, not read, and it must not compete with the Flagged badge. */
+.tasks-table .parcel-badge {
+  margin-left: 6px;
+  /* Tight: this column already carries the reference and can carry the
+     Flagged badge, and every pixel here comes out of a column showing data. */
+  padding: 1px 5px;
+}
+
+/* The same fact stated properly on the task page, where the agent is about to
+   act on it: what this parcel is one of, and how to reach the others. */
+.parcel-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand-500);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.parcel-bar-icon {
+  display: flex;
+  padding-top: 1px;
+  color: var(--brand-600);
+}
+
+.parcel-bar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.parcel-bar-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.parcel-bar-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Wraps rather than pushing the note off the card when a submission carried
+   more than two or three parcels. */
+.parcel-bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ---------- Modal (Assign to / Change type / Submit refund / ...) ---------- */
+
+/* Same backdrop as .task-activity-overlay, centered instead of docked to an
+   edge: those hold a scrolling log, these hold a short one-off form, so a
+   centered dialog reads as "answer this, then you're back" rather than a
+   panel you navigate inside. These used to render inline in the scrolling
+   task column, which meant opening "Assign to" shoved the composer — and
+   everything below it — down the page; a centered dialog leaves that
+   column exactly where it was. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 25, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 24px;
+}
+
+/* No border or background of its own — .picker and .task-flag-form already
+   carry both, so this only sizes and elevates whichever one is inside. */
+.modal-panel {
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  border-radius: var(--radius-md);
+}
+
+/* Picked for a dialog, not a column: no bottom margin (nothing stacks below
+   it), and edge-to-edge width instead of the fixed gap it kept between
+   itself and the next inline block. */
+.modal-panel .picker,
+.modal-panel .task-flag-form {
+  margin-bottom: 0;
+}
+
+/* ---------- Pickers (Assign to / Change type) ---------- */
+
+/* A dropdown made these feel like a form to fill in; they are a short list
+   to pick from, so they are a list. Picking is one click, and the chosen row
+   stays visible while the agent reads the consequence in the footer. */
+.picker {
+  border: 1px solid var(--brand-200, var(--gray-200));
+  border-radius: var(--radius-md);
+  background: var(--gray-25, var(--gray-50));
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 13px;
+  color: var(--gray-700);
+}
+
+.picker-close {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: none;
+  color: var(--gray-500);
+  cursor: pointer;
+}
+
+.picker-close:hover {
+  background: var(--gray-100);
+  color: var(--gray-800);
+}
+
+/* Caps at roughly six rows so a long type list scrolls inside the card
+   rather than pushing the composer off screen. */
+.picker-options {
+  display: flex;
+  flex-direction: column;
+  max-height: 232px;
+  overflow-y: auto;
+  padding: 6px;
+  gap: 2px;
+}
+
+.picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--gray-800);
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker-option:hover {
+  background: var(--gray-100);
+}
+
+.picker-option.is-picked {
+  border-color: var(--brand-400, var(--brand-700));
+  background: var(--brand-50);
+  color: var(--brand-800);
+  font-weight: 500;
+}
+
+.picker-option-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.picker-tag {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+}
+
+.picker-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--gray-200);
+}
+
+/* A picker that asks for more than one field (Submit refund) rather than
+   picking one option from a list — the same padded rhythm .picker-options
+   gives a radio list. */
+.picker-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.picker-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--gray-500);
+}
+
+.picker-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 14px 12px;
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+/* ---------- Order details (warehouse + marketplace) ---------- */
+
+/* Reference material above the composer, so it must stay quiet: hairline
+   card, small type, no colour of its own. Both halves share one rhythm —
+   an aligned label column, then a list — because presenting the same kind
+   of fact two different ways made them read as unrelated panels. */
+.order-details {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--gray-25, var(--gray-50));
+  margin-bottom: 16px;
+  overflow: hidden;
+  /* So the divider below keys off this card's own width rather than the
+     viewport's — the task pane is one column of a three-column workspace
+     and is nowhere near as wide as the window. */
+  container-type: inline-size;
+}
+
+.order-details-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-800);
+  text-align: left;
+}
+
+.order-details-head:hover {
+  background: var(--gray-100);
+}
+
+/* align-items: start stops the shorter half stretching to match the taller
+   one, which is what left that big empty box under the warehouse column. */
+.order-details-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  align-items: start;
+  gap: 0;
+}
+
+.order-details-col {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--gray-200);
+}
+
+/* The halves sit side by side only when the card is wide enough for the
+   auto-fit grid to make two tracks (2 x 250px). The vertical rule has to
+   appear on exactly that condition: applied unconditionally it also drew
+   down the left edge of the second half when they stacked. */
+@container (min-width: 500px) {
+  .order-details-col + .order-details-col {
+    border-left: 1px solid var(--gray-200);
+  }
+}
+
+.order-details-col-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+}
+
+/* Two-column grid so every value in a half starts on the same x, however
+   long its label is. auto sizes the label column to its longest label
+   rather than to a guess. */
+.order-facts {
+  display: grid;
+  /* A fixed label column rather than auto: each half has its own grid, so
+     auto sized them independently and the two columns of values started at
+     different x, which read as sloppy across the card. 92px fits the
+     longest label ("Customer order") at this size. */
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.order-facts dt {
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+.order-facts dd {
+  margin: 0;
+  color: var(--gray-900);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* Identifiers — order numbers, references, tracking. Tabular figures so the
+   digits line up down the column, which is what makes one readable against
+   another screen. */
+.order-facts dd.is-id {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Shared by the eDesk item lines and the Deposco header blocks. */
+.order-lines {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.order-lines li {
+  display: flex;
+  gap: 8px;
+}
+
+.order-line-qty {
+  flex-shrink: 0;
+  color: var(--gray-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.order-line-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.order-line-title {
+  color: var(--gray-600);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.order-line-price {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--gray-900);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.order-header-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* The header's warehouse status, as a chip rather than another line of
+   text — it is a state, not a value. */
+.order-chip {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  color: var(--gray-600);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.order-details-muted {
+  color: var(--gray-500);
+}
+
+/* One row per tracking number under a header, so a split shipment's parts
+   line up with the specific number they travelled on instead of being
+   pooled with every other number on the header. */
+.order-shipments {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-shipment {
+  padding: 1px 0 1px 10px;
+  border-left: 2px solid var(--gray-200);
+}
+
+.order-shipment-tracking {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--gray-900);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.order-shipment-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* One part per chip. The quantity leads and is dimmed, so the eye lands on
+   the part number — the thing an agent is scanning for. */
+.order-part {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  line-height: 1.4;
+}
+
+.order-part-qty {
+  color: var(--gray-500);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-part-sku {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: var(--gray-800);
+}
+
+.order-details-empty {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--gray-500);
+}
+
+.order-details-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--brand-700);
+}
+
+.order-note {
+  margin-top: 10px;
+}
+
+.order-note-body {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+  color: var(--gray-700);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.shipstation-manual-order {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gray-200);
+}
+
+.shipstation-ship-to-pick {
+  margin-bottom: 10px;
+}
+
+.shipstation-ship-to-option {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--gray-700);
+  cursor: pointer;
+}
+
+.shipstation-ship-to-toggle {
+  margin-left: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--brand-700);
+  cursor: pointer;
+}
+
+.shipstation-ship-to-toggle:disabled {
+  color: var(--gray-400);
+  cursor: default;
+}
+
+.shipstation-manual-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.shipstation-manual-row .input {
+  flex: 1;
+}
+
+.shipstation-manual-qty {
+  flex: 0 0 64px;
+}
+
+.shipstation-manual-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Who caused a history entry, beside its label rather than under it — the
+   label alone could not tell an agent's action from an automated one. */
+.timeline-by {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  color: var(--gray-500);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+}
+
+/* Pager under a paged table. Centred rather than pinned to one edge so the
+   position of "Next" does not move as the row count changes. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 14px;
+}
+
+/* The copy above the table sits between the filters and the card, so it
+   needs the space on the other side. */
+.pager + .card {
+  margin-top: 10px;
+}
+
+/* First/Previous and Next/Last stay paired when the row wraps. */
+.pager-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Wide enough for four digits — past that there is no page to reach. */
+.pager-input {
+  width: 4.5em;
+  height: 28px;
+  padding: 0 6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pager-status {
+  font-size: 13px;
+  color: var(--text-2, var(--text));
+  font-variant-numeric: tabular-nums;
+}
+
+/* Secondary to the range, which is what someone actually scans for. */
+.pager-page {
+  color: var(--text-3, var(--text-2, var(--text)));
+}
+
+/* ---------- Import progress ---------- */
+
+.import-progress {
+  border: 1px solid var(--brand-300, var(--border-strong, var(--border)));
+  border-radius: var(--radius-md);
+  background: var(--brand-50, var(--surface-2));
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.import-progress-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.import-progress-spinner {
+  flex: none;
+  margin-top: 2px;
+  color: var(--brand-600, var(--text-primary));
+}
+
+.import-progress-headings {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.import-progress-title {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.import-progress-detail {
+  font-size: 13px;
+  color: var(--text-secondary, var(--text-primary));
+  line-height: 1.5;
+}
+
+/* Tabular figures so the seconds ticking over does not shift the layout. */
+.import-progress-clock {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.import-progress-elapsed {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.import-progress-elapsed-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, var(--text-primary));
+}
+
+.import-progress-track {
+  position: relative;
+  height: 4px;
+  margin: 14px 0 10px;
+  border-radius: 999px;
+  background: var(--gray-200, var(--border));
+  overflow: hidden;
+}
+
+/* Indeterminate: the bar sweeps rather than fills, because there is no real
+   percentage to report. */
+.import-progress-bar {
+  position: absolute;
+  inset-block: 0;
+  width: 35%;
+  border-radius: 999px;
+  background: var(--brand-600, var(--text-primary));
+  animation: import-sweep 1.5s ease-in-out infinite;
+}
+
+@keyframes import-sweep {
+  0% {
+    left: -35%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.import-progress-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12.5px;
+  color: var(--text-secondary, var(--text-primary));
+}
+
+.import-progress-steps {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-secondary, var(--text-primary));
+}
+
+.import-progress-note,
+.import-progress-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.import-progress-note {
+  color: var(--text-secondary, var(--text-primary));
+}
+
+.import-progress-warning {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-50, var(--surface-2));
+  color: var(--warning-700, var(--text-primary));
+}
+
+.import-progress-warning svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Motion-sensitive users get the information without the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .import-progress-bar {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.5;
+  }
+
+  .import-progress-spinner {
+    animation: none;
+  }
+}
+
+/* A dropzone that will not accept a file right now — during an import, when
+   swapping the file is exactly the mistake being guarded against. */
+.dropzone.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ---------- Bulk import ---------- */
+
+/* Paste area beside its controls: the list is the work, the reason and the
+   buttons are the frame around it. */
+.bulk-import-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.bulk-import-paste {
+  min-width: 0;
+}
+
+/* Monospace so order and tracking numbers line up column-wise and a mistyped
+   row is visible as a ragged edge. */
+.bulk-import-textarea {
+  width: 100%;
+  min-height: 240px;
+  padding: 10px 12px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.bulk-import-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.bulk-import-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bulk-import-actions .btn {
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .bulk-import-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Monitoring board ---------- */
+
+.monitor-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.monitor-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface, var(--surface-2));
+}
+
+/* A left edge rather than a fill: the number stays the loudest thing on the
+   tile, and six filled tiles in a row read as an alarm when most are fine. */
+.monitor-tile-good {
+  border-left: 3px solid var(--success-500, var(--border-strong));
+}
+.monitor-tile-warn {
+  border-left: 3px solid var(--warning-500, var(--border-strong));
+}
+.monitor-tile-bad {
+  border-left: 3px solid var(--error-500, var(--border-strong));
+}
+
+/* ---------- Inspection result ---------- */
+
+/* What the warehouse found in a returned parcel. Sits directly above the
+   composer, because it is what decides the composer's contents.
+
+   Reuses the workspace's own controls rather than inventing any: the mode
+   switch is .filter-chip, the same pill row the queue filters use, and the
+   parts are .badge in the three tones the rest of the product already reads
+   as fine / careful / wrong. */
+.findings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  /* Queried below. Sized against this panel rather than the viewport for the
+     reason .task-toolbar documents: the pane's width depends on the sidebar
+     and the task list, so a wider window can leave this narrower than a
+     smaller one does. */
+  container-type: inline-size;
+  container-name: findings;
+}
+
+.findings-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+/* The state and the button that changes it, kept together at the end of the
+   title row.
+
+   The button used to sit on a row of its own at the foot of the panel, which
+   put it a long way from the fields on a wide pane and moved it every time
+   the panel grew a group. Here it is always in the same place, next to the
+   badge saying whether anything has been recorded — which is exactly what
+   pressing it changes. */
+.findings-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.findings-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+/* The recorded result, shown back as the groups themselves rather than as a
+   count. This is the last point at which a part in the wrong group can be
+   caught before it reaches a customer in writing, so it has to be readable
+   at a glance rather than something to go and verify elsewhere. */
+.findings-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-subtle, var(--bg-page));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Where there is money to show, the readout splits: what came back on the
+   left, what it came to on the right. Stacked, the figure sat under a row of
+   chips with the panel width empty beside both.
+
+   Stated as a compound so it beats the plain rule above whatever the source
+   order — a result block with no money keeps that column stack, which is
+   what the exchange panel needs for its three groups. */
+.findings-result.findings-cols {
+  display: grid;
+}
+
+/* Label above its chips, not beside them: a fixed label column would either
+   crowd the chips on a narrow pane or strand them on a wide one. */
+.findings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.findings-group-label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.findings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* Taller than a bare badge and able to wrap, because these carry a full part
+   name rather than a one-word status. */
+.findings-chip {
+  /* inline-block, not the badge's inline-flex: a part name is a sentence
+     fragment that has to wrap inside the chip, and flex items do not wrap
+     within themselves. */
+  display: inline-block;
+  height: auto;
+  min-height: 22px;
+  padding: 3px 9px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+/* The SKU rides with the name, quieter than it: the name is what a customer
+   recognises, the SKU is what support matches to a line on the order. */
+.findings-chip-sku {
+  margin-left: 6px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.findings-chip-qty {
+  margin-left: 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The one rule of this feature, stated where it is being applied rather than
+   left for somebody to remember. */
+.findings-refund {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.findings-refund svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+}
+
+/* Two questions side by side when there is room for two, one below the other
+   when there is not.
+ *
+   auto-fit rather than a fixed pair: with only one child the empty track
+   collapses and the child takes the whole width, which is what a panel with
+   nothing to report in its second column needs. A fixed 1fr 1fr would leave
+   half the panel blank — the thing this layout exists to stop. */
+.findings-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 12px 22px;
+  align-items: start;
+}
+
+.findings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  /* Queried, so the fields inside react to the column they are actually in.
+     Sized against the panel they were still full width at 865px while sitting
+     in a 405px track, and stacked their labels only once the whole panel got
+     narrow — which on a wide pane never happened. */
+  container-type: inline-size;
+  container-name: findings;
+}
+
+/* A label and its control on one line, with the labels aligned down the
+   column so the pair reads as a form rather than as loose fields. */
+.findings-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.findings-field-label {
+  flex: 0 0 104px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* basis 0, not auto: .input carries width 100%, which as a flex basis is the
+   whole row — so the box wrapped under its own label however much room was
+   left beside it. */
+.findings-field .input {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+
+/* An amount is at most eight characters. Left to grow it took the whole
+   panel, which made a two-figure form look like a page of text boxes. */
+.findings-field .findings-money-input,
+.findings-money-input {
+  flex: 0 0 auto;
+  width: 104px;
+}
+
+/* A SKU list is short too, but long enough to want room — capped rather than
+   sized, so it fills a narrow column and stops well before the far edge of a
+   wide one. */
+.findings-sku-input {
+  max-width: 420px;
+}
+
+/* Everything past the label, wrapping inside its own box so a second row of
+   controls lines up under the first rather than under the label. */
+.findings-field-controls {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The figure the panel is about to record, beside the boxes that decide it.
+   Given the weight of a total rather than of another line of the working:
+   this is the number that gets paid, and everything above it is how it was
+   reached. */
+.findings-total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--bg-subtle, var(--bg-page));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.findings-total-value {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.findings-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.findings-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Grows with what is pasted, within reason: one kit is one line, and an
+   order with three is three. Fixed at one row it hid everything but the
+   last; unbounded it would push the composer off the screen. */
+.findings-textarea {
+  min-height: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* Sign in to ShipStation */
+
+.shipstation-steps {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.shipstation-steps a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shipstation-paste {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+/* The format as an example rather than as placeholder text. A placeholder
+   long enough to show the whole shape is a placeholder that gets clipped,
+   and it disappears the moment an agent starts typing — which is exactly
+   when they are still reading it. */
+.findings-format {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.findings-format code {
+  font-size: 11px;
+  word-break: break-word;
+  color: var(--text-tertiary);
+}
+
+/* The amount carried on the button that spends it. Quieter than the label so
+   it reads as a fact about the action rather than as a second action. */
+.btn-amount {
+  margin-left: 2px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle, var(--bg-page));
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.field-hint {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+/* The order's own parts, offered as one click each. Retyping a SKU out of the
+   panel above is exactly how a digit gets transposed into a customer's
+   email. */
+/* The subtraction that produced the refund, above the figure itself. An
+   agent about to pay somebody should be able to see the working, not just
+   the answer. */
+/* No rule above it any more: it sits in its own column beside the parts
+   rather than under them, and a border there would cut the column in half
+   for no reason. */
+.findings-working {
+  margin: 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* The same sum before it is recorded, from the order on screen. */
+.findings-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.findings-sum-note {
+  font-size: 11.5px;
+  font-variant-numeric: normal;
+  color: var(--text-tertiary);
+}
+
+.findings-shipping {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.findings-shipping .input {
+  width: 110px;
+}
+
+/* The markups, as one group rather than three loose chips: they are three
+   answers to a single question, and a shared 8px gap with the box beside
+   them made ×1.25 read as belonging to the input. */
+.findings-multipliers {
+  display: flex;
+  gap: 4px;
+}
+
+/* The typed figure, shown beside the box while a markup is applied. Tabular
+   because it changes under the reader's eye as the chips are pressed, and
+   digits that shift sideways while they change are hard to compare. */
+.findings-shipping .findings-sum-note {
+  font-variant-numeric: tabular-nums;
+}
+
+.findings-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-subtle, var(--bg-page));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* SKU and its price on one row, the price column aligned down the list so a
+   mistyped figure stands out. */
+.findings-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.findings-price-sku {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.findings-price .input {
+  width: 120px;
+  flex: 0 0 auto;
+}
+
+.findings-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.findings-suggest-label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-right: 2px;
+}
+
+.findings-suggest-chip {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.findings-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
+/* Wraps into columns on a wide pane and stacks on a narrow one, rather than a
+   fixed count that leaves one part per line beside empty space. */
+.findings-skus {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 2px 16px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.findings-sku {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.findings-sku:hover {
+  background: var(--bg-subtle, var(--bg-page));
+  color: var(--text-primary);
+}
+
+.findings-sku input {
+  flex: 0 0 auto;
+}
+
+/* The part name takes the room; the code trails it and never pushes it out. */
+.findings-sku-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.findings-sku-code {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+/* The consequence sits beside the button that causes it, so nobody has to
+   discover that recording rewrites what they may already have edited. */
+.findings-actions-note {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Except when the consequence is that a part cannot ship, which is not a
+   caption but the one thing on this panel somebody has to act on. */
+.findings-actions-note.is-warning {
+  font-weight: 600;
+  color: var(--error-600);
+}
+
+
+/* The warehouse's answer, under the box that asked it. One line per part:
+   an agent typing three SKUs needs to see which of the three is the problem,
+   not that there is one somewhere. */
+.exchange-stock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.exchange-stock-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.exchange-stock-line svg {
+  flex: 0 0 auto;
+}
+
+/* In stock is the expected answer and stays quiet — it is confirmation, not
+   news. Out of stock is the only line here anybody has to act on. */
+.exchange-stock-line.is-in {
+  color: var(--text-tertiary);
+}
+
+.exchange-stock-line.is-out {
+  font-weight: 600;
+  color: var(--error-600);
+}
+
+/* A check that could not be made says so. Reading as in stock would be a
+   confident wrong answer, and reading as out of stock would send an agent
+   hunting for a part that is on the shelf. */
+.exchange-stock-line.is-checking,
+.exchange-stock-line.is-unknown {
+  color: var(--text-tertiary);
+}
+
+/* Thin but not empty: the headline is still "in stock", so this stays a
+   warning rather than the red that out-of-stock gets. */
+.exchange-stock-line.is-low {
+  font-weight: 600;
+  color: var(--warning-700);
+}
+
+/* A kit's parts are listed, not summed — one wide line so the breakdown has
+   room, instead of competing for width with the other SKUs on the row. */
+.exchange-stock-line.is-kit {
+  flex-basis: 100%;
+  align-items: flex-start;
+  gap: 3px 10px;
+  color: var(--text-tertiary);
+}
+
+.exchange-stock-line.is-kit.is-low {
+  color: var(--warning-700);
+}
+
+.exchange-stock-kit-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.exchange-stock-kit-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  margin-left: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.exchange-stock-kit-part.is-low {
+  color: var(--warning-700);
+  font-weight: 600;
+}
+
+/* The label column collapses before the inputs do: a 104px column beside a
+   box narrow enough to hide what is being typed helps nobody. Measured
+   against the track the field sits in, which on a wide panel is about 400px
+   — so this is the width at which a label and a box genuinely stop fitting
+   side by side, not the width of the panel around them. */
+@container findings (max-width: 300px) {
+  .findings-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .findings-field-label {
+    flex: 0 0 auto;
+  }
+
+  .findings-money-input {
+    width: auto;
+    flex: 1 1 auto;
+  }
+}
+
+.monitor-tile-value {
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+/* The unit rides the number rather than sitting beside it, so "7d" reads as
+   one value and still lines up with the plain counts either side of it. */
+.monitor-tile-suffix {
+  font-size: 15px;
+  font-weight: 500;
+  margin-left: 1px;
+  color: var(--text-secondary);
+}
+
+.monitor-tile-label {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.monitor-hours.open {
+  border-color: var(--success-300, var(--border));
+}
+
+.monitor-section-hint {
+  margin: -4px 0 12px;
+  font-size: 12.5px;
+}
+
+/* --- background loops --- */
+
+.monitor-pulses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.monitor-pulse {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.monitor-pulse-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--text-placeholder);
+}
+
+.monitor-pulse-dot.alive {
+  background: var(--success-500, var(--text-primary));
+  animation: monitor-beat 2s ease-in-out infinite;
+}
+
+@keyframes monitor-beat {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.monitor-pulse-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.monitor-pulse-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+}
+
+.monitor-pulse-state,
+.monitor-pulse-summary {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.monitor-pulse-error {
+  font-size: 12px;
+  color: var(--error-600, var(--text-primary));
+}
+
+/* --- wait groups --- */
+
+.monitor-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+/* Buttons, because picking one filters the board below. */
+.monitor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.monitor-group:hover {
+  border-color: var(--border-strong);
+}
+
+.monitor-group.active {
+  border-color: var(--brand-500, var(--text-primary));
+  background: var(--brand-50, var(--surface-2));
+}
+
+.monitor-group.has-trouble {
+  border-left: 3px solid var(--warning-500, var(--border-strong));
+}
+
+.monitor-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.monitor-group-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.monitor-group-count {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor-group-waiting,
+.monitor-group-oldest {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.monitor-group-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.monitor-flag {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.monitor-flag.good {
+  background: var(--success-50, var(--surface-2));
+  color: var(--success-700, var(--text-primary));
+}
+.monitor-flag.warn {
+  background: var(--warning-50, var(--surface-2));
+  color: var(--warning-700, var(--text-primary));
+}
+.monitor-flag.bad {
+  background: var(--error-50, var(--surface-2));
+  color: var(--error-700, var(--text-primary));
+}
+.monitor-flag.muted {
+  background: var(--surface-2, var(--bg-app));
+  color: var(--text-secondary);
+}
+
+/* --- the waiting board --- */
+
+.monitor-board-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.monitor-board-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.monitor-search {
+  min-width: 240px;
+}
+
+.monitor-table td {
+  vertical-align: top;
+}
+
+.monitor-cell-main {
+  display: block;
+}
+
+.monitor-cell-sub {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* The reason column is the one worth reading, but it is also the longest, so
+   it is capped rather than allowed to set the row height for the whole table. */
+.monitor-why {
+  max-width: 380px;
+}
+
+.monitor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.monitor-status-good {
+  background: var(--success-50, var(--surface-2));
+  color: var(--success-700, var(--text-primary));
+}
+.monitor-status-warn {
+  background: var(--warning-50, var(--surface-2));
+  color: var(--warning-700, var(--text-primary));
+}
+.monitor-status-bad {
+  background: var(--error-50, var(--surface-2));
+  color: var(--error-700, var(--text-primary));
+}
+.monitor-status-muted {
+  background: var(--surface-2, var(--bg-app));
+  color: var(--text-secondary);
+}
+
+.monitor-row-bad td {
+  background: color-mix(in srgb, var(--error-50, transparent) 40%, transparent);
+}
+.monitor-row-warn td {
+  background: color-mix(in srgb, var(--warning-50, transparent) 30%, transparent);
+}
+
+/* --- feeds --- */
+
+.monitor-feeds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.monitor-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.monitor-feed-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.monitor-feed-row:last-child {
+  border-bottom: none;
+}
+
+/* Fixed width so the timestamps form a column the eye can run down. */
+.monitor-feed-time {
+  flex: none;
+  width: 62px;
+  color: var(--text-placeholder);
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor-feed-ref {
+  color: var(--text-primary);
+}
+
+.monitor-feed-outcome {
+  color: var(--text-secondary);
+}
+
+.monitor-feed-detail {
+  flex-basis: 100%;
+  padding-left: 70px;
+  color: var(--text-placeholder);
+  font-size: 11.5px;
+}
+
+.monitor-feed-row.not-ok .monitor-feed-outcome {
+  color: var(--error-600, var(--text-primary));
+}
+.monitor-tone-good .monitor-feed-outcome {
+  color: var(--success-700, var(--text-primary));
+}
+.monitor-tone-bad .monitor-feed-outcome {
+  color: var(--error-600, var(--text-primary));
+}
+
+.monitor-chip {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--surface-2, var(--bg-app));
+  color: var(--text-secondary);
+}
+
+.monitor-chip-carrier {
+  background: var(--brand-50, var(--surface-2));
+  color: var(--brand-700, var(--text-primary));
+}
+.monitor-chip-inspection {
+  background: var(--success-50, var(--surface-2));
+  color: var(--success-700, var(--text-primary));
+}
+.monitor-chip-deposco {
+  background: var(--warning-50, var(--surface-2));
+  color: var(--warning-700, var(--text-primary));
+}
+
+/* Live toggle: the icon pulses only while it is actually refreshing. */
+.btn-live {
+  border-color: var(--success-400, var(--border-strong));
+}
+
+.monitor-live-icon {
+  animation: monitor-beat 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monitor-pulse-dot.alive,
+  .monitor-live-icon {
+    animation: none;
+  }
+}
+
+/* ---------- On-demand vendor checks (task page) ---------- */
+
+/* Smaller than btn-sm: these sit inside a fact tile beside the value they
+   act on, so they must not out-weigh the tracking number itself. */
+.btn-xs {
+  height: 26px;
+  padding: 0 8px;
+  gap: 5px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+}
+
+/* Used on the admin task page only. That column measures ~200px, which is not
+   enough for two labelled buttons side by side — they wrapped, which reads as
+   a mistake rather than a choice. Stacked full-width instead, so the group
+   looks deliberate and the labels stay unambiguous.
+
+   The agent workspace does not use this at all: there the same two actions sit
+   in the full-width action row beside Open inspection (see .task-info-action),
+   which is where they belong anyway. */
+.task-fact-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.task-fact-actions .btn {
+  justify-content: flex-start;
+}
+
+/* The fact tile styles every span as an uppercase micro-label; the button
+   text inside these must not inherit that. */
+.task-fact-actions .btn span,
+.task-fact-actions .btn {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: inherit;
+}
+
+/* ---------- Bulk send ---------- */
+
+/* Shares the import-progress silhouette on purpose — same page furniture,
+   same "something is running" read — but its bar fills for real, because a
+   run of N tasks genuinely knows which one it is on. */
+.bulk-send {
+  border: 1px solid var(--brand-300, var(--border-strong, var(--border)));
+  border-radius: var(--radius-md);
+  background: var(--brand-50, var(--surface-2));
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.bulk-send-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bulk-send-head > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--brand-600, var(--text-primary));
+}
+
+.bulk-send-done-icon {
+  color: var(--success-700, var(--text-primary));
+}
+
+.bulk-send-headings {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.bulk-send-title {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-send-detail {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary, var(--text-primary));
+  overflow-wrap: anywhere;
+}
+
+.bulk-send-track {
+  height: 4px;
+  margin: 14px 0 10px;
+  border-radius: 999px;
+  background: var(--gray-200, var(--border));
+  overflow: hidden;
+}
+
+.bulk-send-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand-600, var(--text-primary));
+  /* Eased rather than instant so a fast run still reads as movement, but
+     short enough that the bar never lags behind the count beside it. */
+  transition: width 220ms ease-out;
+}
+
+.bulk-send-tallies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, var(--text-primary));
+}
+
+.bulk-send-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bulk-send-tally.sent {
+  color: var(--success-700, var(--text-primary));
+}
+
+.bulk-send-tally.failed {
+  color: var(--error-700, var(--text-primary));
+}
+
+.bulk-send-warning {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.6;
+  background: var(--warning-50, var(--surface-2));
+  color: var(--warning-700, var(--text-primary));
+}
+
+.bulk-send-report {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.bulk-send-report-title {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.bulk-send-report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* A run of 200 can produce a long tail of skips; it scrolls in place
+     rather than pushing the table off the screen. */
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.bulk-send-report-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 5px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
+
+.bulk-send-report-row:last-child {
+  border-bottom: 0;
+}
+
+.bulk-send-report-ref {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-primary);
+}
+
+.bulk-send-report-order {
+  color: var(--text-secondary, var(--text-primary));
+}
+
+.bulk-send-report-reason {
+  flex: 1;
+  min-width: 180px;
+  color: var(--text-secondary, var(--text-primary));
+}
+
+.bulk-send-report-row.failed .bulk-send-report-reason {
+  color: var(--error-700, var(--text-primary));
+}
+
+.bulk-send-report-note {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-secondary, var(--text-primary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulk-send-bar {
+    transition: none;
+  }
+}
+
+/* ---- Check stock ------------------------------------------------------- */
+
+.stock-check {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stock-check-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stock-check-form .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.stock-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The one thing an agent reads before anything else, so it carries the colour
+   and everything below it stays neutral. */
+.stock-verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.stock-verdict.is-good {
+  background: var(--success-soft, rgba(25, 158, 112, 0.12));
+  border-color: var(--success, #199e70);
+  color: var(--success, #199e70);
+}
+
+.stock-verdict.is-bad {
+  background: var(--danger-soft, rgba(217, 89, 38, 0.12));
+  border-color: var(--danger, #d95926);
+  color: var(--danger, #d95926);
+}
+
+.stock-verdict strong {
+  display: block;
+  font-size: 15px;
+}
+
+.stock-verdict-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.stock-note,
+.stock-checked-at {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.stock-note.is-low {
+  color: var(--warning-700);
+}
+
+.stock-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stock-part {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2, transparent);
+}
+
+.stock-part.is-bad {
+  border-color: var(--danger, #d95926);
+}
+
+.stock-part.is-low {
+  border-color: var(--warning-500);
+}
+
+.stock-part-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stock-part-sku {
+  font-weight: 600;
+}
+
+.stock-part-item,
+.stock-part-name,
+.stock-part-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.stock-part-head .badge {
+  margin-left: auto;
+}
+
+.stock-part-name {
+  margin-top: 2px;
+}
+
+.stock-part-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.stock-part-note.is-low {
+  color: var(--warning-700);
+}
+
+.stock-part-bins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.stock-bin {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface-3, rgba(127, 127, 127, 0.12));
+  color: var(--text-secondary);
+}
+
+.stock-bin.is-more {
+  color: var(--text-tertiary);
+}
+
+/* On a task the panel sits among several others, so it stacks rather than
+   competing for the width the composer needs. */
+.stock-check.is-compact .stock-check-form {
+  flex-wrap: wrap;
+}
+
+.stock-check.is-compact .stock-verdict {
+  padding: 10px 12px;
+}
+
+/* The chosen mode's explanation, riding on the chip row rather than taking a
+   row of its own. Quiet, and the first thing to drop to a second line when
+   the chips need the width. */
+.findings-mode-hint {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
+/* The pipeline's own working, above the panels that record the answer.
+   Marked off by a coloured rail rather than a different card, because it is
+   the same kind of thing as the panels below it — a reading of this task —
+   and only the author differs. */
+.bot-review {
+  border-left: 3px solid var(--brand-solid);
+}
+
+/* Problems come first and read as an instruction, not a footnote: they are
+   the reason this one was not simply prepared. */
+.bot-problems {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 13px;
+  background: var(--error-50);
+  border: 1px solid var(--error-100);
+  border-radius: var(--radius-md);
+}
+
+.bot-problems ul,
+.bot-factors ul,
+.bot-trail ul {
+  margin: 0;
+  padding-left: 17px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.bot-problems li { color: var(--error-700); }
+
+.bot-factors li,
+.bot-trail li { margin-bottom: 2px; }
+
+.bot-trail a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brand-solid);
+}
+
+.bot-trail-meta {
+  list-style: none;
+  margin-left: -17px;
+  padding-top: 5px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+/* The note line, as the fixed-width string an agent will paste. Wraps rather
+   than scrolls: it is read to be checked, not just carried. */
+.bot-note-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.bot-note-line code {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 7px 9px;
+  background: var(--bg-subtle, var(--bg-page));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* The sentence a fee was read out of, quoted. "From the note" is not
+   checkable; the note is. */
+.bot-evidence {
+  margin: 4px 0 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--border);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+/* The pipeline's own panel: what a pass is doing now, what it concluded, and
+   how it got there. Same rail as before — it is a reading of the task like
+   the panels below it, and only the author differs. */
+.pipeline-panel {
+  border-left: 3px solid var(--brand-solid);
+}
+
+/* A live claim leads the panel, because "something is mid-flight" changes
+   what an agent should do next and no detail below matters until that is
+   known. Tinted rather than bordered: it comes and goes on its own, and a
+   box that appears and disappears makes the panel jump. */
+.pipeline-working {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 9px;
+  padding: 9px 12px;
+  background: var(--brand-50, var(--bg-subtle));
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.pipeline-working svg { flex: 0 0 auto; color: var(--brand-solid); }
+
+.pipeline-working-meta {
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+.pipeline-log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+}
+
+.pipeline-log-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pipeline-log-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--brand-solid);
+  cursor: pointer;
+}
+
+.pipeline-log-toggle:hover { text-decoration: underline; }
+
+/* One line per note, the timestamp in a fixed column so the run reads as a
+   sequence rather than as a paragraph. Scrolls once it is long: the whole
+   run matters exactly when something went wrong, and then somebody will
+   read all of it. */
+.pipeline-log-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.pipeline-log-lines li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  color: var(--text-secondary);
+}
+
+.pipeline-log-at {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+/* The stage that produced the line, so a long run can be skimmed by stage
+   instead of read line by line. */
+.pipeline-log-step {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--bg-subtle, var(--bg-page));
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--text-tertiary);
+}
+
+.pipeline-log-text { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+
+.pipeline-log-lines li.is-warn .pipeline-log-text { color: var(--warning-700); }
+.pipeline-log-lines li.is-error .pipeline-log-text {
+  font-weight: 600;
+  color: var(--error-600);
+}
+
+/* Which table a refund lands in. Presented as a choice between two things
+   rather than a dropdown, because it changes every field below it — and
+   because the two are easy to confuse by name and hard to confuse when each
+   says what it is for. */
+.refund-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: 8px;
+}
+
+.refund-kind {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  text-align: left;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+
+.refund-kind:hover { border-color: var(--border-strong, var(--brand-solid)); }
+
+.refund-kind.active {
+  border-color: var(--brand-solid);
+  background: var(--brand-50, var(--bg-subtle));
+}
+
+.refund-kind-label {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.refund-kind-hint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+/* Said before the fields, not beside the button: a refund that cannot be filed
+   yet is a different thing from one that can, and the agent should know which
+   form they are filling in before they fill it in. */
+.refund-deferred {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 13px;
+  background: var(--warning-50);
+  border: 1px solid var(--warning-100);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--warning-700);
+}
+
+.refund-deferred svg { flex: 0 0 auto; margin-top: 1px; }
+
+.refund-kind:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* The follow-up's own provenance. Same shape as the deferral notice it is the
+   other half of — one says "not yet", this one says "now, and here is what
+   was already decided". */
+.refund-parked {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 13px;
+  background: var(--brand-50, var(--bg-subtle));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.refund-parked svg { flex: 0 0 auto; margin-top: 1px; color: var(--brand-solid); }
+
+/* ---------- The calls desk ----------
+ *
+ * Three surfaces over one payload block: the panel a calls agent works, the
+ * answer everybody else reads afterwards, and the question a follow-up agent
+ * writes when handing it over.
+ *
+ * The panel is the whole of the calls agent's job — there is nothing else on
+ * the page for them to do — so it takes a rule down its edge that no other
+ * panel has. The answer is the opposite: quiet, and read in passing on the
+ * way to finishing the follow-up. */
+
+.calls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand-solid);
+  border-radius: var(--radius-lg);
+  /* Sized against the panel, not the viewport: the pane's width depends on
+     the sidebar and the task list, so a wider window can leave this narrower
+     than a smaller one does. Same reasoning as .findings-panel. */
+  container-type: inline-size;
+  container-name: calls;
+}
+
+.calls-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.calls-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.calls-panel-title svg { color: var(--brand-solid); }
+
+.calls-panel-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The question. Set larger than anything around it because it is the only
+   thing the agent has in front of them once the customer picks up — reading
+   it should not mean finding it first. */
+.calls-quote {
+  margin: 0;
+  padding: 11px 14px;
+  background: var(--brand-25, var(--bg-subtle));
+  border: 1px solid var(--brand-100, var(--border));
+  border-radius: var(--radius-md);
+}
+
+.calls-quote p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 550;
+  color: var(--text-primary);
+  text-wrap: pretty;
+}
+
+.calls-quote footer {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Phone first and in the mono face: it is about to be dialled, and a number
+   the eye has to re-read is a number mis-dialled. */
+.calls-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calls-contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: 13px;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+a.calls-contact-link:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.calls-contact-link svg { color: var(--text-tertiary); flex: 0 0 auto; }
+
+/* Still a link when the desk may not ring it — the customer can call back,
+   and the number is worth having either way. */
+.calls-contact-link.is-muted { opacity: .7; }
+
+.calls-contact-link.is-empty {
+  color: var(--text-tertiary);
+  background: none;
+  border-style: dashed;
+}
+
+/* Recording an attempt and reading the ones already made, side by side: the
+   log is what tells you whether to try again, so it belongs next to the
+   control that does rather than below the fold. */
+.calls-work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px 18px;
+}
+
+.calls-work-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.calls-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.calls-kinds,
+.calls-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calls-kind,
+.calls-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.calls-outcome { padding: 5px 9px; font-size: 12.5px; }
+
+.calls-kind:hover:not(:disabled),
+.calls-outcome:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.calls-kind.is-picked,
+.calls-outcome.is-picked {
+  border-color: var(--brand-400, var(--brand-700));
+  background: var(--brand-50);
+  color: var(--brand-800);
+  font-weight: 550;
+}
+
+.calls-kind:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.calls-next-day {
+  font-size: 12.5px;
+  align-items: flex-start;
+}
+
+.calls-next-day em {
+  font-style: normal;
+  color: var(--text-tertiary);
+}
+
+.calls-record { align-self: flex-start; }
+
+.calls-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.calls-attempts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calls-attempt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.calls-attempt-icon {
+  display: inline-flex;
+  align-self: center;
+  color: var(--text-tertiary);
+  flex: 0 0 auto;
+}
+
+.calls-attempt.is-email .calls-attempt-icon { color: var(--brand-400, var(--brand-600)); }
+
+.calls-attempt-body { flex: 1; min-width: 0; color: var(--text-primary); }
+
+.calls-attempt-note { color: var(--text-secondary); }
+
+.calls-attempt-when {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The way out, kept together at the foot: whichever of the three is pressed,
+   the task leaves this desk. */
+.calls-back {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.calls-answer { resize: vertical; }
+
+.calls-back-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Last, and never mistakable for the two beside it — this one closes the
+   task outright rather than handing it back. */
+.calls-cancel { margin-left: auto; color: var(--error-600); }
+
+.calls-cancel:hover:not(:disabled) {
+  background: var(--error-50);
+  color: var(--error-700);
+}
+
+/* Narrow pane: the log goes under the control that writes to it. */
+@container calls (width < 520px) {
+  .calls-work { grid-template-columns: minmax(0, 1fr); }
+  .calls-cancel { margin-left: 0; }
+}
+
+/* ---------- What the desk found ----------
+ *
+ * Read by whoever picks the task up next, so it carries the answer and
+ * nothing else. Quieter than the working panel and one shade off the page,
+ * because it is something already settled rather than something to act on. */
+
+.calls-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 14px;
+  margin-bottom: 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.calls-result-head {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.calls-result-head svg { color: var(--text-tertiary); }
+
+/* The sentence the whole detour was for. */
+.calls-result-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  text-wrap: pretty;
+}
+
+.calls-result-text.is-empty { color: var(--text-secondary); }
+
+.calls-result-meta {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Asking for a call ---------- */
+
+.calls-ask-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Full-width rows, not wrapped chips: these are sentences, and a sentence
+   broken across a chip boundary cannot be read at a glance. */
+.calls-ask-suggestion {
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--gray-800);
+  text-align: left;
+  cursor: pointer;
+}
+
+.calls-ask-suggestion:hover { background: var(--gray-100); }
+
+.calls-ask-suggestion.is-picked {
+  border-color: var(--brand-400, var(--brand-700));
+  background: var(--brand-50);
+  color: var(--brand-800);
+  font-weight: 500;
+}
+
+.calls-ask-input { resize: vertical; }
+
+/* Nothing tried yet: the log is one line, so the controls take the width
+   instead of wrapping their chips beside an empty column. */
+.calls-work.is-fresh { grid-template-columns: minmax(0, 1fr); }
+
+.calls-work.is-fresh .calls-work-col:last-child {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* A question with the calls desk. Recedes, because it is in this queue to be
+   found rather than to be worked — the row is a whereabouts, not a job. */
+.queue-card.at-calls .queue-card-purpose { color: var(--text-secondary); }
+.queue-card.at-calls:not(.active) { opacity: .82; }

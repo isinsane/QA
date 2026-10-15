@@ -1,0 +1,3329 @@
+/* App shell, sidebar, topbar, and page-level layouts. */
+
+/* ---------- Shell ---------- */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  height: 100%;
+  background: var(--bg-app);
+}
+
+.shell.shell-nosidebar {
+  grid-template-columns: 1fr;
+}
+
+.shell-main {
+  display: grid;
+  grid-template-rows: var(--topbar-height) 1fr;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell-content {
+  overflow: auto;
+  min-height: 0;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--topbar-height);
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.brand-mark-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand-sub {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-section-label {
+  padding: 16px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-placeholder);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+}
+
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-weight: 600;
+}
+
+.nav-item.active .nav-icon {
+  color: var(--brand-600);
+}
+
+.nav-icon {
+  display: grid;
+  place-items: center;
+  color: var(--gray-400);
+  flex-shrink: 0;
+  transition: color var(--transition);
+}
+
+.nav-item:hover .nav-icon {
+  color: var(--gray-600);
+}
+
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-count {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nav-item.active .nav-count {
+  background: var(--brand-100);
+  color: var(--brand-700);
+}
+
+.nav-count.urgent {
+  background: var(--error-50);
+  color: var(--error-700);
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sidebar-version {
+  margin-top: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-tertiary);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition);
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+}
+
+.user-card:hover {
+  background: var(--bg-hover);
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.user-name,
+.user-role {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.user-role {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Topbar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* Page links for a role with no sidebar but more than one page to reach
+   (special_agent) — the topbar's stand-in for a nav rail. */
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.topbar-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.topbar-nav-link:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.topbar-nav-link.active {
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+.topbar-search {
+  flex: 1;
+  max-width: 420px;
+  margin-left: 8px;
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.online-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.online-toggle:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.online-toggle .online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-400);
+}
+
+.online-toggle.online {
+  border-color: var(--success-100);
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+.online-toggle.online .online-dot {
+  background: var(--success-600);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-600) 18%, transparent);
+}
+
+/* Past the ~16h a pasted ShipStation session is trusted — see
+   shipStationSessionState. Same warning tone as the low-stock badges. */
+.shipstation-status.is-stale {
+  border-color: var(--warning-100);
+  background: var(--warning-50);
+  color: var(--warning-700);
+}
+
+/* Task workspace (queue detail) */
+
+.task-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg-app);
+}
+
+.task-view-empty {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  grid-template-columns: 1fr;
+}
+
+.task-center {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+
+/* The action row grows with the task: a Return & Exchange task on a
+   refundable platform carries six buttons, and they do not shrink. Without
+   wrapping, that row (~800px) outgrew the centre column at every window
+   size and — because the title block is min-width: 0 and the actions are
+   flex-shrink: 0 — the title was the thing that gave, collapsing to zero
+   width and wrapping one letter per line into a 200px-tall column. Let the
+   row wrap instead, and give the title a floor so it can never be the part
+   that collapses. */
+.task-toolbar {
+  /* A column of two rows — heading + buttons, then the sentence — rather
+     than one wrapping row. See the note above the markup: sharing a row is
+     what let a long sentence and a wider Done button reflow each other. */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.task-toolbar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+/* min-width: 0 so a long heading wraps inside its own half instead of
+   forcing the button row onto a second line. */
+.task-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.task-toolbar-title h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.task-toolbar-purpose {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+/* Must be allowed to shrink below its content width, or flex-wrap here
+   never engages: a flex-shrink: 0 row keeps its full ~800px and overflows
+   the column instead of wrapping its buttons onto a second line. */
+.task-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  /* Wider between clusters than within one, so the grouping reads without
+     needing dividers — which look wrong the moment a row wraps. */
+  gap: 8px 14px;
+  flex: 0 1 auto;
+  min-width: 0;
+  /* Keeps the buttons against the right edge on whichever line they land on.
+     The head's space-between only aligns items that share a line, so once
+     these wrap onto a line of their own they were falling back to the left
+     and sitting short of the edge — which is what made the header look
+     broken the moment Done grew into "Done and sent" and tipped the row
+     into wrapping. An auto margin has no free space to take when they fit
+     beside the heading, so this changes nothing in the common case. */
+  margin-left: auto;
+}
+
+/* Buttons wrap as clusters rather than individually, so a row never breaks
+   between "Already solved" and "Done". */
+.task-toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The two that end the follow-up stay together at the end of the row. */
+.task-toolbar-group.is-close {
+  margin-left: auto;
+}
+
+/* Sized for "Done and sent" even while it still reads "Done".
+
+   That label switches the moment a message goes out, and the 57px it gains
+   was enough to push the whole button row onto a second line — so pressing
+   Send grew the header by 32px and shoved the task underneath it down the
+   page, right as the agent was reading it. Holding the wider size from the
+   start means the switch costs nothing: no reflow, and no jump in where
+   Done sits for the next click. */
+.task-toolbar-group.is-close .btn-primary {
+  min-width: 140px;
+}
+
+/* Toolbar buttons are secondary chrome — the primary action on this screen
+   is Send in the composer below. Sizing them down to btn-sm keeps the whole
+   row on one line for every task type (the widest, a refundable Return &
+   Exchange, carries six) instead of wrapping into a header taller than the
+   draft it sits above. Applied here rather than as btn-sm on each call site
+   so a button added to this toolbar later inherits it. */
+.task-toolbar-actions .btn {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+/* Housekeeping (hold, flag, hand off, retype, ask calls) is reachable on
+   every task and used on few, so when the row runs out of width it drops to
+   icons and gives that width to the buttons that decide something. Only
+   this cluster: the middle one carries Check stock and Submit refund, and
+   the last one closes the task — an agent hunting for those should never
+   have to hover to find them, which is exactly the complaint that put Check
+   stock in this toolbar to begin with. Every one of these keeps a title, so
+   the tooltip still names it.
+
+   is-compact is set by useFittedToolbar, which measures whether the row
+   actually wrapped rather than guessing from a width. See the note there
+   for why a breakpoint could not do this. */
+.task-toolbar.is-compact .task-toolbar-group.is-utility .btn-label {
+  display: none;
+}
+
+.task-toolbar.is-compact .task-toolbar-group.is-utility .btn {
+  padding: 0 9px;
+}
+
+.task-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  /* No bottom padding: position: sticky measures "stuck" from the padding
+     edge, so 20px here left a permanent gap between the send bar and the
+     bottom of the pane — visible both mid-scroll and at true rest. The
+     bar's own 12px vertical padding is enough breathing room at the true
+     end of the column. */
+  padding: 12px 14px 0;
+}
+
+/* A scrolling flex column shrinks its children by default rather than
+   overflowing, which collapsed the message pane to 0 (it carries an explicit
+   min-height: 0, so nothing stopped it). Panels keep their natural height and
+   the column scrolls instead. */
+.task-scroll > * {
+  flex-shrink: 0;
+}
+
+.task-wh-callout {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.4fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.task-wh-action,
+.task-wh-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.task-wh-action span,
+.task-wh-notes span {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.task-wh-action strong {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.task-wh-notes strong {
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--text-primary);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.task-wh-notes-empty strong {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* Spans both columns, on its own row below action/notes — see the comment
+   at its call site for why, rather than a third grid column. */
+.task-wh-tracking {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.task-wh-tracking span {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.task-wh-tracking strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Missing Parts row.
+   The agent reads this before choosing what to send, so it sits at the top of
+   the pane and the decision cell (JORDAN ACTION) is the largest thing on it. */
+.sheet-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.sheet-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sheet-row-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.sheet-row-action {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--brand-200);
+  background: var(--brand-50);
+  min-width: 0;
+}
+
+.sheet-row-action-label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-700);
+}
+
+.sheet-row-action strong {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sheet-row-ref {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Free text gets the full width — the reading column is narrow enough that
+   putting a sentence in a grid cell wraps it to a sliver. */
+.sheet-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.sheet-row-text dd {
+  font-size: 14px;
+}
+
+.sheet-row-cells {
+  display: grid;
+  /* 120px so two identifiers still tile side by side in the ~350px reading
+     column; they are short enough not to need more. */
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.sheet-row-cells > div,
+.sheet-row-text > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sheet-row-cells dt,
+.sheet-row-text dt {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.sheet-row-cells dd,
+.sheet-row-text dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.4;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* An empty cell is information — the column existed and the warehouse left it
+   blank — so it stays visible but reads as quiet. */
+.sheet-row-cells > .is-empty dd,
+.sheet-row-text > .is-empty dd {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-style: italic;
+}
+
+.sheet-row-extras > summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.sheet-row-extras[open] > summary {
+  margin-bottom: 8px;
+}
+
+/* Missing-parts confirmation (On Rail + Partial Refund). Same card
+   treatment as .sheet-row — this is the one thing on those two task types
+   the agent actively fills in before sending, same role .deposco-row plays
+   for tracking-update tasks. */
+.missing-parts-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.missing-parts-onrail-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.missing-parts-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.missing-parts-input-row .input {
+  flex: 1;
+}
+
+.missing-parts-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Deposco headers + tracking-number picker (missing_tracking_update tasks).
+   Sits below the sheet row: that callout is the warehouse's raw row, this is
+   Deposco's resolved shipment data and the one thing on the page the agent
+   actively edits before sending. */
+.deposco-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.deposco-row-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.deposco-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.deposco-header-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deposco-header-head strong {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.deposco-header-prefix {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.deposco-tracking-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.deposco-tracking-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 7px 0;
+}
+
+.deposco-tracking-group:not(:last-child) {
+  border-bottom: 1px dashed var(--border);
+}
+
+.deposco-tracking-pending {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.deposco-tracking-parts {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.task-info {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  display: flex;
+  /* Wraps rather than crushing the table. The buttons beside it are
+     flex-shrink: 0, so every pixel the row was short came out of the facts
+     column — measured at 42px wide inside a 1100px window, where an order
+     number rendered one character to a line and the pane looked broken. */
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+  container-type: inline-size;
+  container-name: taskinfo;
+}
+
+
+/* The facts table. auto-fill so a wide column carries two pairs per line
+   and a narrow one falls to a single column, with no explicit breakpoint
+   to keep in sync. */
+.task-info-table {
+  /* A real basis, not auto: auto let this column give up all of its width to
+     the non-shrinking buttons beside it. 260px is about what a label column
+     plus an order number needs, and it is what makes the row wrap. */
+  flex: 1 1 260px;
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  /* min(320px, 100%) rather than a bare 320px: minmax's floor is a hard
+     minimum, so on a column narrower than the floor every row stayed 320px
+     wide and pushed a horizontal scrollbar out of the card. Clamping the
+     floor to the container's own width lets the single column shrink with
+     it instead. */
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  column-gap: 32px;
+  /* Queried by the rows below. Sized against this table rather than the
+     viewport for the reason .task-toolbar already documents: the pane's width
+     depends on the sidebar and the task list, so a wider window can leave
+     this column narrower than a smaller one does. */
+  container-type: inline-size;
+  container-name: taskfacts;
+}
+
+
+/* One row: a fixed label column so every label lines up — across both
+   halves of a two-up layout, not just within its own pair — and the value
+   takes whatever is left. minmax(0, 1fr) rather than 1fr so a long
+   unbroken value (an email, a UUID) wraps inside its cell instead of
+   forcing the column wider than its share. */
+.task-info-table > div {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The fixed label column costs 144px of every row. Below this there is not
+   enough left for a value: an order number starts breaking mid-string, three
+   or four characters to a line, and the pane reads as broken. Stack the label
+   above its value instead, which stays legible at any width. */
+@container taskfacts (max-width: 300px) {
+  .task-info-table > div {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+}
+
+.task-info-table dt {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.task-info-table dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow-wrap: break-word;
+}
+
+/* SKU and quantity trailing an item name — part of the value, not a label. */
+.task-row-sub {
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+/* Stacked at the card's top-right, out of the table's way. flex-shrink: 0
+   so the table gives up width first; stretch so both buttons match the
+   wider label rather than sitting ragged. */
+.task-info-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Same shape as the Open inspection link beside it, but neutral rather than
+   brand: these two ask a question, that one is the result worth opening, and
+   three equally loud controls in a row read as a toolbar with no priority. */
+/* Once the buttons have wrapped onto a line of their own they have the whole
+   width to share, so they sit side by side instead of becoming two
+   full-width bars stacked under the facts. */
+@container taskinfo (max-width: 460px) {
+  .task-info-actions {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+.task-info-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface, transparent);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.task-info-action:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.task-info-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .task-wh-callout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.task-info-inspect {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--brand-200);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.task-info-inspect:hover {
+  background: var(--brand-100);
+  color: var(--brand-800);
+}
+
+/* Label/value pairs on the standalone task page (/tasks/:id) and in Reports.
+   Nothing on the queue's own task pane uses these any more — that pane now
+   renders its facts as .task-info-table — which is exactly how they came to
+   be deleted as dead: the check that declared them unused only looked at the
+   queue's TaskDetail component, not at the two pages that still use them.
+   Without these rules a <dl> falls back to the browser default and the
+   values drop onto their own indented lines. */
+.task-info-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* Hugs its content between a legible floor and a ceiling that stops one long
+   value claiming the row — the same reason the queue's tiles do it. */
+.task-info-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 180px;
+  max-width: 320px;
+}
+
+.task-info-meta dt {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.task-info-meta dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.task-activity .timeline {
+  padding: 14px 16px 20px;
+}
+
+.task-activity .timeline-item {
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.task-activity .timeline-item:not(:last-child)::before {
+  left: 15px;
+  top: 32px;
+}
+
+.task-activity .timeline-marker {
+  width: 32px;
+  height: 32px;
+}
+
+.task-activity .timeline-label {
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.task-activity .timeline-detail {
+  font-size: 13px;
+}
+
+.task-activity .timeline-time {
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.task-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.task-order-notes {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 42%;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Activity moved to an on-demand drawer (.task-activity-drawer), so notes
+   get the sidebar's full height instead of sharing it with a fixed box. */
+.task-order-notes-full {
+  max-height: none;
+  flex: 1;
+  border-bottom: none;
+}
+
+.task-activity-bar {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.task-activity-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 25, 0.32);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 60;
+}
+
+.task-activity-drawer {
+  /* .task-activity sets flex:1 for its normal in-flow placement; override it
+     here so the fixed width below is not stretched to fill the overlay row. */
+  flex: none;
+  width: 380px;
+  max-width: 90vw;
+  height: 100%;
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 32px rgba(15, 18, 25, 0.18);
+}
+
+.task-activity-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.task-order-notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.task-order-notes-head strong {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.task-order-notes-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 10px 14px 14px;
+}
+
+.order-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.order-notes-item {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+  border: 1px solid var(--border);
+}
+
+.order-notes-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.order-notes-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.order-notes-time {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.order-notes-text {
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* Only ever used together with .task-activity-drawer now (Activity is a
+   slide-in panel, not an in-flow sidebar box) — sizing comes from there. */
+.task-activity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.task-activity-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.task-activity-head strong {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.task-activity-head span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.35;
+}
+
+.task-activity .timeline {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* No overflow: hidden — that clipped the card to its rounded corners, but it
+   also made this the containing block position: sticky measures against
+   instead of .task-scroll two levels up, since overflow other than visible
+   still counts as a scroll container even when nothing here ever scrolls.
+   With it gone, the foot's own corners below are rounded directly instead. */
+.task-message {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.task-message-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-message-head strong {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.task-message-head span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.task-message-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.task-message.is-pending .task-message-fields,
+.task-message.is-pending .task-message-foot {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.task-message-fields {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.task-message-fields .textarea:not(.textarea-note) {
+  min-height: 220px;
+}
+
+/* Pinned to the bottom of the scrolling column, not just the bottom of the
+   message card: on a long draft, this used to require scrolling past the
+   entire body textarea to reach Send — the one thing every task ends with.
+   Sticky keeps Add note only / Send email in reach the moment they would
+   otherwise scroll out of view, the same way the toolbar's Done already
+   never scrolls away. The background stops the field text scrolling
+   underneath it from showing through. */
+.task-message-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--gray-25);
+  /* Self-clips to the card's bottom corners now that the card itself no
+     longer clips its children — see the note on .task-message. */
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  flex-wrap: wrap;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  /* On a draft long enough that this is actually pinned mid-scroll, the
+     border-top alone wasn't enough separation — the last line of the body
+     textarea sat flush against it with nothing to say "this bar is floating
+     over that text, not glued to the end of it". A cast shadow reads as
+     elevation the same border never could. */
+  box-shadow: var(--shadow-up-md);
+}
+
+.task-message-foot span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* The destination is shown, not edited — corrections happen on the task. */
+.task-message-to strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* The internal note is a few lines, not a message body. Written with the
+   extra class so it beats `.task-message-fields .textarea`'s 240px floor. */
+.task-message-fields .textarea.textarea-sm {
+  min-height: 72px;
+}
+
+.task-message-hint {
+  flex: 1 1 240px;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.task-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  transition: background var(--transition), color var(--transition);
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.icon-btn-dot::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--error-500);
+  border: 2px solid var(--bg-surface);
+}
+
+/* ---------- Page ---------- */
+
+.page {
+  padding: 24px 28px 40px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.page > .card {
+  margin-bottom: 20px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tasks-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: 12px 14px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.tasks-filter-bar .field {
+  margin: 0;
+}
+
+.tasks-filter-search .input-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.tasks-filter-clear {
+  margin-bottom: 2px;
+}
+
+@media (max-width: 900px) {
+  .tasks-filter-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tasks-filter-search {
+    grid-column: 1 / -1;
+  }
+}
+
+.split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.topbar-user {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ---------- Dashboard ---------- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.stat-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.stat-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.stat-icon.brand {
+  background: var(--brand-50);
+  color: var(--brand-600);
+}
+
+.stat-icon.error {
+  background: var(--error-50);
+  color: var(--error-600);
+}
+
+.stat-icon.success {
+  background: var(--success-50);
+  color: var(--success-600);
+}
+
+.stat-icon.warning {
+  background: var(--warning-50);
+  color: var(--warning-600);
+}
+
+.stat-value {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.stat-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+}
+
+.trend.up {
+  color: var(--success-600);
+}
+
+.trend.down {
+  color: var(--error-600);
+}
+
+.trend.flat {
+  color: var(--text-tertiary);
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chart-body {
+  padding: 12px 8px 8px;
+  height: 300px;
+}
+
+.lower-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Workload bars */
+
+.workload-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+}
+
+.workload-row {
+  display: grid;
+  gap: 8px;
+}
+
+.workload-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workload-name {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workload-value {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.workload-track {
+  position: relative;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  overflow: hidden;
+}
+
+.workload-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-full);
+  background: var(--brand-500);
+  transition: width 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.workload-fill.over {
+  background: var(--warning-500);
+}
+
+.workload-fill.free {
+  background: var(--success-500);
+}
+
+/* Activity feed */
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 20px;
+  transition: background var(--transition);
+}
+
+.activity-item:hover {
+  background: var(--gray-25);
+}
+
+.activity-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.activity-icon.system {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.activity-icon.sent {
+  background: var(--success-50);
+  color: var(--success-600);
+}
+
+.activity-icon.reopen {
+  background: var(--warning-50);
+  color: var(--warning-600);
+}
+
+.activity-icon.import {
+  background: var(--purple-50);
+  color: var(--purple-600);
+}
+
+.activity-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.activity-text {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.activity-text strong {
+  font-weight: 600;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* ---------- Queue workspace ---------- */
+
+.workspace {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.queue-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+}
+
+.queue-head {
+  padding: 14px 12px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.queue-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.queue-head-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.queue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.queue-filters + .queue-filters {
+  margin-top: 8px;
+}
+
+.queue-type-filter {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.filter-chip {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.filter-chip:hover {
+  background: var(--gray-50);
+  color: var(--text-primary);
+}
+
+.filter-chip.active {
+  background: var(--bg-inverse);
+  border-color: var(--bg-inverse);
+  color: var(--text-on-inverse);
+}
+
+/* Splits the one-of-these state chips from the compose-freely toggles. */
+.filter-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: var(--border);
+}
+
+.queue-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Splits the calls desk's own work out from ordinary queue work — see
+   QueuePanel's splitByDesk. Only rendered when a queue actually holds both,
+   so nobody without calls-desk tasks ever sees it. Sits inline in the same
+   flex column as the cards, not a sticky header: this list is short enough
+   in practice that a second scroll anchor would be more chrome than help. */
+.queue-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px 4px;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.queue-section-head:first-child {
+  padding-top: 4px;
+}
+
+.queue-section-head > span:first-of-type {
+  flex: 1;
+}
+
+.queue-card {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 10px 10px 10px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  text-align: left;
+  transition: background var(--transition), border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.queue-card::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  transition: background var(--transition);
+}
+
+.queue-card:hover {
+  background: var(--gray-50);
+}
+
+.queue-card.active {
+  background: var(--brand-25);
+  border-color: var(--brand-200);
+  box-shadow: var(--shadow-xs);
+}
+
+.queue-card.urgent::before {
+  background: var(--error-500);
+}
+
+.queue-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.queue-card-purpose {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.queue-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card-type {
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.queue-card-meta .mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card-meta .dot,
+.queue-card-sub .dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--gray-300);
+  flex-shrink: 0;
+}
+
+/* Legacy detail helpers still used on admin pages */
+
+.detail-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.detail-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px 28px;
+  min-height: 0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-full {
+  grid-column: 1 / -1;
+}
+
+/* Admin task detail. The edit form is a tall, dense form and the side column is
+   a summary, so they are deliberately not equal width. */
+.task-edit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .task-edit-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Right-hand column of the admin task detail: facts, activity, messages. */
+.detail-side {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+/* The side column is a reference panel, not a place to scroll forever. */
+.detail-side .timeline,
+.detail-side .comm-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* A table row that navigates. The assign control inside stops propagation. */
+.row-link {
+  cursor: pointer;
+}
+
+.row-link:hover {
+  background: var(--bg-hover, var(--bg-subtle));
+}
+
+.row-link:focus-visible {
+  outline: 2px solid var(--brand-400);
+  outline-offset: -2px;
+}
+
+/* Info rows */
+
+.info-list {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+  padding: 8px 20px;
+  font-size: 14px;
+  align-items: baseline;
+}
+
+.info-row dt {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.info-row dd {
+  margin: 0;
+  word-break: break-word;
+  font-weight: 500;
+}
+
+.item-list {
+  display: grid;
+  gap: 8px;
+  padding: 4px 20px 16px;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+  border: 1px solid var(--border);
+}
+
+.item-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.item-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+.item-qty {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Timeline */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px 20px;
+}
+
+.timeline-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding-bottom: 18px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-marker {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.timeline-marker.tracking {
+  background: var(--brand-50);
+  color: var(--brand-600);
+}
+
+.timeline-marker.inspection {
+  background: var(--purple-50);
+  color: var(--purple-600);
+}
+
+.timeline-marker.system {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.timeline-marker.import {
+  background: var(--warning-50);
+  color: var(--warning-600);
+}
+
+.timeline-content {
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.timeline-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.timeline-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.timeline-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 3px;
+}
+
+.timeline-compact {
+  padding: 10px 12px 16px;
+}
+
+.timeline-compact .timeline-item {
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.timeline-compact .timeline-item:not(:last-child)::before {
+  left: 10px;
+  top: 24px;
+}
+
+.timeline-compact .timeline-marker {
+  width: 22px;
+  height: 22px;
+}
+
+.timeline-compact .timeline-label {
+  font-size: 12px;
+}
+
+.timeline-compact .timeline-time {
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+/* Communications */
+
+.comm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 20px;
+}
+
+.comm-bubble {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.comm-bubble.inbound {
+  border-color: var(--brand-200);
+  background: var(--brand-25);
+}
+
+.comm-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--gray-50);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.comm-bubble.inbound .comm-head {
+  background: var(--brand-50);
+  border-color: var(--brand-100);
+}
+
+.comm-subject {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comm-body {
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+/* Draft */
+
+.draft-head-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.draft-body {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.merge-hints {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.merge-chip {
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.draft-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--gray-25);
+  flex-wrap: wrap;
+}
+
+.draft-foot-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Login ---------- */
+
+.auth {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100%;
+}
+
+.auth-theme-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+.auth-form-side {
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background: var(--bg-surface);
+  overflow-y: auto;
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 380px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.auth-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.auth-subtitle {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.auth-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-solid);
+  cursor: pointer;
+}
+
+.auth-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand-700);
+}
+
+.auth-link:hover {
+  color: var(--brand-800);
+}
+
+.auth-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--error-50);
+  border: 1px solid var(--error-100);
+  color: var(--error-700);
+  font-size: 13px;
+}
+
+.auth-hint {
+  margin-top: 22px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+  border: 1px dashed var(--border-strong);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.auth-hint code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--text-placeholder);
+}
+
+.password-toggle:hover {
+  background: var(--gray-100);
+  color: var(--text-secondary);
+}
+
+/* Marketing side */
+
+.auth-aside {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  align-content: center;
+  gap: 28px;
+  padding: 56px;
+  background: linear-gradient(150deg, var(--brand-900) 0%, var(--brand-600) 55%, var(--brand-400) 100%);
+  color: #fff;
+}
+
+.auth-aside::before,
+.auth-aside::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 7%);
+  pointer-events: none;
+}
+
+.auth-aside::before {
+  width: 460px;
+  height: 460px;
+  top: -160px;
+  right: -120px;
+}
+
+.auth-aside::after {
+  width: 320px;
+  height: 320px;
+  bottom: -120px;
+  left: -80px;
+}
+
+.aside-content {
+  position: relative;
+  z-index: 1;
+  max-width: 460px;
+}
+
+.aside-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: rgb(255 255 255 / 14%);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.aside-title {
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.aside-text {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: rgb(255 255 255 / 82%);
+}
+
+.aside-points {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  max-width: 460px;
+}
+
+.aside-point {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 90%);
+}
+
+.aside-point-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 18%);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.aside-stats {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 36px;
+  padding-top: 26px;
+  border-top: 1px solid rgb(255 255 255 / 18%);
+  max-width: 460px;
+}
+
+.aside-stat-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.aside-stat-label {
+  font-size: 13px;
+  color: rgb(255 255 255 / 70%);
+  margin-top: 2px;
+}
+
+/* ---------- Workers ---------- */
+
+.worker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+
+.worker-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 0 0 24px;
+}
+
+.worker-charts .chart-card-head {
+  padding: 20px 24px 12px;
+}
+
+.worker-charts .chart-card-titles {
+  gap: 6px;
+}
+
+.worker-charts .chart-card-hint {
+  line-height: 1.45;
+}
+
+.worker-charts .chart-card-body {
+  padding: 8px 20px 24px;
+}
+
+.worker-charts .empty-state {
+  padding: 48px 20px;
+}
+
+.worker-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+  margin: 0;
+}
+
+.worker-facts dt {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.worker-facts dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.worker-job-when {
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.worker-meta,
+.worker-detail {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.worker-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--error-600);
+}
+
+.worker-log-wrap {
+  margin-top: 16px;
+}
+
+.worker-log-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.worker-log-file {
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.worker-log,
+.worker-log-feed {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 0;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+
+.worker-log {
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary);
+}
+
+.worker-log-row {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.worker-log-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-placeholder);
+}
+
+.worker-log-text {
+  color: var(--text-primary);
+}
+
+.worker-log-repeat {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.worker-log-ok .worker-log-text { color: var(--success-700); }
+.worker-log-skip .worker-log-text { color: var(--text-tertiary); }
+.worker-log-warn .worker-log-text { color: var(--warning-700); }
+.worker-log-error .worker-log-text { color: var(--error-700); }
+
+.worker-log-empty {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.worker-pass {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.worker-pass strong {
+  color: var(--text-primary);
+}
+
+.worker-queue-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.worker-queue-stats .stat-label {
+  display: block;
+  margin-top: 4px;
+}
+
+.worker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.worker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--gray-100);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.worker-chip strong {
+  color: var(--text-primary);
+}
+
+.worker-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.worker-types div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.worker-types strong {
+  color: var(--text-primary);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.worker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.worker-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.worker-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.worker-state-running {
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+.worker-state-starting,
+.worker-state-stopping,
+.worker-state-stale {
+  background: var(--warning-50);
+  color: var(--warning-700);
+}
+
+.worker-state-stopped {
+  background: var(--gray-100);
+  color: var(--text-secondary);
+}
+
+.worker-dot-live {
+  animation: worker-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes worker-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 0%, transparent);
+  }
+}
+
+.worker-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin-right: 4px;
+}
+
+.worker-live-indicator .worker-dot {
+  color: var(--success-600);
+  background: currentColor;
+}
+
+.worker-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.worker-kind-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--gray-100);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.worker-config-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.worker-config-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.worker-config-chip strong {
+  text-transform: none;
+}
+
+.worker-facts dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.worker-fact-warn {
+  color: var(--warning-700) !important;
+}
+
+.worker-log-head span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.worker-log-count {
+  font-weight: 500;
+  color: var(--text-placeholder);
+}
+
+.worker-pass-label {
+  color: var(--text-tertiary);
+}
+
+.worker-pass-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.worker-pass-skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning-700);
+}
+
+.worker-meta-block {
+  margin-top: 14px;
+}
+
+.worker-meta-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.worker-meta-toggle:hover {
+  color: var(--text-primary);
+}
+
+.worker-meta-raw {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-height: 200px;
+  overflow: auto;
+}
+
+.activity-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-feed-item:last-child {
+  border-bottom: none;
+}
+
+.activity-feed-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  background: var(--gray-100);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.activity-feed-icon.ok {
+  background: var(--success-50);
+  color: var(--success-600);
+}
+
+.activity-feed-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-feed-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.activity-feed-kind {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.activity-feed-outcome {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+.activity-feed-outcome.ok {
+  color: var(--success-700);
+}
+
+.activity-feed-time {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  flex-shrink: 0;
+}
+
+@media (max-width: 960px) {
+  .worker-grid,
+  .worker-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
+@media (max-width: 1280px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart-grid,
+  .lower-grid,
+  .split-grid,
+  .report-charts,
+  .report-breakdown {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-aside {
+    display: none;
+  }
+}
+
+@media (max-width: 1200px) {
+  .task-view {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* The collapsed rule is a two-class selector, so it outranks a bare .shell
+     here and would leave an empty rail-width gutter beside a sidebar that is
+     display:none. Restated at matching specificity so the fold state simply
+     stops mattering once the sidebar is gone. */
+  .shell,
+  .shell.shell-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .workspace {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .task-view {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr minmax(180px, 30vh);
+  }
+
+  .task-center {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 820px) {
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 40vh 1fr;
+  }
+
+  .queue-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-search {
+    display: none;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Worker config panel (Workers page → Configure) */
+.worker-state-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.worker-debug-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--danger, #b91c1c);
+  background: color-mix(in srgb, var(--danger, #b91c1c) 12%, transparent);
+}
+
+.worker-config-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-subtle, transparent);
+}
+
+.worker-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.worker-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.worker-config-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.worker-config-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.worker-config-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--danger, #b91c1c);
+}
+
+/* ---------- Collapsed sidebar (icon rail) ---------- */
+
+/* Two side panels — this nav and the queue pane — cost 528px of chrome before
+   any content on /queue. Folding this one to a rail returns ~150px while
+   keeping every destination one click away, which hiding it outright would
+   not. */
+.shell.shell-collapsed {
+  grid-template-columns: var(--sidebar-width-collapsed) 1fr;
+}
+
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-placeholder);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg-hover, var(--bg-app));
+  color: var(--text-primary);
+}
+
+.sidebar.collapsed .sidebar-brand {
+  padding: 0;
+  justify-content: center;
+}
+
+/* The rail has no room for both the mark and the control that gets you out of
+   the rail, and the control is what someone is looking for. */
+.sidebar.collapsed .brand-mark,
+.sidebar.collapsed .brand-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  margin-left: 0;
+}
+
+.sidebar.collapsed .sidebar-nav {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 9px 0;
+  gap: 0;
+}
+
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+/* A count cannot be read at this width, but "there is something here" still
+   has to survive the fold — so it becomes a dot on the icon. */
+.sidebar.collapsed .nav-count {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .nav-item {
+  position: relative;
+}
+
+/* A rule reads as a group boundary as well as a heading does, and fits. */
+.sidebar.collapsed .nav-section-label {
+  height: 1px;
+  margin: 10px 6px;
+  padding: 0;
+  overflow: hidden;
+  color: transparent;
+  background: var(--border);
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 8px 6px;
+}
+
+.sidebar.collapsed .user-card {
+  justify-content: center;
+  padding: 6px 0;
+  gap: 0;
+}
+
+.sidebar.collapsed .user-meta,
+.sidebar.collapsed .user-card .badge,
+.sidebar.collapsed .sidebar-version {
+  display: none;
+}

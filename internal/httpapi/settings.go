@@ -1,0 +1,41 @@
+package httpapi
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/oaldesi/qa-portal/internal/model"
+	"github.com/oaldesi/qa-portal/internal/settings"
+)
+
+func (s *Server) routesSettings(r chi.Router) {
+	admin := s.requireRoles(model.RoleAdmin)
+	r.With(admin).Get("/settings", s.handleGetSettings)
+	r.With(admin).Put("/settings", s.handlePutSettings)
+}
+
+func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
+	var meta struct {
+		UpdatedAt time.Time
+		UpdatedBy *string
+	}
+	s.db.WithContext(r.Context()).Raw(`SELECT a.updated_at, u.name AS updated_by FROM app_settings a
+		LEFT JOIN users u ON u.id = a.updated_by WHERE a.id = 1`).Scan(&meta)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings": s.cfg(r), "defaults": settings.Defaults(), "updated_at": meta.UpdatedAt, "updated_by": meta.UpdatedBy,
+	})
+}
+
+func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
+	in := settings.Defaults()
+	if !decode(w, r, &in) {
+		return
+	}
+	if err := settings.Save(r.Context(), s.db, in, me(r).ID); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, in)
+}

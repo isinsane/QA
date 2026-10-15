@@ -1,0 +1,38 @@
+# Build output
+/bin/
+*.exe
+/api
+/migrate
+/set-password
+
+# Test output
+*.test
+*.out
+
+# Local environment: every .env* except the checked-in example
+.env*
+!.env.example
+
+# Local dev Postgres cluster (scripts/dev-db.ps1)
+/.pgdata/
+
+# Real sheets used for local testing; never commit data
+/sheets/
+
+/logs/
+
+# Frontend
+/web/node_modules/
+/web/dist/
+
+.DS_Store
+.idea/
+
+# Local dev logins (never committed)
+*.local.md
+
+# Local database backups
+.backups/
+
+# Local editor / agent tooling
+.claude/

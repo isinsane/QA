@@ -1,0 +1,357 @@
+export type Role = 'admin' | 'supervisor' | 'qa_agent' | 'employee' | 'negative_agent' | 'team_leader'
+
+export interface User {
+  id: string
+  name: string
+  email: string | null
+  role: Role
+  department_id: string | null
+  agent_code: string | null
+  edesk_id: string | null
+  active: boolean
+  is_available: boolean
+  queue_limit: number
+  must_change_password: boolean
+  has_password: boolean
+  hr_id: string | null
+  alias_name: string
+  sheet_names: string[]
+  profile: { department?: string; organization?: string; job_title?: string; supervisor?: string }
+}
+
+export interface RosterResult {
+  added: number
+  updated: number
+  unchanged: number
+  deactivated: number
+  skipped: Record<string, number>
+  changes: { name: string; action: 'added' | 'updated' | 'deactivated'; department: string; fields?: string[] }[]
+  errors: { row: number; message: string }[]
+  dry_run: boolean
+}
+
+export interface Department {
+  id: string
+  name: string
+  hr_names: string[]
+}
+
+export type MetricType = 'yes_no' | 'scale' | 'dropdown' | 'text'
+
+export interface Option {
+  label: string
+  points: number
+}
+
+export interface Metric {
+  id: string
+  label: string
+  type: MetricType
+  points?: number
+  scale_max?: number
+  options?: Option[]
+  critical: boolean
+  allow_na: boolean
+  /** Takes a share of an N/A metric's weight. */
+  na_receiver?: boolean
+}
+
+export interface Answer {
+  metric_id: string
+  value: string
+  notes?: string
+}
+
+export interface Columns {
+  external_id: string
+  agent_code: string
+  agent_name: string
+  label: string
+  start_time: string
+}
+
+export interface ReportAgent {
+  id: string
+  name: string
+  alias_name: string
+  team: string
+  department: string
+  types: { id: string; name: string }[]
+}
+
+export interface AppSettings {
+  business_timezone: string
+  call_utc_offset: string
+  live_window_seconds: number
+  live_hidden_columns: string[]
+  tickets_pull_hour: number
+  reply_buckets_top: number
+  default_queue_limit: number
+  rotation_cases_per_week: number
+  wrong_sheet_percent: number
+  new_task_type: {
+    pass_threshold: number
+    borderline_threshold: number
+    sample_percent: number
+    untagged_percent: number
+    rotation_days: number
+    min_per_agent_per_day: number
+    max_per_agent_per_day: number
+    max_per_agent_per_week: number
+  }
+}
+
+export type Source = 'sheet' | 'tickets_api' | 'manual'
+
+/** A number of audits, or a percent of the agent's work in the period. */
+export interface Limit {
+  value: number
+  unit: 'count' | 'percent'
+}
+export interface Bounds {
+  min?: Limit | null
+  max?: Limit | null
+}
+export interface AgentLimits {
+  day?: Bounds
+  week?: Bounds
+  month?: Bounds
+}
+
+export interface TaskType {
+  id: string
+  department_id: string
+  code: string
+  name: string
+  source: Source
+  active: boolean
+  scorecard: Metric[]
+  pass_threshold: number
+  borderline_threshold: number
+  sample_percent: number
+  untagged_percent: number
+  skip_labels: string[]
+  ignore_labels: string[]
+  rotation_enabled: boolean
+  rotation_days: number
+  agent_limits: AgentLimits
+  /** HR departments whose agents this type audits; empty = the whole team. */
+  agent_groups: string[]
+  columns: Columns
+  updated_at?: string
+}
+
+export type TaskState = 'unsampled' | 'review' | 'ready' | 'assigned' | 'completed' | 'cancelled'
+export type Kind = 'sample' | 'live' | 'escalation' | 'focus' | 'rotation' | 'negative' | 'tl_escalation'
+export type Band = 'pass' | 'borderline' | 'fail'
+export type AckStatus = '' | 'acknowledged' | 'disputed' | 'dispute_qa' | 'upheld' | 'changed'
+
+export interface TaskRow {
+  id: string
+  external_id: string
+  work_date: string
+  state: TaskState
+  labels: string[]
+  score: number | null
+  passed: boolean | null
+  result: Band | null
+  critical_failed: boolean
+  completed_at: string | null
+  task_type_id: string
+  task_type_name: string
+  employee_id: string
+  employee_name: string
+  assigned_qa_id: string | null
+  qa_name?: string | null
+  kind: Kind
+  ack_status: AckStatus
+  ack_comment: string
+  ack_at: string | null
+  dispute_resolution: string
+  match_status: '' | 'pending' | 'matched' | 'flagged'
+  priority: number
+  note: string
+  reported_by: string
+  created_at: string
+}
+
+export interface Task {
+  id: string
+  task_type_id: string
+  employee_id: string
+  external_id: string
+  work_date: string
+  labels: string[]
+  data: Record<string, unknown>
+  state: TaskState
+  assigned_qa_id: string | null
+  cancel_reason: string
+  scorecard: Metric[] | null
+  answers: Answer[] | null
+  score: number | null
+  critical_failed: boolean
+  passed: boolean | null
+  result: Band | null
+  submitted_at: string | null
+  completed_at: string | null
+  kind: Kind
+  note: string
+  live_started_at: string | null
+  match_status: '' | 'pending' | 'matched' | 'flagged'
+  ack_status: AckStatus
+  ack_comment: string
+  ack_at: string | null
+  dispute_resolution: string
+  dispute_resolved_at: string | null
+}
+
+export interface AuditEntry {
+  id: number
+  action: string
+  detail: Record<string, unknown>
+  created_at: string
+  actor_name: string | null
+}
+
+export interface TaskDetail {
+  task: Task
+  task_type: Pick<TaskType, 'id' | 'name' | 'source' | 'pass_threshold' | 'scorecard' | 'columns' | 'department_id'> & {
+    borderline_threshold?: number
+  }
+  employee: { id: string; name: string; agent_code: string | null; email: string | null }
+  columns?: string[]
+  qa_name?: string
+  audit?: AuditEntry[]
+  can_evaluate: boolean
+  can_edit: boolean
+  can_manage: boolean
+  can_ack: boolean
+  can_uphold: boolean
+  can_forward: boolean
+  can_confirm: boolean
+  reported_by?: string
+}
+
+export interface ScoreResult {
+  earned: number
+  possible: number
+  score: number | null
+  critical_failed: boolean
+  passed: boolean
+  band: Band
+}
+
+export interface ImportRun {
+  id: string
+  task_type_id: string
+  source: 'upload' | 'api'
+  work_date: string
+  filename: string
+  rows_read: number
+  created: number
+  duplicates: number
+  rejected: number
+  skipped: number
+  sampled: number
+  status: string
+  error: string
+  started_at: string
+  task_type_name?: string
+  user_name?: string | null
+}
+
+export interface ImportResult {
+  run: ImportRun
+  rejected: { key: string; name: string; rows: number; reason?: string }[]
+  linked: { key: string; name: string; user_name: string; how: 'name' | 'email' | 'similar name' }[] | null
+  no_agent: number
+  live_matched: number
+  live_flagged: number
+  employees: {
+    employee_id: string
+    name: string
+    rows: number
+    skipped: number
+    sampled: number
+    untagged: number
+    labels: string[]
+  }[]
+  dry_run: boolean
+}
+
+export interface Coaching {
+  id: string
+  department_id: string
+  employee_id: string
+  employee_name: string
+  topic: string
+  task_ids: string[]
+  assigned_qa_id: string
+  qa_name: string
+  created_by_name: string | null
+  due_date: string | null
+  status: 'open' | 'done'
+  notes: string
+  outcome: string
+  completed_at: string | null
+  ack_at: string | null
+  ack_comment: string
+  created_at: string
+}
+
+export interface Reports {
+  from: string
+  to: string
+  totals: {
+    evaluations: number
+    avg_score: number | null
+    pass_rate: number | null
+    borderline_rate: number | null
+    fail_rate: number | null
+    critical_fails: number
+    unacknowledged: number
+    disputed: number
+  }
+  kinds: { kind: Kind; evaluations: number; open: number; flagged: number }[]
+  queue: {
+    task_type_id: string
+    task_type_name: string
+    imported: number
+    unsampled: number
+    ready: number
+    assigned: number
+    completed: number
+    cancelled: number
+  }[]
+  employees: {
+    employee_id: string
+    name: string
+    evaluations: number
+    avg_score: number | null
+    pass_rate: number | null
+    borderline_rate: number | null
+    critical_fails: number
+  }[]
+  trend: { week: string; evaluations: number; avg_score: number | null }[]
+  by_label: { label: string; evaluations: number; avg_score: number | null }[]
+  qa_activity: { qa_name: string; day: string; evaluations: number }[]
+  failed: TaskRow[]
+  metrics: { id: string; label: string; type: string; answered: number; na: number; zero: number; avg_pct: number | null }[]
+  calibration: {
+    pairs:
+      | {
+          case_id: string
+          external_id: string
+          task_type_name: string
+          employee_name: string
+          work_date: string
+          first_qa: string
+          first_score: number | null
+          second_qa: string
+          second_score: number | null
+          gap: number | null
+        }[]
+      | null
+    qa: { qa_name: string; reviews: number; avg_gap: number; avg_lean: number }[]
+  }
+}

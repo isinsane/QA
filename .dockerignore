@@ -1,0 +1,13 @@
+# Keep secrets, local data and build output out of the build context.
+.git
+.claude
+.env*
+*.local.md
+.pgdata
+.backups
+bin
+sheets
+logs
+web/node_modules
+web/dist
+*.exe

@@ -1,0 +1,48 @@
+# QA Portal, deployed: `docker compose up -d --build` starts Postgres and the
+# app (API + web app on one port; migrations run when it starts).
+#
+# Configuration lives in .env next to this file; see .env.example.
+name: qa-portal
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-qa}
+    volumes:
+      # From Postgres 18 the cluster lives in a version subdirectory, so the
+      # volume goes on /var/lib/postgresql, not .../data.
+      - db-data:/var/lib/postgresql
+    # Not published: the app reaches it over the compose network. Use
+    # `docker compose exec db psql -U qa qa` to look inside.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qa} -d ${POSTGRES_DB:-qa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+    image: qa-portal:latest
+    env_file:
+      - .env
+    environment:
+      # Always the db service above, whatever DATABASE_URL a local-dev .env
+      # holds (these win over env_file). Keyword/value form rather than a
+      # postgres:// URL, so a generated password with "/" or "@" in it can't
+      # break the connection string.
+      DATABASE_URL: host=db port=5432 user=${POSTGRES_USER:-qa} password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env} dbname=${POSTGRES_DB:-qa} sslmode=disable
+      APP_ENV: prod
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db-data:

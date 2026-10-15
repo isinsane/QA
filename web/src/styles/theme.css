@@ -1,0 +1,364 @@
+/* Design tokens. Everything visual references these, so the whole product can
+   be retinted from one place. */
+
+:root {
+  /* Neutrals */
+  --gray-25: #fcfcfd;
+  --gray-50: #f9fafb;
+  --gray-100: #f2f4f7;
+  --gray-200: #e4e7ec;
+  --gray-300: #d0d5dd;
+  --gray-400: #98a2b3;
+  --gray-500: #667085;
+  --gray-600: #475467;
+  --gray-700: #344054;
+  --gray-800: #1d2939;
+  --gray-900: #101828;
+
+  /* Brand — matches the violet in the product's own mark/art (hero.png) */
+  --brand-25: #faf8ff;
+  --brand-50: #f3edff;
+  --brand-100: #e6d9ff;
+  --brand-200: #d2baff;
+  --brand-300: #b68eff;
+  --brand-400: #9c66ff;
+  --brand-500: #8843fb;
+  --brand-600: #7e14ff;
+  --brand-700: #6a0fd9;
+  --brand-800: #560ca8;
+  --brand-900: #3b0f7c;
+  --brand-solid: #7e14ff;
+  --brand-hover: #6a0fd9;
+
+  /* Semantic */
+  --success-50: #ecfdf3;
+  --success-100: #dcfae6;
+  --success-500: #17b26a;
+  --success-600: #079455;
+  --success-700: #067647;
+
+  --warning-50: #fffaeb;
+  --warning-100: #fef0c7;
+  --warning-500: #f79009;
+  --warning-600: #dc6803;
+  --warning-700: #b54708;
+
+  --error-50: #fef3f2;
+  --error-100: #fee4e2;
+  --error-500: #f04438;
+  --error-600: #d92d20;
+  --error-700: #b42318;
+
+  --purple-50: #f4f3ff;
+  --purple-100: #ebe9fe;
+  --purple-600: #6938ef;
+  --purple-700: #5925dc;
+
+  /* Surfaces */
+  --bg-app: var(--gray-50);
+  --bg-surface: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-subtle: var(--gray-50);
+  --bg-hover: var(--gray-100);
+  --bg-inverse: var(--gray-900);
+  --border: var(--gray-200);
+  --border-strong: var(--gray-300);
+
+  /* Text */
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-600);
+  --text-tertiary: var(--gray-500);
+  --text-placeholder: var(--gray-400);
+  --text-on-brand: #ffffff;
+  --text-on-inverse: #ffffff;
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 5%);
+  --shadow-sm: 0 1px 3px rgb(16 24 40 / 10%), 0 1px 2px rgb(16 24 40 / 6%);
+  --shadow-md: 0 4px 8px -2px rgb(16 24 40 / 10%), 0 2px 4px -2px rgb(16 24 40 / 6%);
+  --shadow-lg: 0 12px 16px -4px rgb(16 24 40 / 8%), 0 4px 6px -2px rgb(16 24 40 / 3%);
+  --shadow-xl: 0 20px 24px -4px rgb(16 24 40 / 8%), 0 8px 8px -4px rgb(16 24 40 / 3%);
+  /* --shadow-md cast upward instead of down — for a bar pinned to the
+     bottom of a scrolling panel, which needs to read as floating above
+     the content behind it rather than sitting below something. */
+  --shadow-up-md: 0 -4px 8px -2px rgb(16 24 40 / 10%), 0 -2px 4px -2px rgb(16 24 40 / 6%);
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* Layout */
+  /* The longest nav label ("Missing Parts") ends 144px in, so 264px left
+   * 120px of empty rail while the tables next to it were running out of
+   * room and cutting off their last column. 208px keeps a comfortable
+   * margin after the longest label and hands the rest to the content. */
+  --sidebar-width: 208px;
+  /* Icon rail: one 18px icon plus even padding, wide enough to stay a
+     comfortable click target. */
+  --sidebar-width-collapsed: 56px;
+  --topbar-height: 64px;
+
+  /* Type */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Chart series. A separate ramp from the brand's — brand colours are picked
+     to look right as UI chrome and are not held to colour-vision separation.
+     Every value here was produced by the data-viz validator against this
+     app's own surfaces, not chosen by eye.
+     Re-run after ANY change:
+       node scripts/validate_palette.js "#2a78d6,#eb6834" --mode light --pairs all
+
+     TWO slots, deliberately. A four-hue set was measured and failed: under
+     --pairs all the orange and yellow separated by only ΔE 13.7 on light and
+     0.9 (deutan) on dark — indistinguishable. Rather than tune hues that
+     cannot be fixed inside the lightness band, the page never plots more than
+     two categorical series at once; a breakdown that would need more uses
+     emphasis (one slot + neutral) with every row directly labelled.
+
+     Light, all-pairs: CVD ΔE 24.7 · normal 33.6 · both ≥3:1 on surface. */
+  --viz-1: #2a78d6; /* blue   — slot 1, the primary series */
+  --viz-2: #eb6834; /* orange — slot 2, the compared series */
+  /* A lighter step of slot 1's own hue, for a second level of the SAME
+     measure (median vs p90) — two shades read as one thing at two levels,
+     where two hues would read as two unrelated series. Not a categorical
+     slot, so it is not held to the separation checks. */
+  --viz-1-soft: #86b6ef;
+  /* "Everything that is not the highlighted thing" in an emphasis chart.
+     Neutral by design: it must never read as a third category. */
+  --viz-muted: #b9b7ad;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+
+  --transition: 140ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+  Dark theme — same product, inverted surfaces.
+
+  Washes (25–200) go dark so chips and active nav stay quiet. 400–700 go
+  lighter so labels stay readable. Buttons keep the light-theme indigo via
+  --brand-solid / --brand-hover, so hover never becomes pastel.
+*/
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --gray-25: #0c0e12;
+  --gray-50: #111318;
+  --gray-100: #1a1d24;
+  --gray-200: #2a2f3a;
+  --gray-300: #3d4452;
+  --gray-400: #8b929e;
+  --gray-500: #9aa3b2;
+  --gray-600: #c0c5ce;
+  --gray-700: #d0d5dd;
+  --gray-800: #e4e7ec;
+  --gray-900: #f2f4f7;
+
+  --brand-25: #1c1238;
+  --brand-50: #241546;
+  --brand-100: #301c5c;
+  --brand-200: #3e2478;
+  --brand-300: #6a3fc7;
+  --brand-400: #9c66ff;
+  --brand-500: #b58aff;
+  --brand-600: #c7a6ff;
+  --brand-700: #dcc4ff;
+  --brand-800: #b68eff;
+  --brand-900: #e6d9ff;
+  --brand-solid: #7e14ff;
+  --brand-hover: #6a0fd9;
+
+  --success-50: #0c1f16;
+  --success-100: #132a1d;
+  --success-500: #3dd68c;
+  --success-600: #4ade80;
+  --success-700: #86efac;
+
+  --warning-50: #271c0a;
+  --warning-100: #33250e;
+  --warning-500: #fbbf24;
+  --warning-600: #f59e0b;
+  --warning-700: #fcd34d;
+
+  --error-50: #2a1215;
+  --error-100: #3b181c;
+  --error-500: #f87171;
+  --error-600: #fb7185;
+  --error-700: #fca5a5;
+
+  --purple-50: #1c1638;
+  --purple-100: #261d4a;
+  --purple-600: #a78bfa;
+  --purple-700: #c4b5fd;
+
+  --bg-app: #0f1115;
+  --bg-surface: #16181d;
+  --bg-sidebar: #12141a;
+  --bg-subtle: #1a1d24;
+  --bg-hover: #22262e;
+  --bg-inverse: #0c0e12;
+  --border: #2a2f3a;
+  --border-strong: #3d4452;
+
+  --text-primary: #eceef1;
+  --text-secondary: #9aa3b2;
+  --text-tertiary: #6b7382;
+  --text-placeholder: #5c6370;
+  --text-on-brand: #ffffff;
+  --text-on-inverse: #eceef1;
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 50%), 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-md: 0 4px 8px rgb(0 0 0 / 45%);
+  --shadow-lg: 0 12px 24px rgb(0 0 0 / 50%);
+  --shadow-xl: 0 20px 32px rgb(0 0 0 / 55%);
+  --shadow-up-md: 0 -4px 8px rgb(0 0 0 / 45%);
+
+  /* Dark is SELECTED against the dark surface, never an auto-flip of light.
+     The previous values were the light set desaturated, and measured as a
+     hard fail: three slots under the chroma floor (reading grey), two outside
+     the lightness band, and a normal-vision separation of ΔE 12.9 — two
+     series a full-colour reader could not tell apart.
+       node scripts/validate_palette.js "#4189dd,#dd6a2c" --mode dark --pairs all
+     Now: CVD ΔE 24.7 · normal 29.9 · both ≥3:1 on surface. */
+  --viz-1: #4189dd;
+  --viz-2: #dd6a2c;
+  --viz-1-soft: #3d5a7a;
+  --viz-muted: #5a5f6b;
+  --viz-grid: #2a2f3a;
+  --viz-axis: #3d4452;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 360px;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+::selection {
+  background: var(--brand-100);
+}
+
+[data-theme='dark'] ::selection {
+  background: rgb(68 76 231 / 45%);
+  color: #fff;
+}
+
+/* Login panel uses the same violet as light; inverted 600/800 would wash it out. */
+[data-theme='dark'] .auth-aside {
+  background: linear-gradient(150deg, #560ca8 0%, #7e14ff 55%, #9c66ff 100%);
+  color: #fff;
+}
+
+[data-theme='dark'] .brand-mark {
+  background: linear-gradient(135deg, #8843fb, #6a0fd9);
+  color: #fff;
+}
+
+[data-theme='dark'] * {
+  scrollbar-color: var(--gray-300) transparent;
+}
+
+[data-theme='dark'] *::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+}
+
+[data-theme='dark'] *::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+/* Scrollbars: present but quiet. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-300) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius-full);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  letter-spacing: -0.01em;
+}
