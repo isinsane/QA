@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { FileUp, KeyRound, Pencil, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { RosterResult, Role, User } from '../api/types'
@@ -444,11 +445,28 @@ function RosterDialog({ isAdmin, onClose, onSaved, onError }: DialogProps & { is
       </label>
       {preview ? (
         <>
-          <div className={nothing ? 'inline-note' : 'inline-success'}>
-            {nothing
-              ? `Everyone is already up to date (${preview.unchanged} people).`
-              : `${preview.added} to add, ${preview.updated} to update, ${preview.deactivated} to deactivate, ${preview.unchanged} unchanged.`}
-          </div>
+          {nothing && preview.unchanged === 0 && skipped.length ? (
+            // Nobody matched a team: say why, instead of "up to date".
+            <div className="inline-warning" style={{ display: 'grid', gap: 4 }}>
+              <strong>No one can be brought in yet: none of this sheet's HR departments belongs to a team here.</strong>
+              <span>
+                {isAdmin ? (
+                  <>
+                    On <Link to="/departments">Departments</Link>, add your teams and say which HR departments each one takes in (for example
+                    Calls & Sales takes Calls support and New Sales), then upload the sheet again.
+                  </>
+                ) : (
+                  'Ask an admin to link your team to its HR departments on the Departments page, then upload the sheet again.'
+                )}
+              </span>
+            </div>
+          ) : (
+            <div className={nothing ? 'inline-note' : 'inline-success'}>
+              {nothing
+                ? `Everyone is already up to date (${preview.unchanged} people).`
+                : `${preview.added} to add, ${preview.updated} to update, ${preview.deactivated} to deactivate, ${preview.unchanged} unchanged.`}
+            </div>
+          )}
           {preview.errors.length ? (
             <div className="inline-warning">
               {preview.errors.map((e) => (
@@ -480,7 +498,7 @@ function RosterDialog({ isAdmin, onClose, onSaved, onError }: DialogProps & { is
           ) : null}
           {skipped.length ? (
             <p className="hint-text text-tertiary">
-              Not brought in (team not audited here): {skipped.map(([d, n]) => `${d || 'no department'} ${n}`).join(' · ')}
+              Not brought in, because no team here takes in these HR departments: {skipped.map(([d, n]) => `${d || 'no department'} ${n}`).join(' · ')}
             </p>
           ) : null}
         </>
