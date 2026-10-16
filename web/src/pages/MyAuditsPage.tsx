@@ -48,7 +48,7 @@ export function MyAuditsPage() {
           <input
             className="input"
             style={{ maxWidth: 320 }}
-            placeholder="Agent or interaction / ticket ID"
+            placeholder="Agent, interaction / ticket ID or order number"
             value={q}
             onChange={(e) => {
               setQ(e.target.value)

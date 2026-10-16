@@ -115,7 +115,7 @@ export function TasksPage() {
           <label className="field-label">Search</label>
           <input
             className="input"
-            placeholder="Interaction / ticket ID or agent"
+            placeholder="Interaction / ticket ID, order number or agent"
             value={f.q}
             onChange={(e) => set({ q: e.target.value })}
           />

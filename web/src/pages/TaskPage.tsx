@@ -66,6 +66,7 @@ const ACTION_LABEL: Record<string, string> = {
   qa_escalation_dismissed: 'Marked not valid',
   change_requested: 'Score change asked for',
   change_rejected: 'Score change rejected',
+  order_number_changed: 'Order numbers changed',
 }
 
 /** "Score 80% → 90%", or that only notes changed. */
@@ -104,6 +105,8 @@ export function TaskView({
   const detail = useApi(() => api.task(taskId), [taskId])
   const { toasts, push } = useToasts()
   const [answers, setAnswers] = useState<Record<string, Answer>>({})
+  const [orders, setOrders] = useState<string[]>([])
+  const [orderDraft, setOrderDraft] = useState('')
   const [editing, setEditing] = useState(false)
   const [dialog, setDialog] = useState<
     'cant' | 'cancel' | 'reassign' | 'edit' | 'ack' | 'dispute' | 'uphold' | 'forward' | 'valid' | 'invalid' | 'approve' | 'reject' | null
@@ -115,6 +118,10 @@ export function TaskView({
     const byId: Record<string, Answer> = {}
     for (const a of d?.task.answers ?? []) byId[a.metric_id] = a
     setAnswers(byId)
+    // A live audit already has the order number the QA agent typed while listening.
+    const live = (d?.task.data.live_entered ?? {}) as Record<string, string>
+    setOrders(d?.task.order_numbers?.length ? d.task.order_numbers : live['Order number'] ? [live['Order number']] : [])
+    setOrderDraft('')
     setEditing(false)
   }, [d])
 
@@ -289,6 +296,12 @@ export function TaskView({
               <dd>
                 <Labels labels={t.labels} empty={d.task_type.source === 'tickets_api' ? 'no tag' : 'no code'} />
               </dd>
+              {t.order_numbers?.length ? (
+                <>
+                  <dt>Order number{t.order_numbers.length > 1 ? 's' : ''}</dt>
+                  <dd className="mono">{t.order_numbers.join(', ')}</dd>
+                </>
+              ) : null}
               {d.task_type.source === 'tickets_api' ? <TicketFields data={t.data} /> : <SheetFields data={t.data} columns={d.columns} />}
             </dl>
           </section>
@@ -398,49 +411,56 @@ export function TaskView({
               {card.length === 0 ? (
                 <div className="card-body inline-warning">This task type has no metrics yet. A supervisor adds them on Task types.</div>
               ) : t.state === 'completed' || formOpen ? (
-                <ScorecardForm
-                  card={card}
-                  answers={answers}
-                  thresholds={{
-                    pass: d.task_type.pass_threshold,
-                    borderline: d.task_type.borderline_threshold ?? 0,
-                  }}
-                  readOnly={!formOpen}
-                  onChange={setAnswers}
-                  footer={
-                    formOpen ? (
-                      d.can_evaluate ? (
-                        <>
-                          <button className="btn btn-secondary" disabled={busy} onClick={() => setDialog('cant')}>
-                            Can't audit
-                          </button>
-                          <button
-                            className="btn btn-primary"
-                            disabled={busy}
-                            onClick={() =>
-                              void act(
-                                () => api.submit(t.id, list),
-                                'Evaluation submitted',
-                                (r) => (onDone ? onDone((r as { next_task_id: string | null }).next_task_id) : void detail.reload()),
-                              )
-                            }
-                          >
-                            Submit evaluation
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button className="btn btn-secondary" onClick={() => void detail.reload()}>
-                            Discard
-                          </button>
-                          <button className="btn btn-primary" disabled={busy} onClick={() => setDialog('edit')}>
-                            Save changes
-                          </button>
-                        </>
-                      )
-                    ) : null
-                  }
-                />
+                <>
+                  {formOpen ? (
+                    <div className="card-body" style={{ paddingBottom: 0 }}>
+                      <OrderNumbers value={orders} onChange={setOrders} draft={orderDraft} onDraft={setOrderDraft} />
+                    </div>
+                  ) : null}
+                  <ScorecardForm
+                    card={card}
+                    answers={answers}
+                    thresholds={{
+                      pass: d.task_type.pass_threshold,
+                      borderline: d.task_type.borderline_threshold ?? 0,
+                    }}
+                    readOnly={!formOpen}
+                    onChange={setAnswers}
+                    footer={
+                      formOpen ? (
+                        d.can_evaluate ? (
+                          <>
+                            <button className="btn btn-secondary" disabled={busy} onClick={() => setDialog('cant')}>
+                              Can't audit
+                            </button>
+                            <button
+                              className="btn btn-primary"
+                              disabled={busy}
+                              onClick={() =>
+                                void act(
+                                  () => api.submit(t.id, list, withDraft(orders, orderDraft)),
+                                  'Evaluation submitted',
+                                  (r) => (onDone ? onDone((r as { next_task_id: string | null }).next_task_id) : void detail.reload()),
+                                )
+                              }
+                            >
+                              Submit evaluation
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="btn btn-secondary" onClick={() => void detail.reload()}>
+                              Discard
+                            </button>
+                            <button className="btn btn-primary" disabled={busy} onClick={() => setDialog('edit')}>
+                              Save changes
+                            </button>
+                          </>
+                        )
+                      ) : null
+                    }
+                  />
+                </>
               ) : (
                 <div className="card-body text-secondary">Not evaluated yet.</div>
               )}
@@ -510,7 +530,7 @@ export function TaskView({
           onClose={() => setDialog(null)}
           onSubmit={(reason) =>
             void act(
-              () => api.editEvaluation(t.id, list, reason),
+              () => api.editEvaluation(t.id, list, reason, withDraft(orders, orderDraft)),
               (r) => ((r as { pending: boolean }).pending ? 'Sent to the supervisor: score changes need approval' : 'Evaluation updated'),
             )
           }
@@ -744,6 +764,66 @@ function EDeskInfo({ taskId }: { taskId: string }) {
         </dl>
       ) : null}
     </section>
+  )
+}
+
+/** A number still in the box when the audit is saved counts too. */
+const withDraft = (orders: string[], draft: string) => (draft.trim() && !orders.includes(draft.trim()) ? [...orders, draft.trim()] : orders)
+
+/** The orders an audit was about: type one, Add (or Enter), type the next. */
+function OrderNumbers({
+  value,
+  onChange,
+  draft,
+  onDraft,
+}: {
+  value: string[]
+  onChange: (v: string[]) => void
+  draft: string
+  onDraft: (v: string) => void
+}) {
+  const add = () => {
+    onChange(withDraft(value, draft))
+    onDraft('')
+  }
+  return (
+    <div className="field">
+      <label className="field-label">Order numbers (if any)</label>
+      {value.length ? (
+        <div className="label-chips">
+          {value.map((o) => (
+            <button
+              key={o}
+              type="button"
+              className="label-chip removable mono"
+              title="Remove"
+              onClick={() => onChange(value.filter((x) => x !== o))}
+            >
+              {o} ✕
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="builder-row">
+        <input
+          className="input mono"
+          style={{ maxWidth: 280 }}
+          maxLength={100}
+          placeholder="Order number"
+          value={draft}
+          onChange={(e) => onDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              add()
+            }
+          }}
+        />
+        <button type="button" className="btn btn-secondary btn-sm" disabled={!draft.trim()} onClick={add}>
+          Add
+        </button>
+      </div>
+    </div>
   )
 }
 

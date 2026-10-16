@@ -149,12 +149,12 @@ export const api = {
   task: (id: string) => request<TaskDetail>(`/tasks/${id}`),
   taskEDesk: (id: string, refresh = false) =>
     request<Record<string, unknown>>(`/tasks/${id}/edesk${refresh ? '?refresh=1' : ''}`),
-  submit: (id: string, answers: Answer[]) =>
-    request<{ result: ScoreResult; next_task_id: string | null }>(`/tasks/${id}/submit`, json('POST', { answers })),
+  submit: (id: string, answers: Answer[], order_numbers: string[]) =>
+    request<{ result: ScoreResult; next_task_id: string | null }>(`/tasks/${id}/submit`, json('POST', { answers, order_numbers })),
   cantAudit: (id: string, reason: string) =>
     request<{ next_task_id: string | null }>(`/tasks/${id}/cant-audit`, json('POST', { reason })),
-  editEvaluation: (id: string, answers: Answer[], reason: string) =>
-    request<{ result: ScoreResult; pending: boolean }>(`/tasks/${id}/evaluation`, json('PUT', { answers, reason })),
+  editEvaluation: (id: string, answers: Answer[], reason: string, order_numbers: string[]) =>
+    request<{ result: ScoreResult; pending: boolean }>(`/tasks/${id}/evaluation`, json('PUT', { answers, reason, order_numbers })),
   changes: (params: Record<string, string | number | undefined>) =>
     request<{ changes: EvaluationChange[]; total: number; page_size: number }>(`/evaluation-changes${qs(params)}`),
   approveChange: (id: string, note: string) => request(`/evaluation-changes/${id}/approve`, json('POST', { note })),

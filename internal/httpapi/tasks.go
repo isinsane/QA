@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -73,6 +74,7 @@ type taskRow struct {
 	AckAt          *time.Time      `json:"ack_at"`
 	Resolution     string          `json:"dispute_resolution"`
 	Finding        string          `json:"finding"`
+	OrderNumbers   model.Strings   `json:"order_numbers"`
 	MatchStatus    string          `json:"match_status"`
 	Priority       int             `json:"priority"`
 	Note           string          `json:"note"`
@@ -86,7 +88,7 @@ func (s *Server) taskRows(r *http.Request) *gorm.DB {
 		Select(`t.id, t.external_id, t.work_date, t.state, t.labels, t.score, t.passed, t.critical_failed,
 		        t.completed_at, t.task_type_id, tt.name AS task_type_name, t.employee_id, e.name AS employee_name,
 		        t.assigned_qa_id, coalesce(q.name, ev.name) AS qa_name,
-		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding,
+		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers,
 		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, t.created_at,
 		        EXISTS (SELECT 1 FROM evaluation_changes ec WHERE ec.task_id = t.id AND ec.status = 'pending') AS change_pending`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
@@ -213,7 +215,7 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := strings.TrimSpace(p.Get("q")); v != "" {
 		like := "%" + v + "%"
-		q = q.Where("t.external_id ILIKE ? OR e.name ILIKE ?", like, like)
+		q = q.Where("t.external_id ILIKE ? OR e.name ILIKE ? OR t.order_numbers::text ILIKE ?", like, like, like)
 	}
 	if v := p.Get("label"); v != "" {
 		one, _ := json.Marshal([]string{v})
@@ -392,8 +394,15 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	t, tt, ok := s.loadTask(w, r)
-	var in struct{ Answers scorecard.Answers }
+	var in struct {
+		Answers      scorecard.Answers `json:"answers"`
+		OrderNumbers []string          `json:"order_numbers"`
+	}
 	if !ok || !decode(w, r, &in) {
+		return
+	}
+	orders, ok := orderNumbers(w, in.OrderNumbers)
+	if !ok {
 		return
 	}
 	u := me(r)
@@ -418,6 +427,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 				"state": model.StateCompleted, "scorecard": &card, "answers": &in.Answers,
 				"score": res.Score, "critical_failed": res.CriticalFailed, "passed": res.Passed, "result": res.Band,
 				"evaluated_by": u.ID, "submitted_at": now, "completed_at": now, "queue_position": nil,
+				"order_numbers": orders,
 			})
 		if upd.Error != nil {
 			return upd.Error
@@ -436,6 +446,26 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 var errConflict = errors.New("this task changed while you were working on it; reload")
+
+// orderNumbers tidies the order numbers a QA agent entered: trimmed, no
+// blanks or repeats. There may be none.
+func orderNumbers(w http.ResponseWriter, in []string) (model.Strings, bool) {
+	out := model.Strings{}
+	for _, v := range in {
+		if v = strings.TrimSpace(v); v != "" && !slices.Contains(out, v) {
+			if len(v) > 100 {
+				writeError(w, http.StatusBadRequest, "an order number is too long (up to 100 characters)")
+				return nil, false
+			}
+			out = append(out, v)
+		}
+	}
+	if len(out) > 20 {
+		writeError(w, http.StatusBadRequest, "at most 20 order numbers")
+		return nil, false
+	}
+	return out, true
+}
 
 func taskWriteError(w http.ResponseWriter, err error) {
 	if errors.Is(err, errConflict) {
@@ -663,8 +693,9 @@ func (s *Server) handleBulkReassign(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleEditEvaluation(w http.ResponseWriter, r *http.Request) {
 	t, tt, ok := s.loadTask(w, r)
 	var in struct {
-		Answers scorecard.Answers `json:"answers"`
-		Reason  string            `json:"reason"`
+		Answers      scorecard.Answers `json:"answers"`
+		Reason       string            `json:"reason"`
+		OrderNumbers *[]string         `json:"order_numbers"`
 	}
 	if !ok || !decode(w, r, &in) {
 		return
@@ -678,6 +709,25 @@ func (s *Server) handleEditEvaluation(w http.ResponseWriter, r *http.Request) {
 	if !manager && (t.EvaluatedBy == nil || *t.EvaluatedBy != u.ID) {
 		writeError(w, http.StatusForbidden, "only the QA agent who scored it, or a supervisor, can edit this evaluation")
 		return
+	}
+	// Order numbers don't change the score: they apply at once, approval or not.
+	if in.OrderNumbers != nil {
+		orders, ok := orderNumbers(w, *in.OrderNumbers)
+		if !ok {
+			return
+		}
+		if !slices.Equal(orders, t.OrderNumbers) {
+			err := s.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+				if err := tx.Model(&model.Task{}).Where("id = ?", t.ID).Update("order_numbers", orders).Error; err != nil {
+					return err
+				}
+				return s.audit(tx, t.ID, u, "order_number_changed", model.JSONMap{"before": t.OrderNumbers, "after": orders})
+			})
+			if err != nil {
+				dbError(w, err)
+				return
+			}
+		}
 	}
 	res, err := scorecard.Score(*t.Scorecard, in.Answers, thresholds(tt))
 	if err != nil {

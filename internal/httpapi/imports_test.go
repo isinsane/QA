@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -31,5 +32,19 @@ func TestCleanLive(t *testing.T) {
 	}
 	if _, missing := cleanLive(fields, "Disposition code", map[string]string{"Phone number": "5551234"}); missing != "Direction" {
 		t.Errorf("a required column left empty: missing = %q, want Direction", missing)
+	}
+}
+
+func TestOrderNumbers(t *testing.T) {
+	w := httptest.NewRecorder()
+	got, ok := orderNumbers(w, []string{" 113-1 ", "", "113-2", "113-1"})
+	if !ok || len(got) != 2 || got[0] != "113-1" || got[1] != "113-2" {
+		t.Errorf("got %v, %v; want trimmed, no blanks or repeats", got, ok)
+	}
+	if got, ok := orderNumbers(w, nil); !ok || got == nil || len(got) != 0 {
+		t.Errorf("none entered: got %v, %v; want an empty list", got, ok)
+	}
+	if _, ok := orderNumbers(httptest.NewRecorder(), []string{strings.Repeat("9", 101)}); ok {
+		t.Error("a 101-character order number was accepted")
 	}
 }

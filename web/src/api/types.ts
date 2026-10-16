@@ -184,6 +184,7 @@ export interface TaskRow {
   reported_by: string
   /** An escalation's decision note. */
   finding: string
+  order_numbers: string[]
   /** A QA agent's score change waits for a supervisor. */
   change_pending: boolean
   created_at: string
@@ -239,6 +240,8 @@ export interface Task {
   dispute_resolution: string
   dispute_resolved_at: string | null
   finding: string
+  /** The orders the work was about, as the QA agent entered them. */
+  order_numbers: string[]
 }
 
 export interface AuditEntry {

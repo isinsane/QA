@@ -40,6 +40,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		EmployeeID     uuid.UUID
 		EmployeeName   string
 		ExternalID     string
+		OrderNumbers   model.Strings
 		WorkDate       model.Date
 		TaskTypeName   string
 		Kind           model.Kind
@@ -56,7 +57,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		Answers        scorecard.Answers
 	}
 	if err := db.Table("tasks t").
-		Select(`t.employee_id, e.name AS employee_name, t.external_id, t.work_date, tt.name AS task_type_name, t.kind, t.labels,
+		Select(`t.employee_id, e.name AS employee_name, t.external_id, t.order_numbers, t.work_date, tt.name AS task_type_name, t.kind, t.labels,
 		        t.score, t.result, t.critical_failed, ev.name AS qa_name, t.completed_at, t.ack_status, t.ack_comment,
 		        t.dispute_resolution AS resolution, t.scorecard, t.answers`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
@@ -162,7 +163,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	aud := newSheet(f, "Audits", bold, []col{
-		{"Agent", 26}, {"Worked", 12}, {"Task type", 20}, {"Kind", 12}, {"Interaction / ticket ID", 38}, {"Code / tag", 24},
+		{"Agent", 26}, {"Worked", 12}, {"Task type", 20}, {"Kind", 12}, {"Interaction / ticket ID", 38}, {"Order numbers", 24}, {"Code / tag", 24},
 		{"Score %", 9}, {"Result", 11}, {"Critical fail", 12}, {"QA agent", 20}, {"Submitted", 18},
 		{"Agent's answer", 16}, {"Agent's comment", 40}, {"Dispute answer", 40},
 	})
@@ -171,7 +172,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		{"Points earned", 13}, {"Points possible", 14}, {"Notes", 50},
 	})
 	for _, a := range audits {
-		aud.add(a.EmployeeName, a.WorkDate.Format(time.DateOnly), a.TaskTypeName, string(a.Kind), a.ExternalID, strings.Join(a.Labels, ", "),
+		aud.add(a.EmployeeName, a.WorkDate.Format(time.DateOnly), a.TaskTypeName, string(a.Kind), a.ExternalID, strings.Join(a.OrderNumbers, ", "), strings.Join(a.Labels, ", "),
 			num(a.Score), deref(a.Result), yes(a.CriticalFailed), deref(a.QAName), stamp(a.CompletedAt, tz),
 			ackLabel(a.AckStatus), a.AckComment, a.Resolution)
 		answers := map[string]scorecard.Answer{}

@@ -351,6 +351,9 @@ type Task struct {
 	// Finding is what whoever decided an escalation found.
 	Finding string `json:"finding"`
 
+	// OrderNumbers are the orders the work was about, as the QA agent entered them.
+	OrderNumbers Strings `gorm:"type:jsonb" json:"order_numbers"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

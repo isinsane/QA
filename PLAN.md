@@ -469,6 +469,9 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   Nothing else they send is accepted. The View only role (HR) keeps every team. Negatives and QA escalations were
   already open to any agent; the supervisor's "Escalate an interaction" (a scored audit in their own queue) stays with
   their team.
+- **Order numbers (17 Oct):** every audit has an optional list of order numbers the QA agent adds while scoring (type,
+  Add or Enter, repeat; live audits start with the one typed while listening). Edit evaluation changes them without
+  approval. They show on the audit page, are searchable on All tasks and My audits, and go into the Excel export.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 
