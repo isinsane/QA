@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -64,7 +65,28 @@ func (s *Server) handleListCoachings(w http.ResponseWriter, r *http.Request) {
 		dbError(w, err)
 		return
 	}
+	if u.Role == model.RoleEmployee {
+		s.ownAuditsOnly(r, out)
+	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// ownAuditsOnly keeps, on an agent's coaching sessions, only the linked audits
+// the agent can open: not a focus plan or rotation case they never see.
+func (s *Server) ownAuditsOnly(r *http.Request, sessions []coachingRow) {
+	var ids []string
+	for _, c := range sessions {
+		ids = append(ids, c.TaskIDs...)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	var shown []string
+	s.db.WithContext(r.Context()).Model(&model.Task{}).Where("id IN ? AND state = 'completed' AND (kind IN "+
+		model.CountedKinds+" OR kind IN "+model.ReviewedKinds+")", ids).Select("id::text").Scan(&shown)
+	for i := range sessions {
+		sessions[i].TaskIDs = slices.DeleteFunc(slices.Clone(sessions[i].TaskIDs), func(id string) bool { return !slices.Contains(shown, id) })
+	}
 }
 
 func (s *Server) handleCreateCoaching(w http.ResponseWriter, r *http.Request) {

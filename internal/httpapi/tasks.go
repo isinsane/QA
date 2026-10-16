@@ -143,7 +143,8 @@ func (s *Server) handleMyScores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for i := range rows {
-		rows[i].QAName = nil // employees do not see who audited them
+		// Employees do not see who audited them, ran a live audit or reported them.
+		rows[i].QAName, rows[i].ReportedBy = nil, ""
 	}
 	writeJSON(w, http.StatusOK, rows)
 }
@@ -382,6 +383,9 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 			Joins("LEFT JOIN users u ON u.id = a.actor_id").Where("a.task_id = ?", t.ID).
 			Order("a.created_at DESC").Scan(&logs)
 		out["audit"] = logs
+	}
+	if u.Role == model.RoleEmployee { // nor anyone's ID on it (QA agent, who started it, who answered)
+		t.AssignedQAID, t.EvaluatedBy, t.CreatedBy, t.DisputeResolvedBy = nil, nil, nil, nil
 	}
 	writeJSON(w, http.StatusOK, out)
 }
