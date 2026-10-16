@@ -429,7 +429,7 @@ function TypeEditor({
           <div className="card-header">
             <div>
               <h2 className="card-title">Pass and borderline</h2>
-              <p className="card-subtitle">Every audit comes out Pass, Borderline or Fail. A critical metric that earns 0 is always a Fail.</p>
+              <p className="card-subtitle">Every audit comes out Pass, Borderline or Fail. A critical metric the QA agent fails the audit on is always a Fail.</p>
             </div>
           </div>
           <div className="card-body form-grid" style={{ gap: 18 }}>
@@ -599,6 +599,32 @@ function TypeEditor({
                       <input className="input" value={t.columns[k] ?? ''} onChange={(e) => set({ columns: { ...t.columns, [k]: e.target.value } })} />
                     </div>
                   ))}
+                </div>
+                <div className="form-section">Shared sheet</div>
+                <p className="hint-text">
+                  When calls and sales come in one Vonage sheet: give each task type the column that tells them apart and the values it
+                  takes (e.g. Service name: New Sales for sales, Other Sales for calls). One upload then fills both. Empty: every row.
+                </p>
+                <div className="form-row">
+                  <div className="field">
+                    <label className="field-label">Only rows where column</label>
+                    <input
+                      className="input"
+                      placeholder="Service name"
+                      value={t.columns.row_column ?? ''}
+                      onChange={(e) => set({ columns: { ...t.columns, row_column: e.target.value } })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label">is one of</label>
+                    <ChipList
+                      listId={`rows-${t.id}`}
+                      value={t.columns.row_values ?? []}
+                      seen={[]}
+                      onChange={(row_values) => set({ columns: { ...t.columns, row_values } })}
+                      action="Add"
+                    />
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -963,7 +989,7 @@ function MetricModal({
           <label className="field-inline">
             <input type="checkbox" checked={m.critical} onChange={(e) => set({ critical: e.target.checked })} />
             <span>
-              <strong>Critical</strong>: earning 0 here fails the whole audit
+              <strong>Critical</strong>: when it loses points, the QA agent can tick "Fail the whole audit" on it
             </span>
           </label>
           <label className="field-inline">

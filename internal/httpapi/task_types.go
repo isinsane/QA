@@ -163,7 +163,23 @@ func (s *Server) handleUpdateTaskType(w http.ResponseWriter, r *http.Request) {
 		tt.RotationDays = *in.RotationDays
 	}
 	if in.Columns != nil {
-		tt.Columns = *in.Columns
+		c := *in.Columns
+		c.RowColumn = strings.TrimSpace(c.RowColumn)
+		values := []string{}
+		for _, v := range c.RowValues {
+			if v = strings.TrimSpace(v); v != "" && !slices.ContainsFunc(values, func(x string) bool { return strings.EqualFold(x, v) }) {
+				values = append(values, v)
+			}
+		}
+		c.RowValues = values
+		if c.RowColumn != "" && len(values) == 0 {
+			writeError(w, http.StatusBadRequest, "list the "+c.RowColumn+" values this task type takes, or clear the column")
+			return
+		}
+		if c.RowColumn == "" {
+			c.RowValues = nil
+		}
+		tt.Columns = c
 	}
 	if in.AgentGroups != nil {
 		groups := model.Strings{}

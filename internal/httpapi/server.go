@@ -186,6 +186,8 @@ func dbError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, "not found")
 	case strings.Contains(msg, "idx_users_email"):
 		writeError(w, http.StatusConflict, "that email is already used by another user")
+	case strings.Contains(msg, "idx_users_hr_id"):
+		writeError(w, http.StatusConflict, "that employee ID is already used by another user")
 	case strings.Contains(msg, "idx_users_agent_code"):
 		writeError(w, http.StatusConflict, "that Agent ID is already used by another user")
 	case strings.Contains(msg, "idx_users_one_supervisor"):

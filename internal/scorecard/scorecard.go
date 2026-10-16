@@ -54,6 +54,9 @@ type Answer struct {
 	MetricID string `json:"metric_id"`
 	Value    string `json:"value"`
 	Notes    string `json:"notes,omitempty"`
+	// CriticalFail: the QA agent failed the whole audit on this critical
+	// metric. Only counts on a critical metric that lost points.
+	CriticalFail bool `json:"critical_fail,omitempty"`
 }
 
 type Answers []Answer
@@ -191,7 +194,7 @@ func Score(c Card, answers Answers, th Thresholds) (Result, error) {
 		if err != nil {
 			return Result{}, err
 		}
-		if m.Critical && earned == 0 {
+		if m.Critical && byID[m.ID].CriticalFail && earned < possible {
 			critical = true
 		}
 		if m.NAReceiver {
@@ -234,13 +237,13 @@ func Score(c Card, answers Answers, th Thresholds) (Result, error) {
 
 // maxPoints is what a metric is worth when fully met.
 // SameScoring reports whether two sets of answers give every scored metric
-// the same value: at most their notes and text comments differ, so the score
-// can't.
+// the same value (and the same critical fail): at most their notes and text
+// comments differ, so the score can't.
 func (c Card) SameScoring(a, b Answers) bool {
 	val := func(as Answers) map[string]string {
 		m := make(map[string]string, len(as))
 		for _, x := range as {
-			m[x.MetricID] = strings.TrimSpace(x.Value)
+			m[x.MetricID] = fmt.Sprint(strings.TrimSpace(x.Value), x.CriticalFail)
 		}
 		return m
 	}

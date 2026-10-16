@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Answer, Metric } from '../api/types'
-import { maxPoints, preview, type Thresholds } from '../scorecard'
+import { earned, maxPoints, preview, type Thresholds } from '../scorecard'
 import { ScoreBadge } from './bits'
 
 interface Props {
@@ -31,6 +31,9 @@ export function ScorecardForm({ card, answers, thresholds, readOnly, onChange, f
     <>
       {card.map((m, i) => {
         const a = answers[m.id]
+        // A critical metric that lost points can fail the whole audit, when the QA agent says so.
+        const loses = (v: string | undefined) =>
+          m.critical && v !== undefined && v !== 'na' && (earned(m, v) ?? maxPoints(m)) < maxPoints(m)
         const showNotes = !readOnly && m.type !== 'text' && (noting[m.id] || !!a?.notes)
         return (
           <div className={`metric${!readOnly && m.type !== 'text' && !a?.value ? ' is-open' : ''}`} key={m.id} id={`metric-${m.id}`}>
@@ -52,13 +55,34 @@ export function ScorecardForm({ card, answers, thresholds, readOnly, onChange, f
                   ) : null}
                 </span>
               </div>
-              {m.type !== 'text' ? <Choices metric={m} value={a?.value ?? ''} readOnly={readOnly} onPick={(value) => set(m.id, { value })} /> : null}
+              {m.type !== 'text' ? (
+                <Choices
+                  metric={m}
+                  value={a?.value ?? ''}
+                  readOnly={readOnly}
+                  onPick={(value) => set(m.id, { value, critical_fail: loses(value) ? a?.critical_fail : false })}
+                />
+              ) : null}
             </div>
+            {loses(a?.value) && !readOnly ? (
+              <label className="field-inline metric-critical">
+                <input type="checkbox" checked={!!a?.critical_fail} onChange={(e) => set(m.id, { critical_fail: e.target.checked })} />
+                Fail the whole audit (critical)
+              </label>
+            ) : null}
+            {loses(a?.value) && readOnly && a?.critical_fail ? (
+              <div className="metric-readonly-notes text-error">Failed the whole audit</div>
+            ) : null}
             {m.type === 'text' ? (
               readOnly ? (
                 <div className="metric-readonly-notes">{a?.value || <span className="text-tertiary">—</span>}</div>
               ) : (
-                <textarea className="textarea metric-notes" rows={2} value={a?.value ?? ''} onChange={(e) => set(m.id, { value: e.target.value })} />
+                <textarea
+                  className="textarea metric-notes"
+                  rows={2}
+                  value={a?.value ?? ''}
+                  onChange={(e) => set(m.id, { value: e.target.value })}
+                />
               )
             ) : null}
             {m.type !== 'text' && readOnly && a?.notes ? <div className="metric-readonly-notes">Note: {a.notes}</div> : null}
@@ -108,11 +132,24 @@ export function ScorecardForm({ card, answers, thresholds, readOnly, onChange, f
 
 const round = (n: number) => Math.round(n * 10) / 10
 
-function Choices({ metric: m, value, readOnly, onPick }: { metric: Metric; value: string; readOnly?: boolean; onPick: (v: string) => void }) {
+function Choices({
+  metric: m,
+  value,
+  readOnly,
+  onPick,
+}: {
+  metric: Metric
+  value: string
+  readOnly?: boolean
+  onPick: (v: string) => void
+}) {
   let choices: { value: string; label: string }[] = []
-  if (m.type === 'yes_no') choices = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]
-  if (m.type === 'scale')
-    choices = Array.from({ length: (m.scale_max ?? 0) + 1 }, (_, i) => ({ value: String(i), label: String(i) }))
+  if (m.type === 'yes_no')
+    choices = [
+      { value: 'yes', label: 'Yes' },
+      { value: 'no', label: 'No' },
+    ]
+  if (m.type === 'scale') choices = Array.from({ length: (m.scale_max ?? 0) + 1 }, (_, i) => ({ value: String(i), label: String(i) }))
   if (m.type === 'dropdown') choices = (m.options ?? []).map((o) => ({ value: o.label, label: `${o.label} (${o.points})` }))
   if (m.allow_na) choices.push({ value: 'na', label: 'N/A' })
 

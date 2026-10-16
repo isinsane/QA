@@ -125,6 +125,11 @@ type userInput struct {
 	QueueLimit   *int       `json:"queue_limit"`
 	SheetNames   *[]string  `json:"sheet_names"`
 	EDeskID      *string    `json:"edesk_id"`
+	AliasName    *string    `json:"alias_name"`
+	HRID         *string    `json:"hr_id"`
+	// Profile: the HR sheet's job details (department, organization,
+	// job_title, supervisor); a blank one is cleared.
+	Profile *map[string]string `json:"profile"`
 }
 
 // apply copies the present fields onto u. Blank email/agent code clear them.
@@ -163,6 +168,28 @@ func (in userInput) apply(u *model.User) {
 				u.SheetNames = append(u.SheetNames, n)
 			}
 		}
+	}
+	if in.AliasName != nil {
+		u.AliasName = strings.TrimSpace(*in.AliasName)
+	}
+	if in.HRID != nil {
+		u.HRID = blankToNil(*in.HRID)
+	}
+	if in.Profile != nil {
+		p := model.JSONMap{}
+		for k, v := range u.Profile {
+			p[k] = v
+		}
+		for _, k := range []string{"department", "organization", "job_title", "supervisor"} {
+			if v, ok := (*in.Profile)[k]; ok {
+				if v = strings.TrimSpace(v); v == "" {
+					delete(p, k)
+				} else {
+					p[k] = v
+				}
+			}
+		}
+		u.Profile = p
 	}
 	if u.Role == model.RoleAdmin {
 		u.DepartmentID = nil

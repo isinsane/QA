@@ -79,10 +79,13 @@ const shownValue = (v: string | undefined) => (v === undefined || v === '' ? 'â€
 
 /** Scored metrics whose answer differs: what a pending change would do. */
 function changedMetrics(card: Metric[], before: Answer[] | null, after: Answer[] | undefined) {
-  const val = (as: Answer[] | null | undefined, id: string) => as?.find((a) => a.metric_id === id)?.value
+  const val = (as: Answer[] | null | undefined, id: string) => {
+    const a = as?.find((x) => x.metric_id === id)
+    return `${shownValue(a?.value)}${a?.critical_fail ? ' Â· fails the audit' : ''}`
+  }
   return card
     .filter((m) => m.type !== 'text' && val(before, m.id) !== val(after, m.id))
-    .map((m) => ({ label: m.label, from: shownValue(val(before, m.id)), to: shownValue(val(after, m.id)) }))
+    .map((m) => ({ label: m.label, from: val(before, m.id), to: val(after, m.id) }))
 }
 
 export function TaskView({

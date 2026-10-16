@@ -37,7 +37,7 @@ This repo is built fresh, and reusable pieces are copied in, not imported.
 | Employees | Come from the HR sheet (its Employees tab), uploaded again whenever HR updates it. People are matched on HR Employee ID, then email. Only the audited departments are brought in: Calls support, Ticket support, New Sales and Marketplace support. Portal departments carry the same names as HR's |
 | Queue | Auto-assign like followup: personal queues with a cap per QA agent, filled from the agent's own department only |
 | Scorecard | Dynamic metrics per task type, managed by the supervisor (own department) and the admin |
-| Score | Points converted to a %. A **critical** metric that earns 0 sets the whole score to 0. Every metric has an optional notes box |
+| Score | Points converted to a %. On a **critical** metric that lost points, the QA agent can tick *Fail the whole audit*, which sets the score to 0 (since 16 Oct; before, earning 0 did it by itself). Every metric has an optional notes box |
 | After submit | Locked for the QA agent. Only the supervisor or admin can edit, and every edit is audit-logged |
 | Employees' view | They log in and see their own evaluations, read-only |
 
@@ -129,7 +129,7 @@ A scorecard is a JSON array on the task type, edited in a builder UI:
 
 - **Notes**: every metric has an optional notes box, so the QA agent can explain the score to the employee.
 - **N/A** (when `allow_na` is set) leaves the metric out of both earned and possible.
-- **Score** = `earned / possible × 100`, rounded to 1 decimal. If any critical metric earns 0, the score is 0.
+- **Score** = `earned / possible × 100`, rounded to 1 decimal. If the QA agent failed the audit on a critical metric (it must have lost points), the score is 0.
 - **Passed** = `score ≥ pass_threshold` and no critical fail.
 - Scorecard edits apply to evaluations submitted after the edit. A submitted evaluation keeps its own snapshot, so old scores never change.
   Metric `id`s stay stable across label edits, so per-metric reports still group correctly.
@@ -450,6 +450,10 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
 - **C:** no task type option in the export. The dashboard's button exports the picked agent, or the supervisor's team.
 - **D:** New session is on the QA agent's Coaching page, not the workspace footer. The supervisor's Coaching page filters
   by open / assigned / logged / refresher, not by QA agent or agent.
+- **Since then (16 Oct):** calls and sales can come in **one Vonage sheet**: each sheet task type can take only the rows
+  whose column (e.g. Service name) is one of its values, and one upload fills every task type set up on that column.
+  The Team edit dialog edits every field (alias, employee ID, job title, HR department, supervisor, organization). A
+  critical metric no longer fails the audit by itself (migration 00013 ticks the box on audits that failed the old way).
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 

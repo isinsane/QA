@@ -1371,3 +1371,10 @@ input[type='checkbox']:disabled {
   margin: 0;
   padding-left: 18px;
 }
+
+/* "Fail the whole audit" under a critical metric that lost points. */
+.metric-critical {
+  margin-top: 8px;
+  color: var(--error-600, #d92d20);
+  font-weight: 500;
+}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -81,16 +82,18 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	rows, err := importer.SheetRows(sheet, tt.Columns, s.cfg(r).CallClock())
+	clock := s.cfg(r).CallClock()
+	rows, err := importer.SheetRows(sheet, tt.Columns, clock)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("This sheet doesn't fit %s: %v.%s", tt.Name, err, s.fitsOther(r, tt, sheet)))
 		return
 	}
 	uid := me(r).ID
-	res, err := importer.Ingest(r.Context(), s.db, *tt, day, rows, importer.Options{
+	opts := importer.Options{
 		Source: "upload", Filename: header.Filename, UserID: &uid,
 		DryRun: r.FormValue("dry_run") == "1", Columns: sheet.Headers,
-	})
+	}
+	res, err := importer.Ingest(r.Context(), s.db, *tt, day, rows, opts)
 	if ws := (*importer.WrongSheetError)(nil); errors.As(err, &ws) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -99,10 +102,57 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// A shared sheet (calls and sales in one export) also fills the other task
+	// types that take their rows by the same column.
+	var also []sharedPart
+	var unclaimed map[string]int
+	if col := tt.Columns.RowColumn; col != "" {
+		targets := []model.TaskType{*tt}
+		var others []model.TaskType
+		q := s.db.WithContext(r.Context()).Where("source = ? AND active AND id <> ?", model.SourceSheet, tt.ID).Order("name")
+		if d := deptScope(me(r)); d != nil {
+			q = q.Where("department_id = ?", *d)
+		}
+		q.Find(&others)
+		for _, o := range others {
+			if o.Columns.RowColumn != col {
+				continue
+			}
+			targets = append(targets, o)
+			p := sharedPart{TaskType: o.Name}
+			orows, err := importer.SheetRows(sheet, o.Columns, clock)
+			if err == nil {
+				p.Result, err = importer.Ingest(r.Context(), s.db, o, day, orows, opts)
+			}
+			if err != nil {
+				p.Problem = err.Error()
+			}
+			also = append(also, p)
+		}
+		// Rows no task type takes: a value nobody has set up yet.
+		unclaimed = map[string]int{}
+		for _, row := range sheet.Rows {
+			if !slices.ContainsFunc(targets, func(t model.TaskType) bool { return t.Columns.Takes(row) }) {
+				unclaimed[row[col]]++
+			}
+		}
+	}
 	if !res.DryRun {
 		s.runAssign(r.Context())
 	}
-	writeJSON(w, http.StatusOK, res)
+	writeJSON(w, http.StatusOK, struct {
+		*importer.Result
+		Also      []sharedPart   `json:"also,omitempty"`
+		Unclaimed map[string]int `json:"unclaimed,omitempty"`
+	}{res, also, unclaimed})
+}
+
+// sharedPart is what one upload did for another task type sharing the sheet.
+type sharedPart struct {
+	TaskType string           `json:"task_type"`
+	Result   *importer.Result `json:"result,omitempty"`
+	Problem  string           `json:"problem,omitempty"`
 }
 
 func (s *Server) handlePullTickets(w http.ResponseWriter, r *http.Request) {

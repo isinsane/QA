@@ -224,6 +224,14 @@ function UserDialog({
         agent_code: u.agent_code ?? '',
         sheet_names: u.sheet_names ?? [],
         edesk_id: u.edesk_id ?? '',
+        alias_name: u.alias_name ?? '',
+        hr_id: u.hr_id ?? '',
+        profile: {
+          department: u.profile?.department ?? '',
+          organization: u.profile?.organization ?? '',
+          job_title: u.profile?.job_title ?? '',
+          supervisor: u.profile?.supervisor ?? '',
+        },
         queue_limit: Number(u.queue_limit ?? 12),
         active: u.active,
         ...(isAdmin && u.department_id ? { department_id: u.department_id } : {}),
@@ -241,7 +249,7 @@ function UserDialog({
   return (
     <Modal
       title={u.id ? `Edit ${initial.name}` : 'Add person'}
-      subtitle={fromHR ? `From the HR sheet · Employee ID ${initial.hr_id}${initial.profile?.job_title ? ` · ${initial.profile.job_title}` : ''}` : undefined}
+      subtitle={fromHR ? 'From the HR sheet. The next HR upload sets the fields it has again.' : undefined}
       size="md"
       onClose={onClose}
       onSubmit={() => void save()}
@@ -269,6 +277,16 @@ function UserDialog({
       </div>
       <div className="form-row">
         <div className="field">
+          <label className="field-label">Alias (the name they use on calls)</label>
+          <input className="input" value={u.alias_name ?? ''} onChange={(e) => set({ alias_name: e.target.value })} />
+        </div>
+        <div className="field">
+          <label className="field-label">Employee ID (HR)</label>
+          <input className="input mono" value={u.hr_id ?? ''} onChange={(e) => set({ hr_id: e.target.value })} />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="field">
           <label className="field-label">Role</label>
           <select className="select" value={u.role} onChange={(e) => set({ role: e.target.value as Role })}>
             {roles.map((r) => (
@@ -291,6 +309,32 @@ function UserDialog({
             </select>
           </div>
         ) : null}
+      </div>
+
+      <div className="form-section">Job</div>
+      <div className="form-row">
+        <div className="field">
+          <label className="field-label">Job title</label>
+          <input className="input" value={u.profile?.job_title ?? ''} onChange={(e) => set({ profile: { ...u.profile, job_title: e.target.value } })} />
+        </div>
+        <div className="field">
+          <label className="field-label">HR department</label>
+          <input className="input" value={u.profile?.department ?? ''} onChange={(e) => set({ profile: { ...u.profile, department: e.target.value } })} />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="field">
+          <label className="field-label">Supervisor (HR)</label>
+          <input className="input" value={u.profile?.supervisor ?? ''} onChange={(e) => set({ profile: { ...u.profile, supervisor: e.target.value } })} />
+        </div>
+        <div className="field">
+          <label className="field-label">Organization</label>
+          <input
+            className="input"
+            value={u.profile?.organization ?? ''}
+            onChange={(e) => set({ profile: { ...u.profile, organization: e.target.value } })}
+          />
+        </div>
       </div>
 
       {u.role === 'employee' ? (

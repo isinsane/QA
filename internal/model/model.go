@@ -123,6 +123,25 @@ type Columns struct {
 	AgentName  string `json:"agent_name"`
 	Label      string `json:"label"`
 	StartTime  string `json:"start_time"` // matches live-monitoring audits to calls
+	// RowColumn and RowValues share one sheet between task types (calls and
+	// sales come in one Vonage export, told apart by Service name): this type
+	// takes only the rows whose RowColumn is one of RowValues. Empty: every row.
+	RowColumn string   `json:"row_column,omitempty"`
+	RowValues []string `json:"row_values,omitempty"`
+}
+
+// Takes reports whether a sheet row belongs to this type (see RowColumn).
+func (c Columns) Takes(row map[string]string) bool {
+	if c.RowColumn == "" {
+		return true
+	}
+	v := strings.TrimSpace(row[c.RowColumn])
+	for _, x := range c.RowValues {
+		if strings.EqualFold(strings.TrimSpace(x), v) {
+			return true
+		}
+	}
+	return false
 }
 
 // VonageColumns is the "Disposition codes by interaction" export, used for

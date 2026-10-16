@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { CloudDownload, FileSpreadsheet, Upload } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
@@ -120,7 +120,9 @@ function SheetUpload({
       const res = await api.upload(typeId, day, file, dryRun)
       if (dryRun) setPreview(res)
       else {
-        onDone(`Imported ${res.run.created} rows; ${res.run.sampled} audits queued.`)
+        const all = [res, ...(res.also ?? []).flatMap((p) => (p.result ? [p.result] : []))]
+        const sum = (f: (x: ImportResult) => number) => all.reduce((n, x) => n + f(x), 0)
+        onDone(`Imported ${sum((x) => x.run.created)} rows; ${sum((x) => x.run.sampled)} audits queued.`)
         pick(null)
       }
     } catch (err) {
@@ -180,12 +182,21 @@ function SheetUpload({
           </div>
         ) : null}
       </div>
-      {preview ? <Preview res={preview} busy={busy} onCommit={() => void run(false)} onCancel={() => pick(null)} /> : null}
+      {preview ? (
+        <Preview
+          res={preview}
+          typeName={types.find((t) => t.id === typeId)?.name ?? ''}
+          busy={busy}
+          onCommit={() => void run(false)}
+          onCancel={() => pick(null)}
+        />
+      ) : null}
     </section>
   )
 }
 
-function Preview({ res, busy, onCommit, onCancel }: { res: ImportResult; busy: boolean; onCommit: () => void; onCancel: () => void }) {
+/** One task type's part of an upload. */
+function RunSummary({ res }: { res: ImportResult }) {
   const r = res.run
   return (
     <>
@@ -265,6 +276,58 @@ function Preview({ res, busy, onCommit, onCancel }: { res: ImportResult; busy: b
           </table>
         </div>
       ) : null}
+    </>
+  )
+}
+
+/** All an upload would do: for a shared sheet, each task type it fills. */
+function Preview({
+  res,
+  typeName,
+  busy,
+  onCommit,
+  onCancel,
+}: {
+  res: ImportResult
+  typeName: string
+  busy: boolean
+  onCommit: () => void
+  onCancel: () => void
+}) {
+  const parts = res.also ?? []
+  const created = res.run.created + parts.reduce((n, p) => n + (p.result?.run.created ?? 0), 0)
+  const sampled = res.run.sampled + parts.reduce((n, p) => n + (p.result?.run.sampled ?? 0), 0)
+  const unclaimed = Object.entries(res.unclaimed ?? {})
+  return (
+    <>
+      {parts.length ? (
+        <div className="form-section" style={{ padding: '0 24px' }}>
+          {typeName}
+        </div>
+      ) : null}
+      <RunSummary res={res} />
+      {parts.map((p) => (
+        <Fragment key={p.task_type}>
+          <div className="form-section" style={{ padding: '0 24px' }}>
+            {p.task_type}
+          </div>
+          {p.result ? (
+            <RunSummary res={p.result} />
+          ) : (
+            <div className="card-body" style={{ paddingTop: 0 }}>
+              <div className="inline-warning">Not imported: {p.problem}</div>
+            </div>
+          )}
+        </Fragment>
+      ))}
+      {unclaimed.length ? (
+        <div className="card-body" style={{ paddingTop: 0 }}>
+          <div className="inline-warning">
+            No task type takes these rows, so they are left out: {unclaimed.map(([v, n]) => `${v || '(empty)'} (${n} rows)`).join(' · ')}.
+            Add the value to a task type's settings to audit them.
+          </div>
+        </div>
+      ) : null}
       <div className="card-foot">
         <span className="text-tertiary" style={{ marginRight: 'auto' }}>
           The exact rows are picked again at import, with the same counts per agent.
@@ -272,8 +335,8 @@ function Preview({ res, busy, onCommit, onCancel }: { res: ImportResult; busy: b
         <button className="btn btn-secondary" onClick={onCancel}>
           Choose another file
         </button>
-        <button className="btn btn-primary" disabled={busy || r.created === 0} onClick={onCommit}>
-          Import and queue {r.sampled} audits
+        <button className="btn btn-primary" disabled={busy || created === 0} onClick={onCommit}>
+          Import and queue {sampled} audits
         </button>
       </div>
     </>

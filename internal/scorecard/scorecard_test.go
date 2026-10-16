@@ -44,12 +44,16 @@ func TestScore(t *testing.T) {
 		passed   bool
 	}{
 		// 10 + 15 + 5 + 10 = 40 of 50.
-		{"mixed", Answers{{"greet", "yes", ""}, {"tone", "3", ""}, {"res", "Partial", ""}, {"verify", "yes", ""}}, 80, false, true},
+		{"mixed", Answers{{"greet", "yes", "", false}, {"tone", "3", "", false}, {"res", "Partial", "", false}, {"verify", "yes", "", false}}, 80, false, true},
 		// Greeting N/A leaves 35 of 40.
-		{"na excluded", Answers{{"greet", "na", ""}, {"tone", "3", ""}, {"res", "Met", ""}, {"verify", "yes", ""}}, 87.5, false, true},
+		{"na excluded", Answers{{"greet", "na", "", false}, {"tone", "3", "", false}, {"res", "Met", "", false}, {"verify", "yes", "", false}}, 87.5, false, true},
 		// Everything else perfect, but the critical metric failed.
-		{"critical zeroes", Answers{{"greet", "yes", ""}, {"tone", "4", ""}, {"res", "Met", ""}, {"verify", "no", "did not verify"}}, 0, true, false},
-		{"below threshold", Answers{{"greet", "no", ""}, {"tone", "2", ""}, {"res", "Not met", ""}, {"verify", "yes", ""}}, 40, false, false},
+		{"critical zeroes", Answers{{"greet", "yes", "", false}, {"tone", "4", "", false}, {"res", "Met", "", false}, {"verify", "no", "did not verify", true}}, 0, true, false},
+		// The same miss without the QA agent failing the audit on it: just its points.
+		{"critical missed, not failed", Answers{{"greet", "yes", "", false}, {"tone", "4", "", false}, {"res", "Met", "", false}, {"verify", "no", "", false}}, 80, false, true},
+		// A fail ticked on a metric that earned full points doesn't count.
+		{"stale fail", Answers{{"greet", "yes", "", false}, {"tone", "4", "", false}, {"res", "Met", "", false}, {"verify", "yes", "", true}}, 100, false, true},
+		{"below threshold", Answers{{"greet", "no", "", false}, {"tone", "2", "", false}, {"res", "Not met", "", false}, {"verify", "yes", "", false}}, 40, false, false},
 	}
 	for _, c := range cases {
 		r, err := Score(card, c.answers, Thresholds{Pass: 80, Borderline: 70})
@@ -61,10 +65,10 @@ func TestScore(t *testing.T) {
 		}
 	}
 
-	if _, err := Score(card, Answers{{"greet", "yes", ""}}, Thresholds{80, 70}); err == nil {
+	if _, err := Score(card, Answers{{"greet", "yes", "", false}}, Thresholds{80, 70}); err == nil {
 		t.Error("missing answers accepted")
 	}
-	if _, err := Score(card, Answers{{"greet", "yes", ""}, {"tone", "3", ""}, {"res", "Met", ""}, {"verify", "na", ""}}, Thresholds{80, 70}); err == nil {
+	if _, err := Score(card, Answers{{"greet", "yes", "", false}, {"tone", "3", "", false}, {"res", "Met", "", false}, {"verify", "na", "", false}}, Thresholds{80, 70}); err == nil {
 		t.Error("N/A accepted on a metric that does not allow it")
 	}
 }
@@ -79,7 +83,7 @@ func TestNAWeightMovesToReceivers(t *testing.T) {
 		{ID: "d", Label: "D", Type: YesNo, Points: 20},
 		{ID: "e", Label: "E", Type: YesNo, Points: 20},
 	}
-	ans := Answers{{"a", "na", ""}, {"b", "yes", ""}, {"c", "no", ""}, {"d", "yes", ""}, {"e", "yes", ""}}
+	ans := Answers{{"a", "na", "", false}, {"b", "yes", "", false}, {"c", "no", "", false}, {"d", "yes", "", false}, {"e", "yes", "", false}}
 	r, err := Score(c, ans, Thresholds{Pass: 80, Borderline: 70})
 	if err != nil {
 		t.Fatal(err)
@@ -115,12 +119,12 @@ func TestNAWeightSplitsByOwnPoints(t *testing.T) {
 	}
 	th := Thresholds{Pass: 80, Borderline: 70}
 	// B missed: earned 45 + 40 of 15 + 45 + 40 = 85%.
-	r, err := Score(c, Answers{{"a", "na", ""}, {"b", "no", ""}, {"c", "yes", ""}, {"d", "yes", ""}}, th)
+	r, err := Score(c, Answers{{"a", "na", "", false}, {"b", "no", "", false}, {"c", "yes", "", false}, {"d", "yes", "", false}}, th)
 	if err != nil || r.Score == nil || *r.Score != 85 {
 		t.Fatalf("B missed: got %v %v, want 85", r.Score, err)
 	}
 	// B is N/A too: it gives its 10 away and takes nothing, so C takes all 30 (60) of 100.
-	r, err = Score(c, Answers{{"a", "na", ""}, {"b", "na", ""}, {"c", "no", ""}, {"d", "yes", ""}}, th)
+	r, err = Score(c, Answers{{"a", "na", "", false}, {"b", "na", "", false}, {"c", "no", "", false}, {"d", "yes", "", false}}, th)
 	if err != nil || r.Score == nil || *r.Score != 40 {
 		t.Fatalf("B N/A too: got %v %v, want 40", r.Score, err)
 	}
@@ -140,5 +144,8 @@ func TestSameScoring(t *testing.T) {
 	}
 	if c.SameScoring(base, Answers{{MetricID: "b", Value: "fine"}}) {
 		t.Error("a scored answer went missing")
+	}
+	if c.SameScoring(base, Answers{{MetricID: "a", Value: "yes", CriticalFail: true}, {MetricID: "b", Value: "fine"}}) {
+		t.Error("failing the audit on a metric changes the score")
 	}
 }

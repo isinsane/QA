@@ -119,13 +119,20 @@ func SheetRows(s *Sheet, c model.Columns, clock *time.Location) ([]Row, error) {
 	if agentCol == "" {
 		agentCol = c.AgentName
 	}
-	for _, h := range []string{c.ExternalID, agentCol} {
+	need := []string{c.ExternalID, agentCol}
+	if c.RowColumn != "" {
+		need = append(need, c.RowColumn)
+	}
+	for _, h := range need {
 		if !s.has(h) {
 			return nil, fmt.Errorf("column %q not found; the sheet has: %s", h, strings.Join(s.Headers, ", "))
 		}
 	}
 	rows := make([]Row, 0, len(s.Rows))
 	for i, sr := range s.Rows {
+		if !c.Takes(sr) {
+			continue // another task type's row of a shared sheet
+		}
 		ext := sr[c.ExternalID]
 		if ext == "" {
 			return nil, fmt.Errorf("row %d has no %s", i+2, c.ExternalID)

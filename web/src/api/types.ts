@@ -60,6 +60,8 @@ export interface Answer {
   metric_id: string
   value: string
   notes?: string
+  /** The QA agent failed the whole audit on this critical metric (only counts when it lost points). */
+  critical_fail?: boolean
 }
 
 export interface Columns {
@@ -68,6 +70,9 @@ export interface Columns {
   agent_name: string
   label: string
   start_time: string
+  /** A sheet shared by task types: this one takes only rows whose row_column is one of row_values. */
+  row_column?: string
+  row_values?: string[]
 }
 
 export interface ReportAgent {
@@ -306,6 +311,10 @@ export interface ImportResult {
     labels: string[]
   }[]
   dry_run: boolean
+  /** A shared sheet's other task types, filled by the same upload. */
+  also?: { task_type: string; result?: ImportResult; problem?: string }[]
+  /** Rows no task type takes, by their value in the shared column. */
+  unclaimed?: Record<string, number>
 }
 
 export interface Coaching {
