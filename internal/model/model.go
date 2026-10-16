@@ -27,11 +27,14 @@ const (
 	RoleNegative Role = "negative_agent"
 	// RoleTeamLeader (floor support) escalates work of agents on their team.
 	RoleTeamLeader Role = "team_leader"
+	// RoleViewer sees what an admin sees, every team, and changes nothing
+	// (HR and other people who follow quality).
+	RoleViewer Role = "viewer"
 )
 
 func (r Role) Valid() bool {
 	switch r {
-	case RoleAdmin, RoleSupervisor, RoleQA, RoleEmployee, RoleNegative, RoleTeamLeader:
+	case RoleAdmin, RoleSupervisor, RoleQA, RoleEmployee, RoleNegative, RoleTeamLeader, RoleViewer:
 		return true
 	}
 	return false

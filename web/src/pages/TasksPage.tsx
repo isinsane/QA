@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Siren } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
+import { useReadOnly } from '../auth/AuthContext'
 import type { TaskType } from '../api/types'
 import { AckBadge, auditedUnder, daysAgo, Empty, errorText, fmtDate, KindBadge, Labels, ScoreBadge, StateBadge } from '../components/bits'
 import { Modal } from '../components/Modal'
@@ -46,7 +47,9 @@ export function TasksPage() {
   const filterKey = JSON.stringify({ ...f, page: 0 })
   useEffect(() => setPicked(new Set()), [filterKey])
   const rows = tasks.data?.tasks ?? []
-  const movable = (t: { state: string; kind: string }) => (t.state === 'ready' || t.state === 'assigned') && t.kind !== 'rotation'
+  const readOnly = useReadOnly()
+  const movable = (t: { state: string; kind: string }) =>
+    !readOnly && (t.state === 'ready' || t.state === 'assigned') && t.kind !== 'rotation'
   const pageMovable = rows.filter(movable)
   const allOnPage = pageMovable.length > 0 && pageMovable.every((t) => picked.has(t.id))
   const toggle = (id: string) =>
@@ -94,19 +97,28 @@ export function TasksPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">All tasks</h1>
-          <p className="page-subtitle">{total} task{total === 1 ? '' : 's'} match</p>
+          <p className="page-subtitle">
+            {total} task{total === 1 ? '' : 's'} match
+          </p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-primary" onClick={() => setEscalating(true)}>
-            <Siren size={16} />
-            Escalate an interaction
-          </button>
+          {readOnly ? null : (
+            <button className="btn btn-primary" onClick={() => setEscalating(true)}>
+              <Siren size={16} />
+              Escalate an interaction
+            </button>
+          )}
         </div>
       </div>
       <div className="tasks-filter-bar" style={{ gridTemplateColumns: 'minmax(200px, 2fr) repeat(6, minmax(130px, 1fr))' }}>
         <div className="field">
           <label className="field-label">Search</label>
-          <input className="input" placeholder="Interaction / ticket ID or agent" value={f.q} onChange={(e) => set({ q: e.target.value })} />
+          <input
+            className="input"
+            placeholder="Interaction / ticket ID or agent"
+            value={f.q}
+            onChange={(e) => set({ q: e.target.value })}
+          />
         </div>
         <div className="field">
           <label className="field-label">State</label>
@@ -205,7 +217,11 @@ export function TasksPage() {
               </thead>
               <tbody>
                 {(tasks.data?.tasks ?? []).map((t) => (
-                  <tr key={t.id} className={`is-clickable${picked.has(t.id) ? ' is-picked' : ''}`} onClick={() => navigate(`/tasks/${t.id}`)}>
+                  <tr
+                    key={t.id}
+                    className={`is-clickable${picked.has(t.id) ? ' is-picked' : ''}`}
+                    onClick={() => navigate(`/tasks/${t.id}`)}
+                  >
                     <td onClick={(e) => e.stopPropagation()}>
                       {movable(t) ? (
                         <input type="checkbox" aria-label="Select" checked={picked.has(t.id)} onChange={() => toggle(t.id)} />
@@ -229,7 +245,11 @@ export function TasksPage() {
                     <td>
                       <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} />
                     </td>
-                    <td>{t.state === 'completed' && ['sample', 'live', 'escalation'].includes(t.kind) ? <AckBadge status={t.ack_status} /> : null}</td>
+                    <td>
+                      {t.state === 'completed' && ['sample', 'live', 'escalation'].includes(t.kind) ? (
+                        <AckBadge status={t.ack_status} />
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -313,7 +333,9 @@ function EscalateDialog({
   const [f, setF] = useState({ type: types[0]?.id ?? '', external: '', agent: '', reason: '' })
   const [busy, setBusy] = useState(false)
   const type = types.find((t) => t.id === f.type)
-  const team = (agents.data ?? []).filter((a) => a.active && (!type || a.department_id === type.department_id) && auditedUnder(type, a.profile?.department))
+  const team = (agents.data ?? []).filter(
+    (a) => a.active && (!type || a.department_id === type.department_id) && auditedUnder(type, a.profile?.department),
+  )
   const idLabel = type?.source === 'tickets_api' ? 'Ticket ID' : 'Interaction ID'
   return (
     <Modal
@@ -334,7 +356,11 @@ function EscalateDialog({
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || !f.type || !f.external.trim() || !f.agent || !f.reason.trim()}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy || !f.type || !f.external.trim() || !f.agent || !f.reason.trim()}
+          >
             Send to QA
           </button>
         </>

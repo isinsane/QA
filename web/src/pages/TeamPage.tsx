@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { RosterResult, Role, User } from '../api/types'
-import { ROLE_LABEL, useAuth } from '../auth/AuthContext'
+import { ROLE_LABEL, useAuth, useReadOnly } from '../auth/AuthContext'
 import { errorText } from '../components/bits'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
@@ -20,6 +20,7 @@ const FILTERS: { key: Role | 'all'; label: string }[] = [
   { key: 'negative_agent', label: 'Negatives agents' },
   { key: 'team_leader', label: 'Team leaders' },
   { key: 'admin', label: 'Admins' },
+  { key: 'viewer', label: 'View only' },
 ]
 
 type Dialog = { kind: 'edit'; user: Partial<User> } | { kind: 'password'; user: User } | { kind: 'roster' } | null
@@ -27,6 +28,7 @@ type Dialog = { kind: 'edit'; user: Partial<User> } | { kind: 'password'; user: 
 export function TeamPage() {
   const { user: me } = useAuth()
   const isAdmin = me?.role === 'admin'
+  const readOnly = useReadOnly()
   const users = useApi(() => api.users(), [])
   const depts = useApi(() => api.departments(), [])
   const { toasts, push } = useToasts()
@@ -68,28 +70,30 @@ export function TeamPage() {
             time an agent appears), tickets on the eDesk email; the eDesk ID fills in from each ticket pull.
           </p>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-secondary" onClick={() => setDialog({ kind: 'roster' })}>
-            <FileUp size={16} />
-            Upload HR sheet
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() =>
-              setDialog({
-                kind: 'edit',
-                user: { role: 'employee', active: true, queue_limit: 12, department_id: me?.department_id ?? null },
-              })
-            }
-          >
-            <UserPlus size={16} />
-            Add person
-          </button>
-        </div>
+        {readOnly ? null : (
+          <div className="page-actions">
+            <button className="btn btn-secondary" onClick={() => setDialog({ kind: 'roster' })}>
+              <FileUp size={16} />
+              Upload HR sheet
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                setDialog({
+                  kind: 'edit',
+                  user: { role: 'employee', active: true, queue_limit: 12, department_id: me?.department_id ?? null },
+                })
+              }
+            >
+              <UserPlus size={16} />
+              Add person
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="queue-filters" style={{ marginBottom: 14 }}>
-        {FILTERS.filter((f) => isAdmin || (f.key !== 'admin' && f.key !== 'supervisor')).map((f) => (
+        {FILTERS.filter((f) => isAdmin || readOnly || (f.key !== 'admin' && f.key !== 'supervisor' && f.key !== 'viewer')).map((f) => (
           <button key={f.key} className={`filter-chip${filter === f.key ? ' active' : ''}`} onClick={() => setFilter(f.key)}>
             {f.label}
           </button>
@@ -171,19 +175,23 @@ export function TeamPage() {
                     )}
                   </td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ kind: 'edit', user: u })}>
-                      <Pencil size={14} />
-                      Edit
-                    </button>{' '}
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setDialog({ kind: 'password', user: u })}
-                      disabled={!u.email}
-                      title={u.email ? 'Set a temporary password' : 'Add an email first'}
-                    >
-                      <KeyRound size={14} />
-                      Password
-                    </button>
+                    {readOnly ? null : (
+                      <>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ kind: 'edit', user: u })}>
+                          <Pencil size={14} />
+                          Edit
+                        </button>{' '}
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => setDialog({ kind: 'password', user: u })}
+                          disabled={!u.email}
+                          title={u.email ? 'Set a temporary password' : 'Add an email first'}
+                        >
+                          <KeyRound size={14} />
+                          Password
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -237,7 +245,7 @@ function UserDialog({
   const [busy, setBusy] = useState(false)
   const [removing, setRemoving] = useState(false)
   const roles: Role[] = isAdmin
-    ? ['employee', 'team_leader', 'qa_agent', 'negative_agent', 'supervisor', 'admin']
+    ? ['employee', 'team_leader', 'qa_agent', 'negative_agent', 'supervisor', 'admin', 'viewer']
     : ['employee', 'team_leader', 'qa_agent', 'negative_agent']
   const set = (patch: Partial<User>) => setU((prev) => ({ ...prev, ...patch }))
   const fromHR = !!initial.hr_id
@@ -330,7 +338,7 @@ function UserDialog({
               ))}
             </select>
           </div>
-          {isAdmin && u.role !== 'admin' ? (
+          {isAdmin && u.role !== 'admin' && u.role !== 'viewer' ? (
             <div className="field">
               <label className="field-label">Team</label>
               <select className="select" value={u.department_id ?? ''} onChange={(e) => set({ department_id: e.target.value || null })}>

@@ -461,6 +461,9 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
 - **Since then (16 Oct, later):** Team can remove a duplicate (someone with no work on record; the HR employee ID goes on
   Settings' "HR employee IDs left out" list so the next HR upload skips it), and flags names that appear twice. Live
   audits also ask for Phone number and Order number, both optional.
+- **View only role (16 Oct):** for HR and others who follow quality. Sees every page an admin sees, every team, and
+  exports; changes nothing (the server refuses every write but its own password and sign-out). The Settings page hides
+  the default password from it. Created by an admin on Team, with no team.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 

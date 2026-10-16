@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
+import { useReadOnly } from '../auth/AuthContext'
 import { errorText } from '../components/bits'
 import { ToastStack, useToasts } from '../components/Toasts'
 
 export function DepartmentsPage() {
+  const readOnly = useReadOnly()
   const depts = useApi(() => api.departments(), [])
   const sups = useApi(() => api.users('supervisor'), [])
   const types = useApi(() => api.taskTypes(), [])
@@ -33,19 +35,21 @@ export function DepartmentsPage() {
             departments.
           </p>
         </div>
-        <form
-          className="page-actions"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void run(() => api.createDepartment(name), 'Department added').then(() => setName(''))
-          }}
-        >
-          <input className="input" placeholder="New department name" value={name} onChange={(e) => setName(e.target.value)} />
-          <button className="btn btn-primary" type="submit" disabled={!name.trim()}>
-            <Plus size={16} />
-            Add
-          </button>
-        </form>
+        {readOnly ? null : (
+          <form
+            className="page-actions"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void run(() => api.createDepartment(name), 'Department added').then(() => setName(''))
+            }}
+          >
+            <input className="input" placeholder="New department name" value={name} onChange={(e) => setName(e.target.value)} />
+            <button className="btn btn-primary" type="submit" disabled={!name.trim()}>
+              <Plus size={16} />
+              Add
+            </button>
+          </form>
+        )}
       </div>
       <section className="card">
         <table className="table">
@@ -63,7 +67,12 @@ export function DepartmentsPage() {
               <tr key={d.id}>
                 <td>
                   {editing?.id === d.id ? (
-                    <input className="input" autoFocus value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                    <input
+                      className="input"
+                      autoFocus
+                      value={editing.name}
+                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    />
                   ) : (
                     <strong>{d.name}</strong>
                   )}
@@ -103,7 +112,10 @@ export function DepartmentsPage() {
                             () =>
                               api.updateDepartment(d.id, {
                                 name: editing.name,
-                                hr_names: editing.hr.split(',').map((x) => x.trim()).filter(Boolean),
+                                hr_names: editing.hr
+                                  .split(',')
+                                  .map((x) => x.trim())
+                                  .filter(Boolean),
                               }),
                             'Saved',
                           ).then(() => setEditing(null))
@@ -115,7 +127,7 @@ export function DepartmentsPage() {
                         Cancel
                       </button>
                     </>
-                  ) : (
+                  ) : readOnly ? null : (
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => setEditing({ id: d.id, name: d.name, hr: (d.hr_names ?? []).join(', ') })}

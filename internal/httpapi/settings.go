@@ -12,7 +12,7 @@ import (
 
 func (s *Server) routesSettings(r chi.Router) {
 	admin := s.requireRoles(model.RoleAdmin)
-	r.With(admin).Get("/settings", s.handleGetSettings)
+	r.With(admin).Get("/settings", s.handleGetSettings) // view-only accounts too (requireRoles lets them read)
 	r.With(admin).Put("/settings", s.handlePutSettings)
 }
 
@@ -23,8 +23,13 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	s.db.WithContext(r.Context()).Raw(`SELECT a.updated_at, u.name AS updated_by FROM app_settings a
 		LEFT JOIN users u ON u.id = a.updated_by WHERE a.id = 1`).Scan(&meta)
+	cfg, defaults := s.cfg(r), settings.Defaults()
+	if me(r).Role == model.RoleViewer {
+		// It signs anyone in who hasn't chosen a password: not for a view-only account.
+		cfg.DefaultPassword, defaults.DefaultPassword = "(hidden)", "(hidden)"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"settings": s.cfg(r), "defaults": settings.Defaults(), "updated_at": meta.UpdatedAt, "updated_by": meta.UpdatedBy,
+		"settings": cfg, "defaults": defaults, "updated_at": meta.UpdatedAt, "updated_by": meta.UpdatedBy,
 	})
 }
 

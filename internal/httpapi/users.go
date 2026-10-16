@@ -195,8 +195,8 @@ func (in userInput) apply(u *model.User) {
 		}
 		u.Profile = p
 	}
-	if u.Role == model.RoleAdmin {
-		u.DepartmentID = nil
+	if u.Role == model.RoleAdmin || u.Role == model.RoleViewer {
+		u.DepartmentID = nil // every team
 	}
 }
 
@@ -213,8 +213,8 @@ func validUser(u model.User) string {
 	case u.Name == "":
 		return "name is required"
 	case !u.Role.Valid():
-		return "role must be admin, supervisor, qa_agent or employee"
-	case u.Role != model.RoleAdmin && u.DepartmentID == nil:
+		return "pick a role"
+	case u.Role != model.RoleAdmin && u.Role != model.RoleViewer && u.DepartmentID == nil:
 		return "department is required"
 	case u.Role != model.RoleEmployee && u.Email == nil:
 		return "email is required to sign in"

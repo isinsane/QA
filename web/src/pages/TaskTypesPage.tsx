@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { AgentLimits, Bounds, Limit, Metric, Source, TaskType } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth, useReadOnly } from '../auth/AuthContext'
 import { Empty, errorText } from '../components/bits'
 import { LimitInput } from '../components/LimitInput'
 import { Modal } from '../components/Modal'
@@ -20,6 +20,7 @@ type Tab = 'scorecard' | 'scoring' | 'sampling' | 'settings'
 
 export function TaskTypesPage() {
   const { user } = useAuth()
+  const readOnly = useReadOnly()
   const isAdmin = user?.role === 'admin'
   const types = useApi(() => api.taskTypes(), [])
   const depts = useApi(() => api.departments(), [])
@@ -43,10 +44,12 @@ export function TaskTypesPage() {
           <p className="page-subtitle">What QA agents score, how it is scored, and how much of each agent's work is sampled.</p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-primary" onClick={() => setCreating(true)}>
-            <Plus size={16} />
-            New task type
-          </button>
+          {readOnly ? null : (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              <Plus size={16} />
+              New task type
+            </button>
+          )}
         </div>
       </div>
 
@@ -203,6 +206,7 @@ function TypeEditor({
   onSaved: () => void
   onError: (e: string) => void
 }) {
+  const readOnly = useReadOnly()
   const [t, setT] = useState(type)
   const [tab, setTab] = useState<Tab>('scorecard')
   const [busy, setBusy] = useState(false)
@@ -319,10 +323,12 @@ function TypeEditor({
                 take N/A weight.
               </p>
             </div>
-            <button className="btn btn-primary" onClick={() => setEditing('new')}>
-              <Plus size={16} />
-              Add metric
-            </button>
+            {readOnly ? null : (
+              <button className="btn btn-primary" onClick={() => setEditing('new')}>
+                <Plus size={16} />
+                Add metric
+              </button>
+            )}
           </div>
           {cardIssues.length ? (
             <div className="inline-warning" style={{ margin: '0 24px 16px', display: 'grid', gap: 2 }}>
@@ -632,7 +638,7 @@ function TypeEditor({
         </section>
       ) : null}
 
-      {dirty ? (
+      {dirty && !readOnly ? (
         <div className="save-bar">
           <span>Unsaved changes to {type.name}</span>
           <button className="btn btn-secondary" onClick={() => setT(type)}>

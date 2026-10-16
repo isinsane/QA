@@ -108,6 +108,12 @@ func (s *Server) requireUser(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "please sign in again")
 			return
 		}
+		// A view-only account reads; the only things it changes are its own
+		// password and its sign-out.
+		if u.Role == model.RoleViewer && !reads(r) && r.URL.Path != "/api/me/password" && r.URL.Path != "/api/me/logout" {
+			writeError(w, http.StatusForbidden, "this is a view-only account: it can't change anything")
+			return
+		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 	})
 }
@@ -117,7 +123,8 @@ func (s *Server) requireRoles(roles ...model.Role) func(http.Handler) http.Handl
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u := me(r)
 			for _, role := range roles {
-				if u.Role == role {
+				// A view-only account may read whatever an admin or supervisor can.
+				if u.Role == role || (u.Role == model.RoleViewer && reads(r) && (role == model.RoleAdmin || role == model.RoleSupervisor)) {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -127,15 +134,18 @@ func (s *Server) requireRoles(roles ...model.Role) func(http.Handler) http.Handl
 	}
 }
 
+func reads(r *http.Request) bool { return r.Method == http.MethodGet || r.Method == http.MethodHead }
+
 func me(r *http.Request) *model.User {
 	u, _ := r.Context().Value(ctxKey{}).(*model.User)
 	return u
 }
 
 // deptScope is the department a non-admin is confined to; nil means "all".
-// Every list and report query for managers goes through it.
+// Every list and report query for managers goes through it. A view-only
+// account sees every team, like an admin.
 func deptScope(u *model.User) *uuid.UUID {
-	if u.Role == model.RoleAdmin {
+	if u.Role == model.RoleAdmin || u.Role == model.RoleViewer {
 		return nil
 	}
 	return u.DepartmentID

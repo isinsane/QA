@@ -34,10 +34,23 @@ export function homePathForRole(role: Role): string {
  * their own pages (plus a task they were sent to). */
 export function canAccessPath(role: Role, path: string): boolean {
   if (path === '/account') return true
-  if (role === 'admin' || role === 'supervisor') {
-    return !path.startsWith('/queue') && !path.startsWith('/my-scores') && !path.startsWith('/my-audits') && ((path !== '/departments' && path !== '/settings') || role === 'admin')
+  if (role === 'admin' || role === 'supervisor' || role === 'viewer') {
+    return (
+      !path.startsWith('/queue') &&
+      !path.startsWith('/my-scores') &&
+      !path.startsWith('/my-audits') &&
+      ((path !== '/departments' && path !== '/settings') || role !== 'supervisor')
+    )
   }
-  if (role === 'qa_agent') return path.startsWith('/queue') || path.startsWith('/tasks/') || path.startsWith('/escalations') || path.startsWith('/my-audits') || path.startsWith('/coaching') || path.startsWith('/agents')
+  if (role === 'qa_agent')
+    return (
+      path.startsWith('/queue') ||
+      path.startsWith('/tasks/') ||
+      path.startsWith('/escalations') ||
+      path.startsWith('/my-audits') ||
+      path.startsWith('/coaching') ||
+      path.startsWith('/agents')
+    )
   if (role === 'negative_agent') return path.startsWith('/negatives')
   if (role === 'team_leader') return path.startsWith('/tl-escalations')
   return path.startsWith('/my-scores')
@@ -138,4 +151,10 @@ export const ROLE_LABEL: Record<Role, string> = {
   employee: 'Agent',
   negative_agent: 'Negatives agent',
   team_leader: 'Team leader',
+  viewer: 'View only',
+}
+
+/** A view-only account (HR and the like): sees everything, changes nothing. */
+export function useReadOnly(): boolean {
+  return useAuth().user?.role === 'viewer'
 }

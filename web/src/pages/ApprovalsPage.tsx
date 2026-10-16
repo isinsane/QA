@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
+import { useReadOnly } from '../auth/AuthContext'
 import type { EvaluationChange } from '../api/types'
 import { AckBadge, Empty, errorText, fmtDate, fmtDateTime, Pager } from '../components/bits'
 import { ToastStack, useToasts } from '../components/Toasts'
@@ -21,6 +22,7 @@ const pct = (n: number | null) => (n === null ? '—' : `${n}%`)
 /** Supervisors: QA agents' score changes waiting for approval. */
 export function ApprovalsPage() {
   const navigate = useNavigate()
+  const readOnly = useReadOnly()
   const [tab, setTab] = useState<Tab>('pending')
   const [page, setPage] = useState(1)
   const [deciding, setDeciding] = useState<{ c: EvaluationChange; approve: boolean } | null>(null)
@@ -118,7 +120,9 @@ export function ApprovalsPage() {
                       </div>
                     </td>
                     <td onClick={(e) => tab === 'pending' && e.stopPropagation()}>
-                      {tab === 'pending' ? (
+                      {tab === 'pending' && readOnly ? (
+                        <span className="text-tertiary">waiting</span>
+                      ) : tab === 'pending' ? (
                         <span className="builder-row" style={{ flexWrap: 'nowrap' }}>
                           <button className="btn btn-primary btn-sm" onClick={() => setDeciding({ c, approve: true })}>
                             Approve

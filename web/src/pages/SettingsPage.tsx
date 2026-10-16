@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
+import { useReadOnly } from '../auth/AuthContext'
 import type { AgentLimits, AppSettings, Limit, TaskType } from '../api/types'
 import { errorText, fmtDateTime } from '../components/bits'
 import { LimitInput } from '../components/LimitInput'
@@ -55,6 +56,7 @@ function NumberInput({ value, unit, min, max, step, onChange }: {
 
 /** Admin settings: what used to be fixed in code or the server's environment. */
 export function SettingsPage() {
+  const readOnly = useReadOnly()
   const loaded = useApi(() => api.settings(), [])
   const types = useApi(() => api.taskTypes(), [])
   const depts = useApi(() => api.departments(), [])
@@ -121,12 +123,14 @@ export function SettingsPage() {
             {loaded.data.updated_by ? ` Last changed by ${loaded.data.updated_by}, ${fmtDateTime(loaded.data.updated_at)}.` : ''}
           </p>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-secondary" onClick={() => setS(defaults)} disabled={JSON.stringify(s) === JSON.stringify(defaults)}>
-            <RotateCcw size={15} />
-            Reset to defaults
-          </button>
-        </div>
+        {readOnly ? null : (
+          <div className="page-actions">
+            <button className="btn btn-secondary" onClick={() => setS(defaults)} disabled={JSON.stringify(s) === JSON.stringify(defaults)}>
+              <RotateCcw size={15} />
+              Reset to defaults
+            </button>
+          </div>
+        )}
       </div>
 
       <section className="card settings-card">
@@ -365,7 +369,7 @@ export function SettingsPage() {
 
       <p className="hint-text settings-foot">The database, API keys and API addresses stay in the server's environment file.</p>
 
-      {dirty ? (
+      {dirty && !readOnly ? (
         <div className="save-bar">
           <span>
             Unsaved settings

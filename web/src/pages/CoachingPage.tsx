@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { Coaching } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth, useReadOnly } from '../auth/AuthContext'
 import { daysAgo, Empty, errorText, fmtDate, KindBadge, ScoreBadge } from '../components/bits'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
@@ -34,6 +34,7 @@ function Status({ c }: { c: Coaching }) {
 export function CoachingPage() {
   const { user } = useAuth()
   const qa = user?.role === 'qa_agent'
+  const readOnly = useReadOnly()
   const list = useApi(() => api.coachings(), [])
   const { toasts, push } = useToasts()
   const [creating, setCreating] = useState(false)
@@ -53,10 +54,12 @@ export function CoachingPage() {
           </p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-primary" onClick={() => setCreating(true)}>
-            <Plus size={16} />
-            {qa ? 'New session' : 'New coaching'}
-          </button>
+          {readOnly ? null : (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              <Plus size={16} />
+              {qa ? 'New session' : 'New coaching'}
+            </button>
+          )}
         </div>
       </div>
       <section className="card">

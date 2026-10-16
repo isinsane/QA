@@ -22,8 +22,8 @@ import { useApi } from '../api/useApi'
 import { initials, ROLE_LABEL, useAuth } from '../auth/AuthContext'
 import { BrandMark } from '../components/BrandMark'
 
-const MANAGER = ['admin', 'supervisor']
-const ADMIN = ['admin']
+const MANAGER = ['admin', 'supervisor', 'viewer'] // view-only accounts see what admins see
+const ADMIN = ['admin', 'viewer']
 const QA = ['qa_agent']
 
 const NAV = [

@@ -2,11 +2,13 @@ import { Fragment, useState } from 'react'
 import { CloudDownload, FileSpreadsheet, Upload } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
+import { useReadOnly } from '../auth/AuthContext'
 import type { ImportResult, TaskType, UploadResult } from '../api/types'
 import { errorText, fmtDate, fmtDateTime, yesterday } from '../components/bits'
 import { ToastStack, useToasts } from '../components/Toasts'
 
 export function ImportsPage() {
+  const readOnly = useReadOnly()
   const types = useApi(() => api.taskTypes(), [])
   const depts = useApi(() => api.departments(), [])
   const history = useApi(() => api.imports(), [])
@@ -24,7 +26,7 @@ export function ImportsPage() {
           </p>
         </div>
       </div>
-      {sheetTypes.length ? (
+      {sheetTypes.length && !readOnly ? (
         <SheetUpload
           types={sheetTypes}
           depts={depts.data ?? []}
@@ -35,7 +37,7 @@ export function ImportsPage() {
           onError={(e) => push('error', e)}
         />
       ) : null}
-      {ticketType ? (
+      {ticketType && !readOnly ? (
         <TicketsPull
           name={ticketType.name}
           onDone={(msg) => {
