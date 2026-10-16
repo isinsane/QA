@@ -2,27 +2,9 @@ import { Fragment, useState } from 'react'
 import { CloudDownload, FileSpreadsheet, Upload } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
-import type { ImportResult, TaskType } from '../api/types'
+import type { ImportResult, TaskType, UploadResult } from '../api/types'
 import { errorText, fmtDate, fmtDateTime, yesterday } from '../components/bits'
 import { ToastStack, useToasts } from '../components/Toasts'
-
-/** Upload choices: task types that share one sheet (same Shared-sheet column) are a single upload. */
-function uploadChoices(types: TaskType[]) {
-  const out: { id: string; name: string }[] = []
-  const shared = new Map<string, { id: string; name: string }>()
-  for (const t of types) {
-    const col = t.columns.row_column?.trim()
-    const group = col ? shared.get(col) : undefined
-    if (group) {
-      group.name += ` + ${t.name}`
-      continue
-    }
-    const choice = { id: t.id, name: t.name }
-    if (col) shared.set(col, choice)
-    out.push(choice)
-  }
-  return out
-}
 
 export function ImportsPage() {
   const types = useApi(() => api.taskTypes(), [])
@@ -43,7 +25,7 @@ export function ImportsPage() {
       </div>
       {sheetTypes.length ? (
         <SheetUpload
-          types={uploadChoices(sheetTypes)}
+          types={sheetTypes}
           onDone={(msg) => {
             push('success', msg)
             void history.reload()
@@ -110,20 +92,13 @@ export function ImportsPage() {
   )
 }
 
-function SheetUpload({
-  types,
-  onDone,
-  onError,
-}: {
-  types: { id: string; name: string }[]
-  onDone: (msg: string) => void
-  onError: (e: string) => void
-}) {
-  const [typeId, setTypeId] = useState(types[0].id)
+function SheetUpload({ types, onDone, onError }: { types: TaskType[]; onDone: (msg: string) => void; onError: (e: string) => void }) {
+  // With several Vonage task types, each must take only its own rows (Shared sheet), or both take every row.
+  const unsplit = types.length > 1 ? types.filter((t) => !t.columns.row_column?.trim()) : []
   const [day, setDay] = useState(yesterday())
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [preview, setPreview] = useState<ImportResult | null>(null)
+  const [preview, setPreview] = useState<UploadResult | null>(null)
   const [busy, setBusy] = useState(false)
 
   function pick(f: File | null) {
@@ -135,11 +110,11 @@ function SheetUpload({
     if (!file) return
     setBusy(true)
     try {
-      const res = await api.upload(typeId, day, file, dryRun)
+      const res = await api.upload(day, file, dryRun)
       if (dryRun) setPreview(res)
       else {
-        const all = [res, ...(res.also ?? []).flatMap((p) => (p.result ? [p.result] : []))]
-        const sum = (f: (x: ImportResult) => number) => all.reduce((n, x) => n + f(x), 0)
+        const done = res.parts.flatMap((p) => (p.result ? [p.result] : []))
+        const sum = (f: (x: ImportResult) => number) => done.reduce((n, x) => n + f(x), 0)
         onDone(`Imported ${sum((x) => x.run.created)} rows; ${sum((x) => x.run.sampled)} audits queued.`)
         pick(null)
       }
@@ -154,31 +129,25 @@ function SheetUpload({
     <section className="card">
       <div className="card-header">
         <div>
-          <h2 className="card-title">Upload a Vonage sheet</h2>
-          <p className="card-subtitle">"Disposition codes by interaction" export, .xlsx or .csv</p>
+          <h2 className="card-title">Upload the Vonage sheet</h2>
+          <p className="card-subtitle">
+            One "Disposition codes by interaction" export (.xlsx or .csv) for calls and sales: {types.map((t) => t.name).join(' and ')} each
+            take their rows.
+          </p>
         </div>
       </div>
       <div className="card-body form-grid">
-        <div className="form-row">
-          <div className="field">
-            <label className="field-label">Task type</label>
-            {types.length > 1 ? (
-              <select className="select" value={typeId} onChange={(e) => (setTypeId(e.target.value), setPreview(null))}>
-                {types.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="input" style={{ display: 'flex', alignItems: 'center' }}>
-                {types[0].name}
-              </div>
-            )}
+        {unsplit.length ? (
+          <div className="inline-warning" style={{ margin: 0 }}>
+            {unsplit.map((t) => t.name).join(' and ')} {unsplit.length > 1 ? 'take' : 'takes'} every row of the sheet. On Task types →
+            Settings → Shared sheet, give each one its Service name values (e.g. New Sales for sales, Other Sales for calls).
           </div>
+        ) : null}
+        <div className="form-row">
           <div className="field">
             <label className="field-label">The day this work was done</label>
             <input className="input" type="date" value={day} onChange={(e) => (setDay(e.target.value), setPreview(null))} />
+            <span className="hint-text">It must match the calls in the sheet; a sheet from another day is refused.</span>
           </div>
         </div>
         <label
@@ -206,15 +175,7 @@ function SheetUpload({
           </div>
         ) : null}
       </div>
-      {preview ? (
-        <Preview
-          res={preview}
-          typeName={types.find((t) => t.id === typeId)?.name ?? ''}
-          busy={busy}
-          onCommit={() => void run(false)}
-          onCancel={() => pick(null)}
-        />
-      ) : null}
+      {preview ? <Preview res={preview} busy={busy} onCommit={() => void run(false)} onCancel={() => pick(null)} /> : null}
     </section>
   )
 }
@@ -304,33 +265,14 @@ function RunSummary({ res }: { res: ImportResult }) {
   )
 }
 
-/** All an upload would do: for a shared sheet, each task type it fills. */
-function Preview({
-  res,
-  typeName,
-  busy,
-  onCommit,
-  onCancel,
-}: {
-  res: ImportResult
-  typeName: string
-  busy: boolean
-  onCommit: () => void
-  onCancel: () => void
-}) {
-  const parts = res.also ?? []
-  const created = res.run.created + parts.reduce((n, p) => n + (p.result?.run.created ?? 0), 0)
-  const sampled = res.run.sampled + parts.reduce((n, p) => n + (p.result?.run.sampled ?? 0), 0)
+/** All an upload would do, task type by task type. */
+function Preview({ res, busy, onCommit, onCancel }: { res: UploadResult; busy: boolean; onCommit: () => void; onCancel: () => void }) {
+  const created = res.parts.reduce((n, p) => n + (p.result?.run.created ?? 0), 0)
+  const sampled = res.parts.reduce((n, p) => n + (p.result?.run.sampled ?? 0), 0)
   const unclaimed = Object.entries(res.unclaimed ?? {})
   return (
     <>
-      {parts.length ? (
-        <div className="form-section" style={{ padding: '0 24px' }}>
-          {typeName}
-        </div>
-      ) : null}
-      <RunSummary res={res} />
-      {parts.map((p) => (
+      {res.parts.map((p) => (
         <Fragment key={p.task_type}>
           <div className="form-section" style={{ padding: '0 24px' }}>
             {p.task_type}

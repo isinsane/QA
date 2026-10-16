@@ -158,6 +158,21 @@ func SheetRows(s *Sheet, c model.Columns, clock *time.Location) ([]Row, error) {
 	return rows, nil
 }
 
+// SheetDays counts a sheet's rows by the day they started, as the sheet
+// writes it (in its own clock). Rows without a readable start are left out.
+func SheetDays(s *Sheet, col string, clock *time.Location) map[string]int {
+	days := map[string]int{}
+	if col == "" {
+		return days
+	}
+	for _, row := range s.Rows {
+		if t := ParseCallTime(row[col], clock); t != nil {
+			days[t.In(clock).Format(time.DateOnly)]++
+		}
+	}
+	return days
+}
+
 func (s *Sheet) has(h string) bool {
 	for _, x := range s.Headers {
 		if x == h {

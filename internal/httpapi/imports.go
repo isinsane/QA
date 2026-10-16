@@ -1,14 +1,14 @@
 package httpapi
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"slices"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 
 	"github.com/oaldesi/qa-portal/internal/importer"
 	"github.com/oaldesi/qa-portal/internal/model"
@@ -22,47 +22,19 @@ func (s *Server) routesImports(r chi.Router, managers func(http.Handler) http.Ha
 	r.With(managers).Post("/imports/tickets", s.handlePullTickets)
 }
 
-// scopedType loads a task type the caller may work with.
-func (s *Server) scopedType(w http.ResponseWriter, r *http.Request, id string) (*model.TaskType, bool) {
-	var tt model.TaskType
-	if _, err := uuid.Parse(id); err != nil || s.db.WithContext(r.Context()).First(&tt, "id = ?", id).Error != nil ||
-		!inScope(me(r), tt.DepartmentID) {
-		writeError(w, http.StatusNotFound, "task type not found")
-		return nil, false
-	}
-	return &tt, true
-}
-
 // yesterday is the default work date: today's upload holds yesterday's work.
 func (s *Server) yesterday(r *http.Request) string {
 	return time.Now().In(s.cfg(r).TZ()).AddDate(0, 0, -1).Format(time.DateOnly)
 }
 
-// fitsOther names another sheet type of the team the sheet does fit, when
-// there is one: the usual slip is picking calls for a sales sheet.
-func (s *Server) fitsOther(r *http.Request, tt *model.TaskType, sheet *importer.Sheet) string {
-	var others []model.TaskType
-	s.db.WithContext(r.Context()).Where("department_id = ? AND source = ? AND active AND id <> ?", tt.DepartmentID, model.SourceSheet, tt.ID).Find(&others)
-	for _, o := range others {
-		if _, err := importer.SheetRows(sheet, o.Columns, s.cfg(r).CallClock()); err == nil {
-			return fmt.Sprintf(" It looks like a %s sheet: pick that task type instead.", o.Name)
-		}
-	}
-	return ""
-}
-
+// handleUpload brings in one day's Vonage sheet. Calls and sales come in one
+// sheet, so nobody picks a task type: every active sheet task type the
+// uploader runs takes its rows (by its Shared-sheet column, or every row its
+// columns fit). The sheet must be from the day picked.
 func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
 		writeError(w, http.StatusBadRequest, "upload too large or malformed")
-		return
-	}
-	tt, ok := s.scopedType(w, r, r.FormValue("task_type_id"))
-	if !ok {
-		return
-	}
-	if tt.Source != model.SourceSheet {
-		writeError(w, http.StatusBadRequest, "this task type has no sheet to upload")
 		return
 	}
 	day, err := model.ParseDate(r.FormValue("work_date"))
@@ -76,79 +48,113 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-
 	sheet, err := importer.ParseSheet(header.Filename, file)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	clock := s.cfg(r).CallClock()
-	rows, err := importer.SheetRows(sheet, tt.Columns, clock)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("This sheet doesn't fit %s: %v.%s", tt.Name, err, s.fitsOther(r, tt, sheet)))
+
+	var types []model.TaskType
+	q := s.db.WithContext(r.Context()).Where("source = ? AND active", model.SourceSheet).Order("name")
+	if d := deptScope(me(r)); d != nil {
+		q = q.Where("department_id = ?", *d)
+	}
+	if err := q.Find(&types).Error; err != nil {
+		dbError(w, err)
 		return
 	}
+	if len(types) == 0 {
+		writeError(w, http.StatusBadRequest, "no active task type takes Vonage sheets yet; add one on Task types")
+		return
+	}
+	type fit struct {
+		tt   model.TaskType
+		rows []importer.Row
+	}
+	clock := s.cfg(r).CallClock()
+	var fits []fit
+	var misfits []string
+	for _, tt := range types {
+		rows, err := importer.SheetRows(sheet, tt.Columns, clock)
+		if err != nil {
+			misfits = append(misfits, tt.Name+": "+err.Error())
+			continue
+		}
+		fits = append(fits, fit{tt, rows})
+	}
+	if len(fits) == 0 {
+		writeError(w, http.StatusBadRequest, "This sheet doesn't fit any task type. "+strings.Join(misfits, ". ")+".")
+		return
+	}
+	if msg := wrongDay(importer.SheetDays(sheet, fits[0].tt.Columns.StartTime, clock), day); msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
+
 	uid := me(r).ID
 	opts := importer.Options{
 		Source: "upload", Filename: header.Filename, UserID: &uid,
 		DryRun: r.FormValue("dry_run") == "1", Columns: sheet.Headers,
 	}
-	res, err := importer.Ingest(r.Context(), s.db, *tt, day, rows, opts)
-	if ws := (*importer.WrongSheetError)(nil); errors.As(err, &ws) {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// A shared sheet (calls and sales in one export) also fills the other task
-	// types that take their rows by the same column.
-	var also []sharedPart
-	var unclaimed map[string]int
-	if col := tt.Columns.RowColumn; col != "" {
-		targets := []model.TaskType{*tt}
-		var others []model.TaskType
-		q := s.db.WithContext(r.Context()).Where("source = ? AND active AND id <> ?", model.SourceSheet, tt.ID).Order("name")
-		if d := deptScope(me(r)); d != nil {
-			q = q.Where("department_id = ?", *d)
+	parts := []sharedPart{}
+	for _, f := range fits {
+		p := sharedPart{TaskType: f.tt.Name}
+		if p.Result, err = importer.Ingest(r.Context(), s.db, f.tt, day, f.rows, opts); err != nil {
+			p.Problem = err.Error() // e.g. most rows belong to agents this type doesn't audit
 		}
-		q.Find(&others)
-		for _, o := range others {
-			if o.Columns.RowColumn != col {
-				continue
-			}
-			targets = append(targets, o)
-			p := sharedPart{TaskType: o.Name}
-			orows, err := importer.SheetRows(sheet, o.Columns, clock)
-			if err == nil {
-				p.Result, err = importer.Ingest(r.Context(), s.db, o, day, orows, opts)
-			}
-			if err != nil {
-				p.Problem = err.Error()
-			}
-			also = append(also, p)
+		parts = append(parts, p)
+	}
+	// Rows no task type takes: a Service name nobody has set up yet.
+	unclaimed := map[string]int{}
+	for _, row := range sheet.Rows {
+		if slices.ContainsFunc(fits, func(f fit) bool { return f.tt.Columns.Takes(row) }) {
+			continue
 		}
-		// Rows no task type takes: a value nobody has set up yet.
-		unclaimed = map[string]int{}
-		for _, row := range sheet.Rows {
-			if !slices.ContainsFunc(targets, func(t model.TaskType) bool { return t.Columns.Takes(row) }) {
+		for _, f := range fits {
+			if col := f.tt.Columns.RowColumn; col != "" {
 				unclaimed[row[col]]++
+				break
 			}
 		}
 	}
-	if !res.DryRun {
+	if !opts.DryRun {
 		s.runAssign(r.Context())
 	}
-	writeJSON(w, http.StatusOK, struct {
-		*importer.Result
-		Also      []sharedPart   `json:"also,omitempty"`
-		Unclaimed map[string]int `json:"unclaimed,omitempty"`
-	}{res, also, unclaimed})
+	writeJSON(w, http.StatusOK, map[string]any{"parts": parts, "unclaimed": unclaimed, "dry_run": opts.DryRun})
 }
 
-// sharedPart is what one upload did for another task type sharing the sheet.
+// wrongDay refuses a sheet from another day than the one picked (yesterday's
+// file again, or the wrong date): most of its calls must be on that day.
+func wrongDay(days map[string]int, day model.Date) string {
+	total := 0
+	for _, n := range days {
+		total += n
+	}
+	picked := day.Format(time.DateOnly)
+	if total == 0 || days[picked]*2 >= total {
+		return ""
+	}
+	keys := make([]string, 0, len(days))
+	for k := range days {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return days[keys[i]] > days[keys[j]] })
+	var seen []string
+	for _, k := range keys[:min(3, len(keys))] {
+		seen = append(seen, fmt.Sprintf("%s (%d calls)", pretty(k), days[k]))
+	}
+	return fmt.Sprintf("This sheet's calls are from %s, but you picked %s. Pick the day the calls were made, or check you have the right file.",
+		strings.Join(seen, ", "), pretty(picked))
+}
+
+func pretty(date string) string {
+	if t, err := time.Parse(time.DateOnly, date); err == nil {
+		return t.Format("Mon, Jan 2, 2006")
+	}
+	return date
+}
+
+// sharedPart is what one upload did for one task type.
 type sharedPart struct {
 	TaskType string           `json:"task_type"`
 	Result   *importer.Result `json:"result,omitempty"`

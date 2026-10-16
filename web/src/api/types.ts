@@ -311,10 +311,14 @@ export interface ImportResult {
     labels: string[]
   }[]
   dry_run: boolean
-  /** A shared sheet's other task types, filled by the same upload. */
-  also?: { task_type: string; result?: ImportResult; problem?: string }[]
+}
+
+/** One Vonage upload: what it did for each task type that takes rows from it. */
+export interface UploadResult {
+  parts: { task_type: string; result?: ImportResult; problem?: string }[]
   /** Rows no task type takes, by their value in the shared column. */
-  unclaimed?: Record<string, number>
+  unclaimed: Record<string, number>
+  dry_run: boolean
 }
 
 export interface Coaching {

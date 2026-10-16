@@ -30,3 +30,14 @@ func TestSheetRowsTakesItsRows(t *testing.T) {
 		t.Error("a row column the sheet lacks should be refused")
 	}
 }
+
+func TestSheetDays(t *testing.T) {
+	s := &Sheet{Rows: []map[string]string{
+		{"Start time": "2026-10-15 19:59:54"}, {"Start time": "2026-10-15 08:00:00"},
+		{"Start time": "2026-10-14 23:59:00"}, {"Start time": ""},
+	}}
+	got := SheetDays(s, "Start time", time.FixedZone("UTC-5", -5*3600))
+	if got["2026-10-15"] != 2 || got["2026-10-14"] != 1 || len(got) != 2 {
+		t.Errorf("days = %v; want two on the 15th, one on the 14th, the blank left out", got)
+	}
+}

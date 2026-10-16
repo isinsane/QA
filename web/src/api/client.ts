@@ -15,6 +15,7 @@ import type {
   TaskDetail,
   TaskRow,
   TaskType,
+  UploadResult,
   User,
 } from './types'
 
@@ -125,13 +126,12 @@ export const api = {
   updateTaskType: (id: string, patch: Partial<TaskType>) => request<TaskType>(`/task-types/${id}`, json('PATCH', patch)),
   taskTypeLabels: (id: string) => request<{ label: string; rows: number }[]>(`/task-types/${id}/labels`),
 
-  upload: (taskTypeId: string, workDate: string, file: File, dryRun: boolean) => {
+  upload: (workDate: string, file: File, dryRun: boolean) => {
     const fd = new FormData()
-    fd.set('task_type_id', taskTypeId)
     fd.set('work_date', workDate)
     fd.set('file', file)
     fd.set('dry_run', dryRun ? '1' : '0')
-    return request<ImportResult>('/imports', { method: 'POST', body: fd })
+    return request<UploadResult>('/imports', { method: 'POST', body: fd })
   },
   pullTickets: (date: string) => request<ImportResult>('/imports/tickets', json('POST', { date })),
   imports: () => request<ImportRun[]>('/imports'),
