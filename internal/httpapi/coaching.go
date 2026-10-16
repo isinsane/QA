@@ -42,7 +42,7 @@ func (s *Server) handleListCoachings(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case u.Role == model.RoleEmployee:
 		q = q.Where("c.employee_id = ?", u.ID)
-	case u.Role != model.RoleQA && !isManager(u) && u.Role != model.RoleViewer: // negatives agents, team leaders
+	case u.Role != model.RoleQA && !isManager(u) && !readsAll(u): // negatives agents
 		q = q.Where("false")
 	case r.URL.Query().Get("employee_id") != "":
 		// One agent's sessions (their page): QA agents and supervisors see any agent's.

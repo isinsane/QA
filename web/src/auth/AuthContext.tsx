@@ -34,7 +34,7 @@ export function homePathForRole(role: Role): string {
  * their own pages (plus a task they were sent to). */
 export function canAccessPath(role: Role, path: string): boolean {
   if (path === '/account') return true
-  if (role === 'admin' || role === 'supervisor' || role === 'viewer') {
+  if (role === 'admin' || role === 'supervisor' || role === 'viewer' || role === 'team_leader') {
     return (
       !path.startsWith('/queue') &&
       !path.startsWith('/my-scores') &&
@@ -52,7 +52,6 @@ export function canAccessPath(role: Role, path: string): boolean {
       path.startsWith('/agents')
     )
   if (role === 'negative_agent') return path.startsWith('/negatives')
-  if (role === 'team_leader') return path.startsWith('/tl-escalations')
   return path.startsWith('/my-scores')
 }
 
@@ -154,7 +153,9 @@ export const ROLE_LABEL: Record<Role, string> = {
   viewer: 'View only',
 }
 
-/** A view-only account (HR and the like): sees everything, changes nothing. */
+/** View-only accounts (HR and the like) and team leaders: see everything, change nothing
+ * (team leaders still send escalations from their own page). */
 export function useReadOnly(): boolean {
-  return useAuth().user?.role === 'viewer'
+  const role = useAuth().user?.role
+  return role === 'viewer' || role === 'team_leader'
 }

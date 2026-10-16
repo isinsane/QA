@@ -46,7 +46,7 @@ export function AppShell() {
   if (!user) return <Navigate to="/login" replace />
   if (!canAccessPath(user.role, location.pathname)) return <Navigate to={homePathForRole(user.role)} replace />
 
-  const noSidebar = user.role === 'employee' || user.role === 'negative_agent' || user.role === 'team_leader'
+  const noSidebar = user.role === 'employee' || user.role === 'negative_agent'
   const title = TITLES.find(([p]) => location.pathname.startsWith(p))?.[1] ?? 'QA Portal'
 
   function toggle() {

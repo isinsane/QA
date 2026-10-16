@@ -276,7 +276,7 @@ func (s *Server) loadTaskAs(w http.ResponseWriter, r *http.Request, read bool) (
 	u := me(r)
 	visible := false
 	switch u.Role {
-	case model.RoleAdmin, model.RoleSupervisor, model.RoleViewer:
+	case model.RoleAdmin, model.RoleSupervisor, model.RoleViewer, model.RoleTeamLeader:
 		visible = read || inScope(u, tt.DepartmentID)
 	case model.RoleQA:
 		visible = read || (t.AssignedQAID != nil && *t.AssignedQAID == u.ID) || (t.EvaluatedBy != nil && *t.EvaluatedBy == u.ID) ||
