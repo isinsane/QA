@@ -22,7 +22,7 @@ func (s *Server) routesTasks(r chi.Router, managers func(http.Handler) http.Hand
 	r.With(qa).Patch("/me/availability", s.handleAvailability)
 	r.With(s.requireRoles(model.RoleEmployee)).Get("/me/scores", s.handleMyScores)
 
-	r.With(managers).Get("/tasks", s.handleListTasks)
+	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Get("/tasks", s.handleListTasks)
 	r.Get("/tasks/{id}", s.handleGetTask)
 	r.Get("/tasks/{id}/edesk", s.handleTaskEDesk)
 	r.With(qa).Post("/tasks/{id}/submit", s.handleSubmit)
@@ -72,10 +72,12 @@ type taskRow struct {
 	AckComment     string          `json:"ack_comment"`
 	AckAt          *time.Time      `json:"ack_at"`
 	Resolution     string          `json:"dispute_resolution"`
+	Finding        string          `json:"finding"`
 	MatchStatus    string          `json:"match_status"`
 	Priority       int             `json:"priority"`
 	Note           string          `json:"note"`
 	ReportedBy     string          `json:"reported_by"`
+	ChangePending  bool            `json:"change_pending"` // a QA agent's score change waits for a supervisor
 	CreatedAt      time.Time       `json:"created_at"`
 }
 
@@ -84,8 +86,9 @@ func (s *Server) taskRows(r *http.Request) *gorm.DB {
 		Select(`t.id, t.external_id, t.work_date, t.state, t.labels, t.score, t.passed, t.critical_failed,
 		        t.completed_at, t.task_type_id, tt.name AS task_type_name, t.employee_id, e.name AS employee_name,
 		        t.assigned_qa_id, coalesce(q.name, ev.name) AS qa_name,
-		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution,
-		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, t.created_at`).
+		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding,
+		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, t.created_at,
+		        EXISTS (SELECT 1 FROM evaluation_changes ec WHERE ec.task_id = t.id AND ec.status = 'pending') AS change_pending`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
 		Joins("JOIN users e ON e.id = t.employee_id").
 		Joins("LEFT JOIN users q ON q.id = t.assigned_qa_id").
@@ -146,11 +149,18 @@ func (s *Server) handleMyScores(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-	q := s.taskRows(r)
-	if d := deptScope(me(r)); d != nil {
-		q = q.Where("tt.department_id = ?", *d)
+	q, u, p := s.taskRows(r), me(r), r.URL.Query()
+	switch {
+	case u.Role == model.RoleQA && p.Get("mine") == "1": // the audits they submitted (escalations they decided aren't audits)
+		q = q.Where("t.evaluated_by = ? AND t.kind NOT IN "+model.ReviewedKinds, u.ID)
+	case p.Get("employee_id") != "":
+		// One agent's work: QA agents and supervisors see any agent's.
+	case u.Role == model.RoleQA:
+		writeError(w, http.StatusForbidden, "pick an agent")
+		return
+	case deptScope(u) != nil:
+		q = q.Where("tt.department_id = ?", *deptScope(u))
 	}
-	p := r.URL.Query()
 	switch st := p.Get("state"); st {
 	case "":
 		q = q.Where("t.state <> 'unsampled'")
@@ -171,6 +181,8 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		q = q.Where("t.state = 'completed' AND t.ack_status = '' AND t.kind IN " + model.CountedKinds)
 	case "live_flagged":
 		q = q.Where("t.kind = 'live' AND t.match_status = 'flagged'")
+	case "change_pending":
+		q = q.Where("EXISTS (SELECT 1 FROM evaluation_changes ec WHERE ec.task_id = t.id AND ec.status = 'pending')")
 	default:
 		q = q.Where("t.state = ?", st)
 	}
@@ -181,7 +193,13 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 			q = q.Where(col+" = ?", v)
 		}
 	}
-	if v := p.Get("kind"); v != "" {
+	switch v := p.Get("kind"); v {
+	case "":
+	case "escalations": // negatives, TL and QA escalations
+		q = q.Where("t.kind IN " + model.ReviewedKinds)
+	case "audits": // what counts in scores
+		q = q.Where("t.kind IN " + model.CountedKinds)
+	default:
 		q = q.Where("t.kind = ?", v)
 	}
 	if v := p.Get("from"); v != "" {
@@ -235,7 +253,15 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 // loadTask fetches a task the caller may see. Admins see all; supervisors their
 // department; QA agents what is (or was) theirs; employees their own
 // completed evaluations.
+// loadTask loads a task the caller may act on (their team's, their queue's).
 func (s *Server) loadTask(w http.ResponseWriter, r *http.Request) (*model.Task, *model.TaskType, bool) {
+	return s.loadTaskAs(w, r, false)
+}
+
+// loadTaskAs with read=true is for viewing: QA agents and supervisors open
+// any agent's audits (the agent pages cover every team); what they may do on
+// it is still decided by the can_* flags and the strict load.
+func (s *Server) loadTaskAs(w http.ResponseWriter, r *http.Request, read bool) (*model.Task, *model.TaskType, bool) {
 	id, ok := urlID(w, r)
 	if !ok {
 		return nil, nil, false
@@ -251,9 +277,11 @@ func (s *Server) loadTask(w http.ResponseWriter, r *http.Request) (*model.Task, 
 	visible := false
 	switch u.Role {
 	case model.RoleAdmin, model.RoleSupervisor:
-		visible = inScope(u, tt.DepartmentID)
+		visible = read || inScope(u, tt.DepartmentID)
 	case model.RoleQA:
-		visible = (t.AssignedQAID != nil && *t.AssignedQAID == u.ID) || (t.EvaluatedBy != nil && *t.EvaluatedBy == u.ID)
+		visible = read || (t.AssignedQAID != nil && *t.AssignedQAID == u.ID) || (t.EvaluatedBy != nil && *t.EvaluatedBy == u.ID) ||
+			// Escalations of their team: any of its QA agents may decide them.
+			(t.Kind.Reviewed() && t.Kind != model.KindQAEscalation && u.DepartmentID != nil && *u.DepartmentID == tt.DepartmentID)
 		if !visible {
 			// The audits linked to a coaching they run.
 			var n int64
@@ -276,11 +304,15 @@ func isManager(u *model.User) bool {
 }
 
 func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
-	t, tt, ok := s.loadTask(w, r)
+	t, tt, ok := s.loadTaskAs(w, r, true)
 	if !ok {
 		return
 	}
 	u := me(r)
+	// Viewing reaches every team; acting stays with the task's own team.
+	manages := isManager(u) && inScope(u, tt.DepartmentID)
+	answers := canAnswerDispute(u, t) && (u.Role == model.RoleQA || manages)
+	own := u.Role == model.RoleQA && t.EvaluatedBy != nil && *t.EvaluatedBy == u.ID
 	var employee model.User
 	s.db.WithContext(r.Context()).First(&employee, "id = ?", t.EmployeeID)
 
@@ -293,12 +325,13 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		},
 		"employee":     map[string]any{"id": employee.ID, "name": employee.Name, "agent_code": employee.AgentCode, "email": employee.Email},
 		"can_evaluate": u.Role == model.RoleQA && t.State == model.StateAssigned && t.AssignedQAID != nil && *t.AssignedQAID == u.ID,
-		"can_edit":     t.State == model.StateCompleted && (isManager(u) || canAnswerDispute(u, t)),
-		"can_manage":   isManager(u) && (t.State == model.StateReady || t.State == model.StateAssigned || t.State == model.StateUnsampled || t.State == model.StateReview),
-		"can_confirm":  isManager(u) && t.Kind.Reviewed() && t.State == model.StateReview,
+		"can_edit":     t.State == model.StateCompleted && !t.Kind.Reviewed() && (manages || answers || own),
+		"can_approve":  manages, // a QA agent's pending score change
+		"can_manage":   manages && (t.State == model.StateReady || t.State == model.StateAssigned || t.State == model.StateUnsampled || t.State == model.StateReview),
+		"can_decide":   canDecide(u, t, tt),
 		"can_ack":      u.Role == model.RoleEmployee && t.AckStatus == "" && !t.Kind.Reviewed(),
-		"can_uphold":   canAnswerDispute(u, t),
-		"can_forward":  isManager(u) && t.AckStatus == "disputed" && t.EvaluatedBy != nil,
+		"can_uphold":   answers,
+		"can_forward":  manages && t.AckStatus == "disputed" && t.EvaluatedBy != nil,
 	}
 
 	// Column order as the sheet had it.
@@ -327,7 +360,16 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if isManager(u) {
+	if u.Role != model.RoleEmployee {
+		// Score changes QA agents asked for, newest first; the pending one is on top.
+		changes := []changeRow{}
+		s.db.WithContext(r.Context()).Table("evaluation_changes c").
+			Select(`c.id, c.task_id, c.answers, c.reason, c.score_before, c.score, c.status, c.decision_note, c.created_at, c.decided_at,
+			        rq.name AS requested_by_name, coalesce(dc.name, '') AS decided_by_name`).
+			Joins("JOIN users rq ON rq.id = c.requested_by").Joins("LEFT JOIN users dc ON dc.id = c.decided_by").
+			Where("c.task_id = ?", t.ID).Order("c.created_at DESC").Scan(&changes)
+		out["changes"] = changes
+
 		var logs []struct {
 			model.AuditLog
 			ActorName *string `json:"actor_name"`
@@ -482,6 +524,25 @@ func (s *Server) handleReassign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := me(r)
+	if t.State == model.StateReview {
+		if t.Kind == model.KindQAEscalation {
+			writeError(w, http.StatusConflict, "a QA escalation is decided by the supervisor, not a QA agent")
+			return
+		}
+		err := s.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&model.Task{}).Where("id = ? AND state = 'review'", t.ID).
+				Updates(map[string]any{"assigned_qa_id": qa.ID, "assigned_at": time.Now().UTC()}).Error; err != nil {
+				return err
+			}
+			return s.audit(tx, t.ID, u, "reassigned", model.JSONMap{"qa_id": qa.ID, "qa_name": qa.Name, "to": "check"})
+		})
+		if err != nil {
+			dbError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
 	err := s.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
 		var pos int
 		tx.Raw("SELECT coalesce(max(queue_position), 0) + 1 FROM tasks WHERE assigned_qa_id = ? AND state = 'assigned'", qa.ID).Scan(&pos)
@@ -587,9 +648,10 @@ func (s *Server) handleBulkReassign(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"moved": moved, "skipped": len(in.TaskIDs) - moved})
 }
 
-// handleEditEvaluation lets a supervisor or admin correct a submitted
-// evaluation. It is rescored against the scorecard it was submitted with, and
-// the before/after is logged.
+// handleEditEvaluation corrects a submitted evaluation, rescored against the
+// scorecard it was submitted with; the before/after is logged. A supervisor's
+// edit applies at once. So does the QA agent's own when only notes or comments
+// change; a change to the score waits for a supervisor (changes.go).
 func (s *Server) handleEditEvaluation(w http.ResponseWriter, r *http.Request) {
 	t, tt, ok := s.loadTask(w, r)
 	var in struct {
@@ -599,12 +661,14 @@ func (s *Server) handleEditEvaluation(w http.ResponseWriter, r *http.Request) {
 	if !ok || !decode(w, r, &in) {
 		return
 	}
-	if t.State != model.StateCompleted || t.Scorecard == nil {
+	if t.State != model.StateCompleted || t.Scorecard == nil || t.Kind.Reviewed() {
 		writeError(w, http.StatusConflict, "only submitted evaluations can be edited")
 		return
 	}
-	if !isManager(me(r)) && !canAnswerDispute(me(r), t) {
-		writeError(w, http.StatusForbidden, "only a supervisor, or the QA agent a dispute was sent to, can edit this evaluation")
+	u := me(r)
+	manager := isManager(u)
+	if !manager && (t.EvaluatedBy == nil || *t.EvaluatedBy != u.ID) {
+		writeError(w, http.StatusForbidden, "only the QA agent who scored it, or a supervisor, can edit this evaluation")
 		return
 	}
 	res, err := scorecard.Score(*t.Scorecard, in.Answers, thresholds(tt))
@@ -612,33 +676,53 @@ func (s *Server) handleEditEvaluation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	u := me(r)
-	before := model.JSONMap{"answers": t.Answers, "score": t.Score, "result": t.Result}
-	update := map[string]any{
-		"answers": &in.Answers, "score": res.Score, "critical_failed": res.CriticalFailed, "passed": res.Passed, "result": res.Band,
+	reason := strings.TrimSpace(in.Reason)
+	var current scorecard.Answers
+	if t.Answers != nil {
+		current = *t.Answers
 	}
-	// Editing a disputed evaluation is how the dispute is accepted.
-	if t.AckStatus == "disputed" || t.AckStatus == "dispute_qa" {
-		now := time.Now().UTC()
-		update["ack_status"] = "changed"
-		update["dispute_resolution"] = strings.TrimSpace(in.Reason)
-		update["dispute_resolved_by"] = u.ID
-		update["dispute_resolved_at"] = now
+	now := time.Now().UTC()
+	if !manager && !t.Scorecard.SameScoring(current, in.Answers) {
+		if reason == "" {
+			writeError(w, http.StatusBadRequest, "say why the score should change; the supervisor sees it")
+			return
+		}
+		ch := model.EvaluationChange{TaskID: t.ID, RequestedBy: u.ID, Answers: &in.Answers, Reason: reason,
+			ScoreBefore: t.Score, Score: res.Score, Status: "pending"}
+		err = s.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+			// A newer request replaces the one still waiting.
+			if err := tx.Model(&model.EvaluationChange{}).Where("task_id = ? AND status = 'pending'", t.ID).
+				Updates(map[string]any{"status": "rejected", "decided_by": u.ID, "decided_at": now, "decision_note": "replaced by a newer request"}).Error; err != nil {
+				return err
+			}
+			if err := tx.Create(&ch).Error; err != nil {
+				return err
+			}
+			return s.audit(tx, t.ID, u, "change_requested", model.JSONMap{
+				"reason": reason, "before": model.JSONMap{"score": t.Score}, "after": model.JSONMap{"score": res.Score},
+			})
+		})
+		if err != nil {
+			dbError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"result": res, "pending": true})
+		return
 	}
 	err = s.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.Task{}).Where("id = ?", t.ID).Updates(update).Error; err != nil {
-			return err
+		if manager { // their edit settles any change still waiting
+			if err := tx.Model(&model.EvaluationChange{}).Where("task_id = ? AND status = 'pending'", t.ID).
+				Updates(map[string]any{"status": "rejected", "decided_by": u.ID, "decided_at": now, "decision_note": "replaced by " + u.Name + "'s edit"}).Error; err != nil {
+				return err
+			}
 		}
-		return s.audit(tx, t.ID, u, "evaluation_edited", model.JSONMap{
-			"reason": strings.TrimSpace(in.Reason), "before": before,
-			"after": model.JSONMap{"answers": in.Answers, "score": res.Score, "result": res.Band},
-		})
+		return s.saveEvaluation(tx, t, res, in.Answers, reason, u, manager, nil)
 	})
 	if err != nil {
 		dbError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"result": res})
+	writeJSON(w, http.StatusOK, map[string]any{"result": res, "pending": false})
 }
 
 // handleTaskEDesk returns the eDesk ticket's general info, fetched once and

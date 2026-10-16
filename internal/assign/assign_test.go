@@ -37,3 +37,24 @@ func TestEscalationIgnoresCap(t *testing.T) {
 		t.Fatalf("want only the escalation assigned past the cap, got %+v", plan)
 	}
 }
+
+func TestPlanEscalations(t *testing.T) {
+	team, other := uuid.New(), uuid.New()
+	busy := Checker{ID: uuid.New(), DepartmentID: team, Online: true, Open: 3}
+	idle := Checker{ID: uuid.New(), DepartmentID: team, Online: true, Open: 0}
+	away := Checker{ID: uuid.New(), DepartmentID: team, Online: false, Open: 0}
+	elsewhere := Checker{ID: uuid.New(), DepartmentID: other, Online: true, Open: 0}
+	tasks := []ReadyTask{{ID: uuid.New(), DepartmentID: team}, {ID: uuid.New(), DepartmentID: team}, {ID: uuid.New(), DepartmentID: team}, {ID: uuid.New(), DepartmentID: team}}
+	got := map[uuid.UUID]int{}
+	for _, a := range PlanEscalations(tasks, []Checker{busy, idle, away, elsewhere}) {
+		got[a.AgentID]++
+	}
+	// Online first, fewest waiting: idle takes 3 (0,1,2 -> ties at 3 with busy), then busy 1; never away or elsewhere.
+	if got[idle.ID]+got[busy.ID] != 4 || got[away.ID] != 0 || got[elsewhere.ID] != 0 || got[idle.ID] != 3 {
+		t.Fatalf("got %v", got)
+	}
+	// Nobody online: the offline QA agent still gets it rather than nobody.
+	if a := PlanEscalations(tasks[:1], []Checker{away}); len(a) != 1 || a[0].AgentID != away.ID {
+		t.Fatalf("offline only: got %v", a)
+	}
+}

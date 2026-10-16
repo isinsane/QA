@@ -15,7 +15,7 @@ import (
 )
 
 func (s *Server) routesReports(r chi.Router, managers func(http.Handler) http.Handler) {
-	r.With(managers).Get("/reports", s.handleReports)
+	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Get("/reports", s.handleReports)
 	r.With(s.requireRoles(model.RoleEmployee)).Get("/me/summary", s.handleMySummary)
 }
 
@@ -43,9 +43,17 @@ func (s *Server) handleMySummary(w http.ResponseWriter, r *http.Request) {
 
 // handleReports answers the whole dashboard in one round trip, filtered by
 // work date range, task type and employee, and scoped to the caller's
-// department.
+// department. One agent's numbers (employee_id) are open across teams, to QA
+// agents too: that is the agent's analysis page.
 func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Query()
+	scope := deptScope(me(r))
+	if p.Get("employee_id") != "" {
+		scope = nil
+	} else if me(r).Role == model.RoleQA {
+		writeError(w, http.StatusForbidden, "pick an agent")
+		return
+	}
 	from, to := p.Get("from"), p.Get("to")
 	tz := s.cfg(r).TZ()
 	if from == "" {
@@ -57,8 +65,8 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 
 	conds := []string{"t.work_date BETWEEN ? AND ?"}
 	args := []any{from, to}
-	if d := deptScope(me(r)); d != nil {
-		conds, args = append(conds, "tt.department_id = ?"), append(args, *d)
+	if scope != nil {
+		conds, args = append(conds, "tt.department_id = ?"), append(args, *scope)
 	}
 	if v := p.Get("task_type_id"); v != "" {
 		conds, args = append(conds, "t.task_type_id = ?"), append(args, v)
@@ -166,8 +174,8 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	var failed []taskRow
 	q := s.taskRows(r).Where("t.state = 'completed' AND t.result = 'fail' AND t.kind IN "+model.CountedKinds+
 		" AND t.work_date BETWEEN ? AND ?", from, to)
-	if d := deptScope(me(r)); d != nil {
-		q = q.Where("tt.department_id = ?", *d)
+	if scope != nil {
+		q = q.Where("tt.department_id = ?", *scope)
 	}
 	if v := p.Get("task_type_id"); v != "" {
 		q = q.Where("t.task_type_id = ?", v)
@@ -260,12 +268,18 @@ type metricStat struct {
 // metricBreakdown scores each metric across evaluations from their own
 // scorecard snapshots, so metrics renamed since still group by id.
 func (s *Server) metricBreakdown(r *http.Request, done string, args []any) []*metricStat {
-	var rows []struct {
-		Scorecard scorecard.Card
-		Answers   scorecard.Answers
-	}
+	var rows []cardAnswers
 	s.db.WithContext(r.Context()).Raw(`SELECT t.scorecard, t.answers`+done, args...).Scan(&rows)
+	return metricStats(rows)
+}
 
+type cardAnswers struct {
+	Scorecard scorecard.Card
+	Answers   scorecard.Answers
+}
+
+// metricStats adds up each metric over evaluations, weakest first.
+func metricStats(rows []cardAnswers) []*metricStat {
 	stats := map[string]*metricStat{}
 	var order []string
 	for _, row := range rows {

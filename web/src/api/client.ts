@@ -2,11 +2,14 @@ import type {
   Answer,
   Coaching,
   Department,
+  EvaluationChange,
   ImportResult,
   ImportRun,
   RosterResult,
   Reports,
   AppSettings,
+  AgentInfo,
+  AgentRow,
   ReportAgent,
   ScoreResult,
   TaskDetail,
@@ -55,6 +58,31 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(msg, res.status)
   }
   return payload as T
+}
+
+/** Fetches a file the API sends (with the sign-in header) and saves it under the name the server gives. */
+async function download(path: string): Promise<void> {
+  const headers = new Headers()
+  if (authToken) headers.set('Authorization', `Bearer ${authToken}`)
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, { headers })
+  } catch {
+    throw new ApiError('Cannot reach the portal server. Check your connection and try again.', 0)
+  }
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new ApiError(payload?.error ?? `Request failed (${res.status})`, res.status)
+  }
+  const blob = await res.blob()
+  const name = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get('Content-Disposition') ?? '')?.[1]
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = name ? decodeURIComponent(name) : 'QA report.xlsx'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
 }
 
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: JSON.stringify(body ?? {}) })
@@ -124,7 +152,11 @@ export const api = {
   cantAudit: (id: string, reason: string) =>
     request<{ next_task_id: string | null }>(`/tasks/${id}/cant-audit`, json('POST', { reason })),
   editEvaluation: (id: string, answers: Answer[], reason: string) =>
-    request<{ result: ScoreResult }>(`/tasks/${id}/evaluation`, json('PUT', { answers, reason })),
+    request<{ result: ScoreResult; pending: boolean }>(`/tasks/${id}/evaluation`, json('PUT', { answers, reason })),
+  changes: (params: Record<string, string | number | undefined>) =>
+    request<{ changes: EvaluationChange[]; total: number; page_size: number }>(`/evaluation-changes${qs(params)}`),
+  approveChange: (id: string, note: string) => request(`/evaluation-changes/${id}/approve`, json('POST', { note })),
+  rejectChange: (id: string, note: string) => request(`/evaluation-changes/${id}/reject`, json('POST', { note })),
   taskIds: (params: Record<string, string | number | undefined>) => request<{ ids: string[] }>(`/tasks${qs({ ...params, ids: '1' })}`),
   bulkReassign: (task_ids: string[], qa_id: string | null) =>
     request<{ moved: number; skipped: number }>('/tasks/bulk-reassign', json('POST', { task_ids, qa_id })),
@@ -132,6 +164,11 @@ export const api = {
   cancel: (id: string, reason: string) => request(`/tasks/${id}/cancel`, json('POST', { reason })),
 
   reports: (params: Record<string, string | undefined>) => request<Reports>(`/reports${qs(params)}`),
+  agents: (params: Record<string, string | undefined>) =>
+    request<{ from: string; to: string; agents: AgentRow[] }>(`/agents${qs(params)}`),
+  agent: (id: string) => request<AgentInfo>(`/agents/${id}`),
+  /** Excel workbook: ids (comma-separated) or department_id, plus from/to. */
+  exportAgents: (params: Record<string, string | undefined>) => download(`/agents/export${qs(params)}`),
 
   // QA2
   teamAgents: () => request<{ id: string; name: string; alias_name: string; department: string }[]>('/team/agents'),
@@ -150,13 +187,17 @@ export const api = {
   uphold: (id: string, comment: string) => request(`/tasks/${id}/uphold`, json('POST', { comment })),
   forwardDispute: (id: string, note: string) => request(`/tasks/${id}/dispute/forward`, json('POST', { note })),
   myDisputes: () => request<TaskRow[]>('/me/disputes'),
-  // Reported work (negatives, team leader escalations); path is '/negatives' or '/tl-escalations'.
+  // Escalations: path is '/negatives', '/tl-escalations' or '/qa-escalations'.
   reportAgents: (path: string) => request<ReportAgent[]>(`${path}/agents`),
   report: (path: string, p: { external_id: string; employee_id: string; error: string; task_type_id?: string }) =>
     request<{ id: string; task_type: string }>(path, json('POST', p)),
   myReports: (path: string) => request<TaskRow[]>(`${path}/mine`),
-  confirmReported: (id: string, note: string) => request(`/tasks/${id}/confirm`, json('POST', { note })),
-  coachings: () => request<Coaching[]>('/coachings'),
+  decide: (id: string, valid: boolean, note: string) => request(`/tasks/${id}/decide`, json('POST', { valid, note })),
+  escalations: (params: Record<string, string | number | undefined>) =>
+    request<{ tasks: TaskRow[]; total: number; page_size: number }>(`/escalations${qs(params)}`),
+  coachings: (params: Record<string, string | undefined> = {}) => request<Coaching[]>(`/coachings${qs(params)}`),
+  logCoaching: (p: { employee_id: string; kind: string; topic: string; task_ids: string[]; notes: string; outcome: string }) =>
+    request<Coaching>('/coachings', json('POST', p)),
   createCoaching: (p: { employee_id: string; topic: string; task_ids: string[]; assigned_qa_id: string; due_date: string }) =>
     request<Coaching>('/coachings', json('POST', p)),
   completeCoaching: (id: string, notes: string, outcome: string) =>

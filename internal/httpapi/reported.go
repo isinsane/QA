@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,15 +16,19 @@ import (
 	"github.com/oaldesi/qa-portal/internal/scorecard"
 )
 
-// Reported work: someone outside QA reports an order or call, the agent
-// behind it and what went wrong. It waits for that agent's supervisor
-// (state review), who confirms it as reported, sends it to a QA agent to audit
-// with the task type's scorecard, or dismisses it. It is tracked on its own
-// and doesn't change quality scores.
+// Escalations: someone reports an order or call, the agent behind it and
+// what went wrong. It waits (state review) until it is decided Valid (the
+// agent's mistake: it shows on their profile) or Not valid, with a note.
+// Never scored, never disputed.
 //
 //   - Negatives: a negatives agent reports a negative review, about any agent.
 //   - Team leader escalations: a team leader (floor support) escalates work
 //     of an agent on their own team.
+//   - QA escalations: a QA agent raises one about any agent.
+//
+// Negatives and TL escalations are auto-assigned to a QA agent of the team to
+// check (internal/assign); its QA agents and the supervisor may decide them.
+// QA escalations are decided by the supervisor.
 type reporter struct {
 	kind     model.Kind
 	role     model.Role
@@ -35,6 +40,7 @@ type reporter struct {
 var reporters = []reporter{
 	{model.KindNegative, model.RoleNegative, "/negatives", "negative", false},
 	{model.KindTLEscalation, model.RoleTeamLeader, "/tl-escalations", "escalation", true},
+	{model.KindQAEscalation, model.RoleQA, "/qa-escalations", "escalation", false},
 }
 
 func (s *Server) routesReported(r chi.Router, managers func(http.Handler) http.Handler) {
@@ -44,7 +50,21 @@ func (s *Server) routesReported(r chi.Router, managers func(http.Handler) http.H
 		r.With(who).Post(rp.path, s.report(rp))
 		r.With(s.requireRoles(rp.role)).Get(rp.path+"/mine", s.myReports(rp))
 	}
-	r.With(managers).Post("/tasks/{id}/confirm", s.handleConfirmReported)
+	checkers := s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)
+	r.With(checkers).Post("/tasks/{id}/decide", s.handleDecide)
+	r.With(checkers).Get("/escalations", s.handleEscalations)
+}
+
+// canDecide: the supervisor (their team) decides any escalation; the team's
+// QA agents decide negatives and TL escalations.
+func canDecide(u *model.User, t *model.Task, tt *model.TaskType) bool {
+	switch {
+	case !t.Kind.Reviewed() || t.State != model.StateReview:
+		return false
+	case isManager(u):
+		return inScope(u, tt.DepartmentID)
+	}
+	return u.Role == model.RoleQA && t.Kind != model.KindQAEscalation && u.DepartmentID != nil && *u.DepartmentID == tt.DepartmentID
 }
 
 type reportAgent struct {
@@ -192,6 +212,7 @@ func (s *Server) report(rp reporter) http.HandlerFunc {
 			dbError(w, err)
 			return
 		}
+		s.runAssign(r.Context()) // straight to a QA agent to check
 		writeJSON(w, http.StatusCreated, map[string]any{"id": t.ID, "task_type": tt.Name})
 	}
 }
@@ -210,30 +231,46 @@ func (s *Server) myReports(rp reporter) http.HandlerFunc {
 	}
 }
 
-// handleConfirmReported: the supervisor agrees with the report as it stands,
-// with no QA audit.
-func (s *Server) handleConfirmReported(w http.ResponseWriter, r *http.Request) {
-	t, _, ok := s.loadTask(w, r)
-	var in struct{ Note string }
+// handleDecide marks an escalation Valid (the agent's mistake: it goes on
+// their profile) or Not valid, with what was found.
+func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) {
+	t, tt, ok := s.loadTask(w, r)
+	var in struct {
+		Valid bool   `json:"valid"`
+		Note  string `json:"note"`
+	}
 	if !ok || !decode(w, r, &in) {
 		return
 	}
-	if !t.Kind.Reviewed() || t.State != model.StateReview {
-		writeError(w, http.StatusConflict, "only a report waiting for review can be confirmed")
+	u := me(r)
+	if !canDecide(u, t, tt) {
+		writeError(w, http.StatusConflict, "this escalation isn't waiting for your decision")
+		return
+	}
+	note := strings.TrimSpace(in.Note)
+	if note == "" {
+		writeError(w, http.StatusBadRequest, "say what you found")
 		return
 	}
 	now := time.Now().UTC()
 	none := scorecard.Answers{}
+	upd := map[string]any{"finding": note, "evaluated_by": u.ID, "queue_position": nil}
+	action := string(t.Kind) + "_confirmed"
+	if in.Valid {
+		upd["state"], upd["answers"], upd["completed_at"] = model.StateCompleted, &none, now
+	} else {
+		upd["state"], upd["cancel_reason"] = model.StateCancelled, note
+		action = string(t.Kind) + "_dismissed"
+	}
 	err := s.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
-		res := tx.Model(&model.Task{}).Where("id = ? AND state = 'review'", t.ID).
-			Updates(map[string]any{"state": model.StateCompleted, "answers": &none, "completed_at": now})
+		res := tx.Model(&model.Task{}).Where("id = ? AND state = 'review'", t.ID).Updates(upd)
 		if res.Error != nil {
 			return res.Error
 		}
 		if res.RowsAffected == 0 {
 			return errConflict
 		}
-		return s.audit(tx, t.ID, me(r), string(t.Kind)+"_confirmed", model.JSONMap{"reason": strings.TrimSpace(in.Note)})
+		return s.audit(tx, t.ID, u, action, model.JSONMap{"reason": note})
 	})
 	if errors.Is(err, errConflict) {
 		writeError(w, http.StatusConflict, err.Error())
@@ -244,4 +281,51 @@ func (s *Server) handleConfirmReported(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// handleEscalations lists escalations: to check, valid or not valid. QA
+// agents see their team's (and the ones they raised); supervisors their team's.
+func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
+	u, p := me(r), r.URL.Query()
+	q := s.taskRows(r).Where("t.kind IN " + model.ReviewedKinds)
+	switch {
+	case u.Role == model.RoleQA:
+		q = q.Where("(tt.department_id = ? OR t.created_by = ?)", u.DepartmentID, u.ID)
+	case deptScope(u) != nil:
+		q = q.Where("tt.department_id = ?", *deptScope(u))
+	}
+	order := "t.created_at"
+	switch p.Get("state") {
+	case "", "review":
+		q = q.Where("t.state = 'review'")
+	case "valid":
+		q, order = q.Where("t.state = 'completed'"), "t.completed_at DESC"
+	case "not_valid":
+		q, order = q.Where("t.state = 'cancelled'"), "t.updated_at DESC"
+	}
+	if v := p.Get("source"); v != "" {
+		q = q.Where("t.kind = ?", v)
+	}
+	if p.Get("mine") == "1" {
+		q = q.Where("t.assigned_qa_id = ?", u.ID)
+	}
+	if p.Get("raised") == "1" {
+		q = q.Where("t.created_by = ?", u.ID)
+	}
+	if v := p.Get("employee_id"); v != "" {
+		q = q.Where("t.employee_id = ?", v)
+	}
+	var total int64
+	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		dbError(w, err)
+		return
+	}
+	page, _ := strconv.Atoi(p.Get("page"))
+	page = max(page, 1)
+	var rows []taskRow
+	if err := q.Order(order).Offset((page - 1) * 50).Limit(50).Scan(&rows).Error; err != nil {
+		dbError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"tasks": rows, "total": total, "page_size": 50})
 }

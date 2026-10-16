@@ -262,13 +262,18 @@ const (
 	KindNegative   Kind = "negative" // a reported negative review; tracked apart from scores
 	// KindTLEscalation is a team leader's escalation; reviewed like a negative.
 	KindTLEscalation Kind = "tl_escalation"
+	// KindQAEscalation is raised by a QA agent and decided by the supervisor.
+	KindQAEscalation Kind = "qa_escalation"
 )
 
-// ReviewedKinds are reported by someone outside QA and wait for the
-// supervisor's review; they are tracked apart from quality scores.
-const ReviewedKinds = "('negative','tl_escalation')"
+// ReviewedKinds are escalations: reported, then decided Valid or Not valid,
+// never scored and never disputed. They are tracked apart from quality
+// scores.
+const ReviewedKinds = "('negative','tl_escalation','qa_escalation')"
 
-func (k Kind) Reviewed() bool { return k == KindNegative || k == KindTLEscalation }
+func (k Kind) Reviewed() bool {
+	return k == KindNegative || k == KindTLEscalation || k == KindQAEscalation
+}
 
 // CountedKinds is the SQL list of kinds that count toward agent scores.
 const CountedKinds = "('sample','live','escalation')"
@@ -320,6 +325,9 @@ type Task struct {
 	DisputeResolvedBy *uuid.UUID `gorm:"type:uuid" json:"dispute_resolved_by"`
 	DisputeResolvedAt *time.Time `json:"dispute_resolved_at"`
 
+	// Finding is what whoever decided an escalation found.
+	Finding string `json:"finding"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -329,6 +337,8 @@ type Coaching struct {
 	DepartmentID uuid.UUID  `gorm:"type:uuid" json:"department_id"`
 	EmployeeID   uuid.UUID  `gorm:"type:uuid" json:"employee_id"`
 	Topic        string     `json:"topic"`
+	Kind         string     `json:"kind"`   // coaching or refresher
+	Logged       bool       `json:"logged"` // logged by a QA agent after the fact; no acknowledgement
 	TaskIDs      Strings    `gorm:"column:task_ids;type:jsonb" json:"task_ids"`
 	AssignedQAID uuid.UUID  `gorm:"column:assigned_qa_id;type:uuid" json:"assigned_qa_id"`
 	CreatedBy    *uuid.UUID `gorm:"type:uuid" json:"created_by"`
@@ -341,6 +351,24 @@ type Coaching struct {
 	AckComment   string     `json:"ack_comment"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+// EvaluationChange is a QA agent's change to the answers of a submitted
+// audit, waiting for a supervisor. Until it is approved the audit keeps its
+// score.
+type EvaluationChange struct {
+	ID           uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TaskID       uuid.UUID          `gorm:"type:uuid" json:"task_id"`
+	RequestedBy  uuid.UUID          `gorm:"type:uuid" json:"requested_by"`
+	Answers      *scorecard.Answers `gorm:"type:jsonb" json:"answers"`
+	Reason       string             `json:"reason"`
+	ScoreBefore  *float64           `json:"score_before"`
+	Score        *float64           `json:"score"`  // with these answers
+	Status       string             `json:"status"` // pending, approved, rejected
+	DecidedBy    *uuid.UUID         `gorm:"type:uuid" json:"decided_by"`
+	DecidedAt    *time.Time         `json:"decided_at"`
+	DecisionNote string             `json:"decision_note"`
+	CreatedAt    time.Time          `json:"created_at"`
 }
 
 type AuditLog struct {

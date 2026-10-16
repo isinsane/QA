@@ -68,6 +68,40 @@ func Plan(tasks []ReadyTask, agents []Agent) []Assignment {
 	return out
 }
 
+// Checker is a QA agent who can be given escalations to check.
+type Checker struct {
+	ID           uuid.UUID
+	DepartmentID uuid.UUID
+	Online       bool
+	Open         int // escalations waiting on them
+}
+
+// PlanEscalations gives each unassigned escalation (negative, TL escalation)
+// to a QA agent of its team: online ones first, then the one with the fewest
+// waiting. Escalations don't use the audit queue, so there is no cap.
+func PlanEscalations(tasks []ReadyTask, checkers []Checker) []Assignment {
+	byDept := map[uuid.UUID][]*Checker{}
+	for i := range checkers {
+		c := &checkers[i]
+		byDept[c.DepartmentID] = append(byDept[c.DepartmentID], c)
+	}
+	var out []Assignment
+	for _, t := range tasks {
+		var best *Checker
+		for _, c := range byDept[t.DepartmentID] {
+			if best == nil || (c.Online && !best.Online) || (c.Online == best.Online && c.Open < best.Open) {
+				best = c
+			}
+		}
+		if best == nil {
+			continue
+		}
+		out = append(out, Assignment{TaskID: t.ID, AgentID: best.ID})
+		best.Open++
+	}
+	return out
+}
+
 type Runner struct {
 	db *gorm.DB
 	mu sync.Mutex
@@ -91,6 +125,10 @@ func (r *Runner) Run(ctx context.Context) error {
 			FROM users u, task_types tt
 			WHERE t.state = 'assigned' AND u.id = t.assigned_qa_id AND tt.id = t.task_type_id
 			  AND (NOT u.active OR u.role <> 'qa_agent' OR u.department_id IS DISTINCT FROM tt.department_id)`).Error; err != nil {
+			return err
+		}
+
+		if err := assignEscalations(tx); err != nil {
 			return err
 		}
 
@@ -141,4 +179,47 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 		return nil
 	})
+}
+
+// assignEscalations hands negatives and TL escalations waiting to be checked
+// to QA agents (QA escalations are the supervisor's to decide). One whose QA
+// agent left the team or was deactivated goes to someone else.
+func assignEscalations(tx *gorm.DB) error {
+	if err := tx.Exec(`
+		UPDATE tasks t SET assigned_qa_id = NULL
+		FROM users u, task_types tt
+		WHERE t.state = 'review' AND u.id = t.assigned_qa_id AND tt.id = t.task_type_id
+		  AND (NOT u.active OR u.role <> 'qa_agent' OR u.department_id IS DISTINCT FROM tt.department_id)`).Error; err != nil {
+		return err
+	}
+	var tasks []ReadyTask
+	if err := tx.Raw(`
+		SELECT t.id, tt.department_id FROM tasks t JOIN task_types tt ON tt.id = t.task_type_id
+		WHERE t.state = 'review' AND t.assigned_qa_id IS NULL AND t.kind IN ('negative', 'tl_escalation')
+		ORDER BY t.created_at, t.id`).Scan(&tasks).Error; err != nil || len(tasks) == 0 {
+		return err
+	}
+	var checkers []Checker
+	if err := tx.Raw(`
+		SELECT u.id, u.department_id, u.is_available AS online, count(t.id) AS open
+		FROM users u LEFT JOIN tasks t ON t.assigned_qa_id = u.id AND t.state = 'review'
+		WHERE u.role = 'qa_agent' AND u.active
+		GROUP BY u.id ORDER BY u.id`).Scan(&checkers).Error; err != nil {
+		return err
+	}
+	for _, a := range PlanEscalations(tasks, checkers) {
+		res := tx.Model(&model.Task{}).Where("id = ? AND state = 'review' AND assigned_qa_id IS NULL", a.TaskID).
+			Updates(map[string]any{"assigned_qa_id": a.AgentID, "assigned_at": time.Now().UTC()})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 1 {
+			taskID, agentID := a.TaskID, a.AgentID
+			if err := tx.Create(&model.AuditLog{TaskID: &taskID, Action: "assigned",
+				Detail: model.JSONMap{"qa_id": agentID, "by": "assignment pass", "to": "check"}}).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

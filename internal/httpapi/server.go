@@ -88,6 +88,8 @@ func (s *Server) Handler() http.Handler {
 			s.routesCoaching(r, managers)
 			s.routesSettings(r)
 			s.routesReported(r, managers)
+			s.routesChanges(r, managers)
+			s.routesAgents(r)
 		})
 	})
 	return r

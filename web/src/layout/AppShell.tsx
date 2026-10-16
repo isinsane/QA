@@ -7,17 +7,23 @@ import { Topbar } from './Topbar'
 
 const TITLES: [string, string][] = [
   ['/dashboard', 'Dashboard'],
+  ['/tasks/', 'Details'],
   ['/tasks', 'All tasks'],
   ['/imports', 'Imports'],
   ['/task-types', 'Task types'],
   ['/team', 'Team'],
   ['/coaching', 'Coaching'],
   ['/disputes', 'Disputes'],
+  ['/escalations', 'Escalations'],
+  ['/approvals', 'Approvals'],
+  ['/my-audits', 'My audits'],
+  ['/agents/', 'Agent'],
+  ['/agents', 'Agents'],
   ['/negatives', 'Negatives'],
   ['/tl-escalations', 'Team leader escalations'],
   ['/departments', 'Departments'],
   ['/settings', 'Settings'],
-  ['/queue', 'My queue'],
+  ['/queue', 'Workspace'],
   ['/my-scores', 'My profile'],
   ['/account', 'My account'],
 ]
@@ -27,18 +33,20 @@ const COLLAPSED_KEY = 'qa.sidebar.collapsed'
 export function AppShell() {
   const { user } = useAuth()
   const location = useLocation()
+  // QA agents start collapsed: the workspace needs the width for the scorecard.
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return window.localStorage.getItem(COLLAPSED_KEY) === '1'
+      const saved = window.localStorage.getItem(COLLAPSED_KEY)
+      return saved === null ? user?.role === 'qa_agent' : saved === '1'
     } catch {
-      return false
+      return user?.role === 'qa_agent'
     }
   })
 
   if (!user) return <Navigate to="/login" replace />
   if (!canAccessPath(user.role, location.pathname)) return <Navigate to={homePathForRole(user.role)} replace />
 
-  const noSidebar = user.role === 'qa_agent' || user.role === 'employee' || user.role === 'negative_agent' || user.role === 'team_leader'
+  const noSidebar = user.role === 'employee' || user.role === 'negative_agent' || user.role === 'team_leader'
   const title = TITLES.find(([p]) => location.pathname.startsWith(p))?.[1] ?? 'QA Portal'
 
   function toggle() {

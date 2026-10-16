@@ -137,9 +137,8 @@ func Validate(c Card) error {
 			return fmt.Errorf("%s: unknown type %q", at, m.Type)
 		}
 		scored++
-		if m.NAReceiver && m.AllowNA {
-			return fmt.Errorf("%s: a metric that takes N/A weight must always be answered, so it can't allow N/A itself", at)
-		}
+		// A metric may both allow N/A and take N/A weight: answered, it takes
+		// a share; N/A itself, it gives its weight away and takes none.
 		if !m.AllowNA {
 			answerable++
 		}
@@ -234,6 +233,26 @@ func Score(c Card, answers Answers, th Thresholds) (Result, error) {
 }
 
 // maxPoints is what a metric is worth when fully met.
+// SameScoring reports whether two sets of answers give every scored metric
+// the same value: at most their notes and text comments differ, so the score
+// can't.
+func (c Card) SameScoring(a, b Answers) bool {
+	val := func(as Answers) map[string]string {
+		m := make(map[string]string, len(as))
+		for _, x := range as {
+			m[x.MetricID] = strings.TrimSpace(x.Value)
+		}
+		return m
+	}
+	va, vb := val(a), val(b)
+	for _, m := range c {
+		if m.Type != Text && va[m.ID] != vb[m.ID] {
+			return false
+		}
+	}
+	return true
+}
+
 func maxPoints(m Metric) float64 {
 	if m.Type == Dropdown {
 		return maxOption(m)

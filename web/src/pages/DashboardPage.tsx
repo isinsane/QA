@@ -1,39 +1,20 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Award, ClipboardCheck, MessageSquareWarning, Target, X } from 'lucide-react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import { DateRangePicker, Empty, fmtDate, Labels, rangeFor, ScoreBadge, type DateRange } from '../components/bits'
+import { Bar, ByLabelCard, pct, ScoreTrendCard, WeakestMetricsCard } from '../components/ReportCards'
+import { ExportButton } from '../components/ExportButton'
 import { StatCard } from '../components/StatCard'
+import { useAuth } from '../auth/AuthContext'
 import { KIND_LABEL } from '../scorecard'
-
-const axisProps = {
-  stroke: 'var(--viz-axis)',
-  tick: { fill: 'var(--text-tertiary)', fontSize: 11 },
-  tickLine: false,
-} as const
-
-const pct = (v: number | null | undefined) => (v === null || v === undefined ? '—' : `${v}%`)
 
 type Tab = 'quality' | 'agents' | 'operations' | 'calibration'
 
-/** A bar with the value next to it, for tables of percentages. */
-function Bar({ value }: { value: number | null }) {
-  return (
-    <div className="weight">
-      <span className="weight-bar">
-        <span style={{ width: `${value ?? 0}%` }} />
-      </span>
-      <span className="weight-value" style={{ minWidth: 36, textAlign: 'right' }}>
-        {pct(value)}
-      </span>
-    </div>
-  )
-}
-
 export function DashboardPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [range, setRange] = useState<DateRange>(() => rangeFor('this_month'))
   const [g, setG] = useState({ task_type_id: '', employee_id: '' })
   const f = { ...g, from: range.from, to: range.to }
@@ -52,7 +33,6 @@ export function DashboardPage() {
     return [...byQA.entries()].sort((a, b) => b[1].evaluations - a[1].evaluations)
   }, [r])
 
-  const trend = (r?.trend ?? []).map((t) => ({ ...t, label: `wk ${fmtDate(t.week).replace(/, \d{4}$/, '')}` }))
   const flagged = (r?.kinds ?? []).find((k) => k.kind === 'live')?.flagged ?? 0
   const tabs: [Tab, string][] = [
     ['quality', 'Quality'],
@@ -68,20 +48,30 @@ export function DashboardPage() {
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">Quality by the day the work was done.</p>
         </div>
-        <select
-          className="select"
-          style={{ width: 'auto', minWidth: 200 }}
-          value={g.task_type_id}
-          onChange={(e) => setG({ ...g, task_type_id: e.target.value })}
-          aria-label="Task type"
-        >
-          <option value="">All task types</option>
-          {(types.data ?? []).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        <div className="page-actions">
+          <ExportButton
+            params={() => ({
+              ids: g.employee_id || undefined,
+              department_id: g.employee_id || user?.role === 'admin' ? undefined : (user?.department_id ?? undefined),
+              from: range.from,
+              to: range.to,
+            })}
+          />
+          <select
+            className="select"
+            style={{ width: 'auto', minWidth: 200 }}
+            value={g.task_type_id}
+            onChange={(e) => setG({ ...g, task_type_id: e.target.value })}
+            aria-label="Task type"
+          >
+            <option value="">All task types</option>
+            {(types.data ?? []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="dash-filters">
@@ -141,120 +131,13 @@ export function DashboardPage() {
         {tab === 'quality' ? (
           <>
             <div className="dash-grid">
-              <section className="card">
-                <div className="card-header">
-                  <div>
-                    <h2 className="card-title">Average score by week</h2>
-                    <p className="card-subtitle">Sample, live and escalation audits.</p>
-                  </div>
-                </div>
-                <div className="card-body" style={{ height: 300 }}>
-                  {trend.length === 0 ? (
-                    <Empty title="No evaluations in this range" />
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={trend} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-                        <CartesianGrid stroke="var(--viz-grid)" vertical={false} />
-                        <XAxis dataKey="label" {...axisProps} minTickGap={24} />
-                        <YAxis {...axisProps} width={36} domain={[0, 100]} unit="%" />
-                        <Tooltip
-                          cursor={{ stroke: 'var(--viz-axis)' }}
-                          content={({ active, payload, label }) =>
-                            active && payload?.length ? (
-                              <div className="viz-tooltip">
-                                <div className="viz-tooltip-label">{label}</div>
-                                <div className="viz-tooltip-row">
-                                  <span className="viz-tooltip-swatch" style={{ background: 'var(--viz-1)' }} />
-                                  <span className="viz-tooltip-name">Average</span>
-                                  <span className="viz-tooltip-value">{pct(payload[0].value as number)}</span>
-                                </div>
-                                <div className="viz-tooltip-row">
-                                  <span className="viz-tooltip-name">Evaluations</span>
-                                  <span className="viz-tooltip-value">{(payload[0].payload as { evaluations: number }).evaluations}</span>
-                                </div>
-                              </div>
-                            ) : null
-                          }
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="avg_score"
-                          name="Average"
-                          stroke="var(--viz-1)"
-                          strokeWidth={2}
-                          dot={{ r: 4, fill: 'var(--viz-1)', stroke: 'var(--bg-surface)', strokeWidth: 2 }}
-                          activeDot={{ r: 5 }}
-                          isAnimationActive={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </section>
+              <ScoreTrendCard data={r?.trend ?? []} />
 
-              <section className="card">
-                <div className="card-header">
-                  <div>
-                    <h2 className="card-title">Metrics, weakest first</h2>
-                    <p className="card-subtitle">Share of points earned; "zero" counts answers that earned nothing.</p>
-                  </div>
-                </div>
-                {(r?.metrics ?? []).length === 0 ? <Empty title="No scored metrics yet" /> : null}
-                <ul className="outcome-list dash-scroll">
-                  {(r?.metrics ?? []).map((m) => (
-                    <li className="outcome-row" key={m.id}>
-                      <span className="outcome-name">{m.label}</span>
-                      <span className="outcome-bar">
-                        <span className="outcome-bar-fill" style={{ width: `${m.avg_pct ?? 0}%`, background: 'var(--viz-1)' }} />
-                      </span>
-                      <span className="outcome-value">
-                        {pct(m.avg_pct)}
-                        <span className="outcome-share">
-                          {m.zero} zero · {m.answered} answered
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              <WeakestMetricsCard metrics={r?.metrics ?? []} />
             </div>
 
             <div className="dash-grid">
-              <section className="card">
-                <div className="card-header">
-                  <div>
-                    <h2 className="card-title">By disposition code / tag</h2>
-                    <p className="card-subtitle">Lowest average first shows where agents struggle.</p>
-                  </div>
-                </div>
-                {(r?.by_label ?? []).length === 0 ? <Empty title="Nothing scored yet" /> : null}
-                {(r?.by_label ?? []).length ? (
-                  <div className="table-scroll dash-scroll">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Code / tag</th>
-                          <th style={{ width: 90 }}>Audits</th>
-                          <th style={{ width: 200 }}>Average</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...(r?.by_label ?? [])]
-                          .sort((a, b) => (a.avg_score ?? 0) - (b.avg_score ?? 0))
-                          .map((l) => (
-                            <tr key={l.label}>
-                              <td>{l.label}</td>
-                              <td>{l.evaluations}</td>
-                              <td>
-                                <Bar value={l.avg_score} />
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : null}
-              </section>
+              <ByLabelCard byLabel={r?.by_label ?? []} />
 
               <section className="card">
                 <div className="card-header">

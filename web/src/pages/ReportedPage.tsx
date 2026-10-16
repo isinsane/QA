@@ -5,78 +5,90 @@ import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { Kind, Role, TaskRow } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { Empty, errorText, fmtDate, fmtDateTime, ScoreBadge } from '../components/bits'
+import { Empty, errorText, fmtDate, fmtDateTime, KindBadge, ScoreBadge } from '../components/bits'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
 
-/** Work reported by someone outside QA, reviewed by the agent's supervisor. */
+/** An escalation someone raises about an agent; it is checked, then marked Valid or Not valid. */
 export interface ReportKind {
   kind: Kind
   path: string
   role: Role
-  title: string
   reportTitle: string
-  reportButton: string
   reporterSubtitle: string
-  managerSubtitle: string
   agentLabel: string
   errorLabel: string
   errorPlaceholder: string
   mineTitle: string
-  confirmLabel: string
+  /** Who checks it, e.g. "a QA agent of the Calls team". */
+  sendTo: (team: string) => string
 }
+
+const qaOf = (team: string) => `a QA agent of the ${team || 'agent’s'} team`
 
 export const NEGATIVES: ReportKind = {
   kind: 'negative',
   path: '/negatives',
   role: 'negative_agent',
-  title: 'Negatives',
   reportTitle: 'Report a negative',
-  reportButton: 'Report a negative',
-  reporterSubtitle: "The agent's supervisor checks it, then confirms it or sends it to a QA agent to audit.",
-  managerSubtitle: "Negative reviews reported against your agents. They don't change quality scores.",
+  reporterSubtitle: "A QA agent of the agent's team checks it and marks it valid (the agent's mistake) or not valid.",
   agentLabel: 'Agent who caused the negative review',
   errorLabel: 'The error the agent made',
   errorPlaceholder: 'What happened, and what the customer said in the review',
   mineTitle: 'What I reported',
-  confirmLabel: 'Confirm negative',
+  sendTo: qaOf,
 }
 
 export const TL_ESCALATIONS: ReportKind = {
   kind: 'tl_escalation',
   path: '/tl-escalations',
   role: 'team_leader',
-  title: 'Team leader escalations',
   reportTitle: 'Escalate an interaction',
-  reportButton: 'New escalation',
-  reporterSubtitle: 'For an order or call of an agent on your team. Your supervisor checks it, then confirms it or sends it to a QA agent to audit.',
-  managerSubtitle: "Interactions your team leaders escalated. They don't change quality scores.",
+  reporterSubtitle:
+    "For an order or call of an agent on your team. A QA agent checks it and marks it valid (the agent's mistake) or not valid.",
   agentLabel: 'Agent',
   errorLabel: 'What happened',
   errorPlaceholder: 'What the agent did, and why it needs a look',
   mineTitle: 'My escalations',
-  confirmLabel: 'Confirm escalation',
+  sendTo: qaOf,
 }
 
-/** The reporter sees the form and what they sent; supervisors and admins review. */
+export const QA_ESCALATIONS: ReportKind = {
+  kind: 'qa_escalation',
+  path: '/qa-escalations',
+  role: 'qa_agent',
+  reportTitle: 'QA escalation',
+  reporterSubtitle: "The agent's supervisor checks it and marks it valid or not valid.",
+  agentLabel: 'Agent',
+  errorLabel: 'What happened',
+  errorPlaceholder: 'What the agent did, and why it needs a look',
+  mineTitle: 'Raised by me',
+  sendTo: (team) => `the ${team} supervisor`,
+}
+
+/** The reporter's page: the form, then what they sent. */
 export function ReportedPage({ cfg }: { cfg: ReportKind }) {
   const { user } = useAuth()
-  return user?.role === cfg.role ? <ReporterPage cfg={cfg} /> : <ReviewPage cfg={cfg} />
+  return user?.role === cfg.role ? <ReporterPage cfg={cfg} /> : <EscalationsPage />
 }
 
-/** Where a report stands, in words. */
+/** Where an escalation stands, in words. */
 function ReportStatus({ t }: { t: TaskRow }) {
   switch (t.state) {
     case 'review':
-      return <span className="badge badge-warning">with the supervisor</span>
+      return (
+        <span className="badge badge-warning">
+          {t.kind === 'qa_escalation' ? 'with the supervisor' : t.qa_name ? `being checked: ${t.qa_name}` : 'waiting to be checked'}
+        </span>
+      )
     case 'ready':
     case 'assigned':
       return <span className="badge badge-brand">with QA{t.qa_name ? `: ${t.qa_name}` : ''}</span>
     case 'cancelled':
-      return <span className="badge badge-gray">dismissed</span>
+      return <span className="badge badge-gray">not valid</span>
     case 'completed':
       return t.score === null ? (
-        <span className="badge badge-error">confirmed</span>
+        <span className="badge badge-error">valid</span>
       ) : (
         <span className="neg-audited">
           audited <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} />
@@ -86,9 +98,14 @@ function ReportStatus({ t }: { t: TaskRow }) {
   return null
 }
 
-function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent: (msg: string) => void; onCancel?: () => void }) {
+export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent: (msg: string) => void; onCancel?: () => void }) {
   const agents = useApi(() => api.reportAgents(cfg.path), [cfg.path])
-  const [f, setF] = useState({ external_id: '', employee_id: '', task_type_id: '', error: '' })
+  const [f, setF] = useState({
+    external_id: '',
+    employee_id: '',
+    task_type_id: '',
+    error: '',
+  })
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const agent = (agents.data ?? []).find((a) => a.id === f.employee_id)
@@ -100,8 +117,13 @@ function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent: (msg: 
     setBusy(true)
     setProblem('')
     try {
-      const r = await api.report(cfg.path, { external_id: f.external_id.trim(), employee_id: f.employee_id, error: f.error.trim(), task_type_id: typeId })
-      onSent(`Sent: ${agent?.name}, ${f.external_id.trim()}. It goes to the ${agent?.team} supervisor (${r.task_type}).`)
+      const r = await api.report(cfg.path, {
+        external_id: f.external_id.trim(),
+        employee_id: f.employee_id,
+        error: f.error.trim(),
+        task_type_id: typeId,
+      })
+      onSent(`Sent: ${agent?.name}, ${f.external_id.trim()}. It goes to ${cfg.sendTo(agent?.team ?? '')} (${r.task_type}).`)
       setF({ external_id: '', employee_id: '', task_type_id: '', error: '' })
     } catch (err) {
       setProblem(errorText(err))
@@ -162,7 +184,7 @@ function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent: (msg: 
           </div>
         ) : (
           <p className="hint-text" style={{ margin: 0 }}>
-            Goes to the {agent.team} supervisor, as {agent.types[0].name}.
+            Goes to {cfg.sendTo(agent.team)}, as {agent.types[0].name}.
           </p>
         )
       ) : null}
@@ -189,7 +211,7 @@ function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent: (msg: 
           </button>
         ) : null}
         <button type="submit" className="btn btn-primary" disabled={!ready || busy}>
-          Send to the supervisor
+          Send
         </button>
       </div>
     </form>
@@ -233,7 +255,7 @@ function ReporterPage({ cfg }: { cfg: ReportKind }) {
                   <th>Sent</th>
                   <th>Order / call</th>
                   <th>Agent</th>
-                  <th style={{ width: '40%' }}>{cfg.errorLabel}</th>
+                  <th style={{ width: '36%' }}>{cfg.errorLabel}</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -246,6 +268,7 @@ function ReporterPage({ cfg }: { cfg: ReportKind }) {
                     <td className="dispute-text">{t.note}</td>
                     <td>
                       <ReportStatus t={t} />
+                      {t.finding ? <div className="text-tertiary dispute-text">{t.finding}</div> : null}
                     </td>
                   </tr>
                 ))}
@@ -259,24 +282,36 @@ function ReporterPage({ cfg }: { cfg: ReportKind }) {
   )
 }
 
-type Tab = 'review' | 'open' | 'completed' | 'cancelled'
+type Tab = 'review' | 'valid' | 'not_valid' | 'raised'
 
 const TABS: [Tab, string, string][] = [
-  ['review', 'To review', 'Check each one, then confirm it as reported, send it to a QA agent to audit, or dismiss it.'],
-  ['open', 'With QA', 'Sent to a QA agent; it is at the top of their queue.'],
-  ['completed', 'Done', 'Confirmed by a supervisor, or audited by QA.'],
-  ['cancelled', 'Dismissed', 'Dismissed by the supervisor.'],
+  ['review', 'To check', "Check each one, then mark it Valid (the agent's mistake: it goes on their profile) or Not valid."],
+  ['valid', 'Valid', "The agent's mistake. Shown on the agent's profile; it doesn't change their quality score."],
+  ['not_valid', 'Not valid', "Checked and found not to be the agent's mistake."],
+  ['raised', 'Raised by me', 'QA escalations you raised. The supervisor decides them.'],
 ]
 
-/** Supervisors and admins: reports about their team's agents. */
-function ReviewPage({ cfg }: { cfg: ReportKind }) {
+const SOURCES: [Kind, string][] = [
+  ['negative', 'Negatives'],
+  ['tl_escalation', 'Team leaders'],
+  ['qa_escalation', 'QA agents'],
+]
+
+/** Escalations (negatives, team leader and QA escalations): QA agents check
+ * them, supervisors decide QA escalations and keep an eye on the rest. */
+export function EscalationsPage() {
+  const { user } = useAuth()
+  const qa = user?.role === 'qa_agent'
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('review')
+  const [source, setSource] = useState('')
+  const [mine, setMine] = useState(qa)
   const [page, setPage] = useState(1)
-  const [reporting, setReporting] = useState(false)
+  const [raising, setRaising] = useState(false)
   const { toasts, push } = useToasts()
-  const list = useApi(() => api.tasks({ kind: cfg.kind, state: tab, page }), [cfg.kind, tab, page], { pollMs: 60_000 })
-  const waiting = useApi(() => api.tasks({ kind: cfg.kind, state: 'review' }), [cfg.kind], { pollMs: 60_000 })
+  const params = tab === 'raised' ? { raised: 1, state: 'all', page } : { state: tab, source, mine: mine ? 1 : undefined, page }
+  const list = useApi(() => api.escalations(params), [tab, source, mine, page], { pollMs: 60_000 })
+  const waiting = useApi(() => api.escalations({ state: 'review', mine: qa ? 1 : undefined }), [qa], { pollMs: 60_000 })
   const rows = list.data?.tasks ?? []
   const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / (list.data?.page_size ?? 50)))
 
@@ -284,18 +319,20 @@ function ReviewPage({ cfg }: { cfg: ReportKind }) {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">{cfg.title}</h1>
-          <p className="page-subtitle">{cfg.managerSubtitle}</p>
+          <h1 className="page-title">Escalations</h1>
+          <p className="page-subtitle">Negatives, team leader and QA escalations. They don't change quality scores.</p>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-secondary" onClick={() => setReporting(true)}>
-            <Plus size={16} />
-            {cfg.reportButton}
-          </button>
-        </div>
+        {qa ? (
+          <div className="page-actions">
+            <button className="btn btn-secondary" onClick={() => setRaising(true)}>
+              <Plus size={16} />
+              QA escalation
+            </button>
+          </div>
+        ) : null}
       </div>
       <div className="tabs" role="tablist">
-        {TABS.map(([key, label]) => (
+        {TABS.filter(([key]) => qa || key !== 'raised').map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -318,8 +355,42 @@ function ReviewPage({ cfg }: { cfg: ReportKind }) {
       <section className="card">
         <div className="card-header">
           <p className="card-subtitle">{TABS.find(([k]) => k === tab)?.[2]}</p>
+          {tab !== 'raised' ? (
+            <div className="page-actions">
+              {qa && tab === 'review' ? (
+                <label className="field-inline">
+                  <input
+                    type="checkbox"
+                    checked={mine}
+                    onChange={(e) => {
+                      setMine(e.target.checked)
+                      setPage(1)
+                    }}
+                  />
+                  Assigned to me
+                </label>
+              ) : null}
+              <select
+                className="select"
+                style={{ width: 180 }}
+                aria-label="Source"
+                value={source}
+                onChange={(e) => {
+                  setSource(e.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">All sources</option>
+                {SOURCES.map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
         </div>
-        {rows.length === 0 && !list.loading ? <Empty title={tab === 'review' ? 'Nothing to review' : 'None here'} /> : null}
+        {rows.length === 0 && !list.loading ? <Empty title={tab === 'review' ? 'Nothing to check' : 'None here'} /> : null}
         {rows.length ? (
           <div className="table-scroll">
             <table className="table">
@@ -327,9 +398,9 @@ function ReviewPage({ cfg }: { cfg: ReportKind }) {
                 <tr>
                   <th>Agent</th>
                   <th>Order / call</th>
-                  <th style={{ width: '38%' }}>{cfg.errorLabel}</th>
-                  <th>Sent by</th>
-                  {tab !== 'review' ? <th>Status</th> : null}
+                  <th style={{ width: '34%' }}>What happened</th>
+                  <th>Raised by</th>
+                  <th>{tab === 'review' ? 'Checker' : tab === 'raised' ? 'Status' : 'Finding'}</th>
                   <th />
                 </tr>
               </thead>
@@ -345,16 +416,24 @@ function ReviewPage({ cfg }: { cfg: ReportKind }) {
                     <td className="mono">{t.external_id}</td>
                     <td className="dispute-text">{t.note}</td>
                     <td>
-                      {t.reported_by || '—'}
+                      <KindBadge kind={t.kind} /> {t.reported_by || '—'}
                       <div className="text-tertiary" style={{ fontSize: 12 }}>
                         {fmtDateTime(t.created_at)}
                       </div>
                     </td>
-                    {tab !== 'review' ? (
-                      <td>
+                    <td className="dispute-text">
+                      {tab === 'review' ? (
+                        t.kind === 'qa_escalation' ? (
+                          'Supervisor'
+                        ) : (
+                          t.qa_name || <span className="text-tertiary">nobody yet</span>
+                        )
+                      ) : tab === 'raised' ? (
                         <ReportStatus t={t} />
-                      </td>
-                    ) : null}
+                      ) : (
+                        t.finding || '—'
+                      )}
+                    </td>
                     <td style={{ textAlign: 'right' }}>
                       <ChevronRight size={16} className="text-tertiary" />
                     </td>
@@ -378,21 +457,26 @@ function ReviewPage({ cfg }: { cfg: ReportKind }) {
           </div>
         ) : null}
       </section>
-      {reporting ? (
-        <Modal title={cfg.reportTitle} subtitle="It goes to the agent's supervisor for review." size="lg" onClose={() => setReporting(false)}>
-          <ReportForm
-            cfg={cfg}
-            onCancel={() => setReporting(false)}
-            onSent={(msg) => {
-              setReporting(false)
-              push('success', msg)
-              void list.reload()
-              void waiting.reload()
-            }}
-          />
-        </Modal>
+      {raising ? (
+        <RaiseQAEscalation
+          onClose={() => setRaising(false)}
+          onSent={(msg) => {
+            setRaising(false)
+            push('success', msg)
+            setTab('raised')
+          }}
+        />
       ) : null}
       <ToastStack toasts={toasts} />
     </div>
+  )
+}
+
+/** The QA escalation form in a dialog (Escalations page and the workspace). */
+export function RaiseQAEscalation({ onClose, onSent }: { onClose: () => void; onSent: (msg: string) => void }) {
+  return (
+    <Modal title="QA escalation" subtitle={QA_ESCALATIONS.reporterSubtitle} size="lg" onClose={onClose}>
+      <ReportForm cfg={QA_ESCALATIONS} onCancel={onClose} onSent={onSent} />
+    </Modal>
   )
 }

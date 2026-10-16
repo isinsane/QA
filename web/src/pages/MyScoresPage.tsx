@@ -33,7 +33,11 @@ const avgOf = (scores: (number | null)[]) => {
   return xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null
 }
 
-const REPORTED_BADGE: Partial<Record<string, string>> = { negative: 'negative review', tl_escalation: 'TL escalation' }
+const REPORTED_BADGE: Partial<Record<string, string>> = {
+  negative: 'negative review',
+  tl_escalation: 'TL escalation',
+  qa_escalation: 'QA escalation',
+}
 
 /** A report confirmed without a QA audit has no score. */
 function Score({ t }: { t: TaskRow }) {
@@ -53,16 +57,16 @@ export function MyScoresPage() {
   const [range, setRange] = useState<DateRange>(() => rangeFor('this_month'))
   const all = scores.data ?? []
   const list = all.filter((t) => (!range.from || t.work_date >= range.from) && (!range.to || t.work_date <= range.to))
-  // Negatives and team leader escalations: shown apart, read-only, and kept out of the score.
+  // Escalations (valid ones only reach here): shown apart, read-only, and kept out of the score.
   const audits = list.filter((t) => !REPORTED_BADGE[t.kind])
   const reported = list.filter((t) => REPORTED_BADGE[t.kind])
   const negatives = reported.filter((t) => t.kind === 'negative').length
-  const tlEscalations = reported.filter((t) => t.kind === 'tl_escalation').length
   const avg = avgOf(audits.map((t) => t.score))
   const passed = audits.filter((t) => t.result === 'pass').length
   const toAnswer = all.filter((t) => t.ack_status === '' && !REPORTED_BADGE[t.kind])
   const coachingList = coachings.data ?? []
-  const coachingToAck = coachingList.filter((c) => c.status === 'done' && !c.ack_at)
+  // Sessions a QA agent logged after the fact aren't acknowledged.
+  const coachingToAck = coachingList.filter((c) => c.status === 'done' && !c.ack_at && !c.logged)
   const p = user?.profile ?? {}
 
   return (
@@ -77,7 +81,9 @@ export function MyScoresPage() {
             {user?.alias_name ? <span className="text-tertiary"> · known as {user.alias_name}</span> : null}
           </h1>
           <div className="text-secondary">
-            {[p.job_title, summary.data?.team || p.department, p.supervisor ? `Supervisor: ${p.supervisor}` : ''].filter(Boolean).join(' · ')}
+            {[p.job_title, summary.data?.team || p.department, p.supervisor ? `Supervisor: ${p.supervisor}` : '']
+              .filter(Boolean)
+              .join(' · ')}
           </div>
         </div>
       </section>
@@ -89,7 +95,11 @@ export function MyScoresPage() {
           <span className="score-panel-label">Average quality score</span>
           <strong>{avg === null ? '—' : `${avg}%`}</strong>
           <span className="text-tertiary">
-            {range.key === 'all' ? 'All time' : range.from === range.to ? fmtDate(range.from) : `${fmtDate(range.from)} – ${fmtDate(range.to)}`}
+            {range.key === 'all'
+              ? 'All time'
+              : range.from === range.to
+                ? fmtDate(range.from)
+                : `${fmtDate(range.from)} – ${fmtDate(range.to)}`}
           </span>
         </div>
         <div className="score-panel-facts">
@@ -110,8 +120,8 @@ export function MyScoresPage() {
             <span>negative reviews</span>
           </div>
           <div>
-            <strong className={tlEscalations ? 'text-error' : undefined}>{tlEscalations}</strong>
-            <span>team leader escalations</span>
+            <strong className={reported.length - negatives ? 'text-error' : undefined}>{reported.length - negatives}</strong>
+            <span>escalations</span>
           </div>
         </div>
       </section>
@@ -210,10 +220,9 @@ export function MyScoresPage() {
       <section className="card">
         <div className="card-header">
           <div>
-            <h2 className="card-title">Negatives and team leader escalations</h2>
+            <h2 className="card-title">Negatives and escalations</h2>
             <p className="card-subtitle">
-              Reports about your work that your supervisor confirmed or had audited. For your information: they don't change your
-              quality score.
+              Reports about your work that were checked and found valid. For your information: they don't change your quality score.
             </p>
           </div>
         </div>
@@ -226,8 +235,8 @@ export function MyScoresPage() {
                   <th>Date</th>
                   <th>Kind</th>
                   <th>Order / call</th>
-                  <th style={{ width: '42%' }}>What happened</th>
-                  <th>Outcome</th>
+                  <th style={{ width: '32%' }}>What happened</th>
+                  <th style={{ width: '28%' }}>Finding</th>
                   <th />
                 </tr>
               </thead>
@@ -240,7 +249,9 @@ export function MyScoresPage() {
                     </td>
                     <td className="mono">{t.external_id}</td>
                     <td className="dispute-text">{t.note}</td>
-                    <td>{t.score === null ? <span className="text-secondary">confirmed</span> : <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} />}</td>
+                    <td className="dispute-text">
+                      {t.score === null ? t.finding || '—' : <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} />}
+                    </td>
                     <td style={{ textAlign: 'right' }}>
                       <ChevronRight size={16} className="text-tertiary" />
                     </td>
@@ -263,19 +274,22 @@ export function MyScoresPage() {
                 <span className="attention-what">
                   <strong>{c.topic || `${c.task_ids.length} linked audit(s)`}</strong>
                   <span className="text-tertiary">
-                    with {c.qa_name} · {c.status === 'done' ? fmtDate(c.completed_at) : c.due_date ? `due ${fmtDate(c.due_date)}` : 'scheduled'}
+                    with {c.qa_name} ·{' '}
+                    {c.status === 'done' ? fmtDate(c.completed_at) : c.due_date ? `due ${fmtDate(c.due_date)}` : 'scheduled'}
                   </span>
                 </span>
                 {c.status === 'open' ? (
                   <span className="badge badge-gray">scheduled</span>
+                ) : c.logged ? (
+                  <span className="badge badge-gray">{c.kind === 'refresher' ? 'refresher' : 'held'}</span>
                 ) : c.ack_at ? (
                   <span className="badge badge-success">acknowledged</span>
                 ) : (
                   <span className="badge badge-warning">to acknowledge</span>
                 )}
                 {c.status === 'done' ? (
-                  <button className={`btn btn-sm ${c.ack_at ? 'btn-ghost' : 'btn-primary'}`} onClick={() => setOpen(c)}>
-                    {c.ack_at ? 'View' : 'Read'}
+                  <button className={`btn btn-sm ${c.ack_at || c.logged ? 'btn-ghost' : 'btn-primary'}`} onClick={() => setOpen(c)}>
+                    {c.ack_at || c.logged ? 'View' : 'Read'}
                   </button>
                 ) : null}
               </li>
@@ -313,13 +327,13 @@ function CoachingReadout({ coaching: c, onClose, onAck }: { coaching: Coaching; 
       subtitle={`With ${c.qa_name} · ${fmtDate(c.completed_at)}`}
       size="md"
       onClose={onClose}
-      onSubmit={c.ack_at ? undefined : () => onAck(comment)}
+      onSubmit={c.ack_at || c.logged ? undefined : () => onAck(comment)}
       footer={
         <>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Close
           </button>
-          {!c.ack_at ? (
+          {!c.ack_at && !c.logged ? (
             <button type="submit" className="btn btn-primary">
               Acknowledge
             </button>
@@ -349,7 +363,7 @@ function CoachingReadout({ coaching: c, onClose, onAck }: { coaching: Coaching; 
           </div>
         </div>
       ) : null}
-      {c.ack_at ? (
+      {c.logged ? null : c.ack_at ? (
         <div className="inline-success" style={{ margin: 0 }}>
           Acknowledged {fmtDate(c.ack_at)}
           {c.ack_comment ? `: "${c.ack_comment}"` : ''}

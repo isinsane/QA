@@ -967,15 +967,15 @@ function MetricModal({
             </span>
           </label>
           <label className="field-inline">
-            <input type="checkbox" checked={m.allow_na} onChange={(e) => set({ allow_na: e.target.checked, na_receiver: e.target.checked ? false : m.na_receiver })} />
+            <input type="checkbox" checked={m.allow_na} onChange={(e) => set({ allow_na: e.target.checked })} />
             <span>
               <strong>Allow N/A</strong>: the QA agent can mark it not applicable
             </span>
           </label>
           <label className="field-inline">
-            <input type="checkbox" checked={!!m.na_receiver} onChange={(e) => set({ na_receiver: e.target.checked, allow_na: e.target.checked ? false : m.allow_na })} />
+            <input type="checkbox" checked={!!m.na_receiver} onChange={(e) => set({ na_receiver: e.target.checked })} />
             <span>
-              <strong>Takes N/A weight</strong>: when another metric is N/A, this one carries a share of its weight (so it can't be N/A itself)
+              <strong>Takes N/A weight</strong>: when another metric is N/A, this one carries a share of its weight, in proportion to its own points (none while it is N/A itself)
             </span>
           </label>
         </div>

@@ -1,33 +1,42 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Copy, ExternalLink, Pencil, RefreshCw } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
-import type { Answer, Kind, TaskDetail } from '../api/types'
+import type { Answer, Kind, Metric, TaskDetail } from '../api/types'
 import { AckBadge, errorText, fmtDate, fmtDateTime, KindBadge, Labels, ScoreBadge, StateBadge } from '../components/bits'
 import { Modal } from '../components/Modal'
 import { ScorecardForm } from '../components/ScorecardForm'
 import { ToastStack, useToasts } from '../components/Toasts'
+import { useAuth } from '../auth/AuthContext'
 
 /** Standalone page: /tasks/:id (managers) and /my-scores/:id (employees). */
 export function TaskPage() {
   const { taskId = '' } = useParams()
-  const back = useLocation().pathname.startsWith('/my-scores') ? '/my-scores' : '/tasks'
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const fallback = useLocation().pathname.startsWith('/my-scores') ? '/my-scores' : user?.role === 'qa_agent' ? '/escalations' : '/tasks'
   return (
     <div className="page">
-      <Link to={back} className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}>
+      <button
+        className="btn btn-ghost btn-sm"
+        style={{ marginBottom: 12 }}
+        // Back where they came from (All tasks, Escalations, an agent's page…); a link opened on its own has nowhere to go back to.
+        onClick={() => (window.history.state?.idx ? navigate(-1) : navigate(fallback))}
+      >
         <ArrowLeft size={15} />
         Back
-      </Link>
+      </button>
       <TaskView taskId={taskId} />
     </div>
   )
 }
 
-/** Kinds reported from outside QA and reviewed by the supervisor first. */
-const REPORTED: Partial<Record<Kind, { what: string; note: string; confirm: string; noun: string }>> = {
-  negative: { what: 'Negative review', note: 'The error', confirm: 'Confirm negative', noun: 'negative' },
-  tl_escalation: { what: 'Team leader escalation', note: 'What happened', confirm: 'Confirm escalation', noun: 'escalation' },
+/** Escalations: checked, then marked Valid (the agent's mistake) or Not valid. Never scored. */
+const REPORTED: Partial<Record<Kind, { what: string; note: string }>> = {
+  negative: { what: 'Negative review', note: 'The error' },
+  tl_escalation: { what: 'Team leader escalation', note: 'What happened' },
+  qa_escalation: { what: 'QA escalation', note: 'What happened' },
 }
 
 const ACTION_LABEL: Record<string, string> = {
@@ -47,9 +56,33 @@ const ACTION_LABEL: Record<string, string> = {
   rotation_case: 'Rotation case',
   rotation_second_review: 'Rotation second review',
   negative_reported: 'Negative reported',
-  negative_confirmed: 'Negative confirmed by the supervisor',
+  negative_confirmed: 'Marked valid',
+  negative_dismissed: 'Marked not valid',
   tl_escalation_reported: 'Escalated by the team leader',
-  tl_escalation_confirmed: 'Escalation confirmed by the supervisor',
+  tl_escalation_confirmed: 'Marked valid',
+  tl_escalation_dismissed: 'Marked not valid',
+  qa_escalation_reported: 'Escalated by a QA agent',
+  qa_escalation_confirmed: 'Marked valid',
+  qa_escalation_dismissed: 'Marked not valid',
+  change_requested: 'Score change asked for',
+  change_rejected: 'Score change rejected',
+}
+
+/** "Score 80% → 90%", or that only notes changed. */
+function scoreMove(detail: Record<string, unknown>) {
+  const before = (detail.before as { score?: number | null } | undefined)?.score ?? null
+  const after = (detail.after as { score?: number | null } | undefined)?.score ?? null
+  return before === after ? 'Notes or comments only; score unchanged' : `Score ${before ?? '—'}% → ${after ?? '—'}%`
+}
+
+const shownValue = (v: string | undefined) => (v === undefined || v === '' ? '—' : v === 'na' ? 'N/A' : v)
+
+/** Scored metrics whose answer differs: what a pending change would do. */
+function changedMetrics(card: Metric[], before: Answer[] | null, after: Answer[] | undefined) {
+  const val = (as: Answer[] | null | undefined, id: string) => as?.find((a) => a.metric_id === id)?.value
+  return card
+    .filter((m) => m.type !== 'text' && val(before, m.id) !== val(after, m.id))
+    .map((m) => ({ label: m.label, from: shownValue(val(before, m.id)), to: shownValue(val(after, m.id)) }))
 }
 
 export function TaskView({
@@ -69,7 +102,9 @@ export function TaskView({
   const { toasts, push } = useToasts()
   const [answers, setAnswers] = useState<Record<string, Answer>>({})
   const [editing, setEditing] = useState(false)
-  const [dialog, setDialog] = useState<'cant' | 'cancel' | 'reassign' | 'edit' | 'ack' | 'dispute' | 'uphold' | 'forward' | 'confirm' | null>(null)
+  const [dialog, setDialog] = useState<
+    'cant' | 'cancel' | 'reassign' | 'edit' | 'ack' | 'dispute' | 'uphold' | 'forward' | 'valid' | 'invalid' | 'approve' | 'reject' | null
+  >(null)
   const [busy, setBusy] = useState(false)
   const d = detail.data
 
@@ -89,12 +124,15 @@ export function TaskView({
   const list = Object.values(answers)
   const rep = REPORTED[t.kind]
   const forwardNote = [...(d.audit ?? [])].reverse().find((a) => a.action === 'dispute_forwarded')?.detail.reason as string | undefined
+  const pending = d.changes?.[0]?.status === 'pending' ? d.changes[0] : null
+  // A QA agent's change to a scored answer needs a reason: the supervisor approves it.
+  const scoreChanges = !d.can_approve && changedMetrics(card, t.answers, list).length > 0
 
-  async function act(fn: () => Promise<unknown>, ok: string, next?: (r: unknown) => void) {
+  async function act(fn: () => Promise<unknown>, ok: string | ((r: unknown) => string), next?: (r: unknown) => void) {
     setBusy(true)
     try {
       const r = await fn()
-      push('success', ok)
+      push('success', typeof ok === 'string' ? ok : ok(r))
       setDialog(null)
       onChanged?.()
       if (next) next(r)
@@ -110,9 +148,15 @@ export function TaskView({
     <div className={workspace ? 'ws-task' : undefined}>
       <div className="task-head">
         <h1>{d.task_type.name}</h1>
-        <StateBadge state={t.state} />
+        {rep ? (
+          <span className={`badge ${t.state === 'completed' ? 'badge-error' : t.state === 'cancelled' ? 'badge-gray' : 'badge-warning'}`}>
+            {t.state === 'completed' ? 'valid' : t.state === 'cancelled' ? 'not valid' : 'to check'}
+          </span>
+        ) : (
+          <StateBadge state={t.state} />
+        )}
         <KindBadge kind={t.kind} match={t.match_status} />
-        {t.state === 'completed' ? <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} /> : null}
+        {t.state === 'completed' && !rep ? <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} /> : null}
         {t.state === 'completed' && (t.kind === 'sample' || t.kind === 'live' || t.kind === 'escalation') ? (
           <AckBadge status={t.ack_status} />
         ) : null}
@@ -121,7 +165,7 @@ export function TaskView({
           {d.qa_name ? ` · QA: ${d.qa_name}` : ''}
         </span>
       </div>
-      {t.cancel_reason ? <div className="inline-warning">Cancelled: {t.cancel_reason}</div> : null}
+      {t.cancel_reason && !rep ? <div className="inline-warning">Cancelled: {t.cancel_reason}</div> : null}
       {t.kind === 'escalation' && t.note ? <div className="inline-warning">Escalated by the supervisor: {t.note}</div> : null}
       {rep ? (
         <div className="inline-warning neg-note">
@@ -132,10 +176,8 @@ export function TaskView({
           <span>
             {rep.note}: "{t.note}"
           </span>
-          {t.state === 'review' && d.can_confirm ? (
-            <span>Check it, then confirm it as reported, send it to a QA agent to audit, or dismiss it.</span>
-          ) : null}
-          {!d.can_confirm && !d.can_manage && !d.can_evaluate && !d.can_edit && !d.reported_by ? (
+          {d.can_decide ? <span>Check it, then mark it Valid (the agent's mistake: it goes on their profile) or Not valid.</span> : null}
+          {!d.can_decide && !d.can_manage && !d.can_evaluate && !d.can_edit && !d.reported_by ? (
             <span>For your information: it doesn't change your quality score, and there's nothing to answer.</span>
           ) : null}
         </div>
@@ -172,6 +214,32 @@ export function TaskView({
         </div>
       ) : null}
       {t.ack_status === 'acknowledged' && t.ack_comment ? <div className="inline-note">Agent's comment: "{t.ack_comment}"</div> : null}
+      {pending ? (
+        <div className="inline-warning change-note">
+          <span>
+            <strong>{pending.requested_by_name}</strong> asked to change the score from {pending.score_before ?? '—'}% to{' '}
+            {pending.score ?? '—'}%: "{pending.reason}".{' '}
+            {d.can_approve ? 'Approve it to apply it, or reject it.' : 'Waiting for a supervisor; until then the audit keeps its score.'}
+          </span>
+          <ul className="change-list">
+            {changedMetrics(card, t.answers, pending.answers).map((c) => (
+              <li key={c.label}>
+                {c.label}: <s className="text-tertiary">{c.from}</s> → <strong>{c.to}</strong>
+              </li>
+            ))}
+          </ul>
+          {d.can_approve ? (
+            <span className="builder-row">
+              <button className="btn btn-primary btn-sm" onClick={() => setDialog('approve')}>
+                Approve
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setDialog('reject')}>
+                Reject
+              </button>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {t.ack_status === 'upheld' || t.ack_status === 'changed' ? (
         <div className="inline-note">
           Dispute "{t.ack_comment}" answered: {t.ack_status === 'upheld' ? 'score kept' : 'score changed'}
@@ -238,10 +306,11 @@ export function TaskView({
                     {typeof a.detail.reason === 'string' && a.detail.reason ? (
                       <div className="text-secondary">{a.detail.reason}</div>
                     ) : null}
-                    {a.action === 'evaluation_edited' ? (
+                    {a.action === 'evaluation_edited' || a.action === 'change_requested' ? (
                       <div className="text-secondary">
-                        Score {String((a.detail.before as { score?: number })?.score ?? '—')}% →{' '}
-                        {String((a.detail.after as { score?: number })?.score ?? '—')}%
+                        {scoreMove(a.detail)}
+                        {typeof a.detail.requested_by === 'string' ? ` · asked for by ${a.detail.requested_by}, approved` : ''}
+                        {typeof a.detail.approval_note === 'string' && a.detail.approval_note ? `: ${a.detail.approval_note}` : ''}
                       </div>
                     ) : null}
                     {typeof a.detail.qa_name === 'string' ? <div className="text-secondary">to {a.detail.qa_name}</div> : null}
@@ -253,93 +322,127 @@ export function TaskView({
         </div>
 
         <div className="task-col">
-          <section className="card">
-            <div className="card-header">
-              <h2 className="card-title">Scorecard</h2>
-              <div className="page-actions">
-                {d.can_confirm ? (
-                  <button className="btn btn-primary btn-sm" onClick={() => setDialog('confirm')}>
-                    {rep?.confirm ?? 'Confirm'}
-                  </button>
-                ) : null}
-                {d.can_manage ? (
-                  <>
+          {rep && !t.answers?.length ? (
+            <section className="card">
+              <div className="card-header">
+                <h2 className="card-title">Decision</h2>
+                <div className="page-actions">
+                  {d.can_manage && t.kind !== 'qa_escalation' ? (
                     <button className="btn btn-secondary btn-sm" onClick={() => setDialog('reassign')}>
-                      {t.state === 'review' ? 'Send to a QA agent' : 'Reassign'}
+                      Reassign
                     </button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => setDialog('cancel')}>
-                      {rep ? 'Dismiss' : 'Cancel audit'}
-                    </button>
-                  </>
-                ) : null}
-                {d.can_forward ? (
-                  <button className="btn btn-primary btn-sm" onClick={() => setDialog('forward')}>
-                    Send to QA
-                  </button>
-                ) : null}
-                {d.can_uphold ? (
-                  <button className="btn btn-secondary btn-sm" onClick={() => setDialog('uphold')}>
-                    Keep score
-                  </button>
-                ) : null}
-                {d.can_edit && !editing ? (
-                  <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>
-                    Edit evaluation
-                  </button>
-                ) : null}
+                  ) : null}
+                  {d.can_decide ? (
+                    <>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setDialog('invalid')}>
+                        Not valid
+                      </button>
+                      <button className="btn btn-primary btn-sm" onClick={() => setDialog('valid')}>
+                        Valid
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
-            </div>
-            {rep && t.state === 'completed' && !t.answers?.length ? (
-              <div className="card-body text-secondary">Confirmed by the supervisor as reported; it wasn't audited by QA.</div>
-            ) : rep && t.state === 'review' ? (
-              <div className="card-body text-secondary">Waiting for the supervisor. If it's sent to a QA agent, they audit it with this scorecard.</div>
-            ) : card.length === 0 ? (
-              <div className="card-body inline-warning">This task type has no metrics yet. A supervisor adds them on Task types.</div>
-            ) : t.state === 'completed' || formOpen ? (
-              <ScorecardForm
-                card={card}
-                answers={answers}
-                thresholds={{ pass: d.task_type.pass_threshold, borderline: d.task_type.borderline_threshold ?? 0 }}
-                readOnly={!formOpen}
-                onChange={setAnswers}
-                footer={
-                  formOpen ? (
-                    d.can_evaluate ? (
-                      <>
-                        <button className="btn btn-secondary" disabled={busy} onClick={() => setDialog('cant')}>
-                          Can't audit
-                        </button>
-                        <button
-                          className="btn btn-primary"
-                          disabled={busy}
-                          onClick={() =>
-                            void act(
-                              () => api.submit(t.id, list),
-                              'Evaluation submitted',
-                              (r) => (onDone ? onDone((r as { next_task_id: string | null }).next_task_id) : void detail.reload()),
-                            )
-                          }
-                        >
-                          Submit evaluation
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button className="btn btn-secondary" onClick={() => void detail.reload()}>
-                          Discard
-                        </button>
-                        <button className="btn btn-primary" disabled={busy} onClick={() => setDialog('edit')}>
-                          Save changes
-                        </button>
-                      </>
-                    )
-                  ) : null
-                }
-              />
-            ) : (
-              <div className="card-body text-secondary">Not evaluated yet.</div>
-            )}
-          </section>
+              <div className="card-body">
+                {t.state === 'review' ? (
+                  <p className="text-secondary" style={{ margin: 0 }}>
+                    {t.kind === 'qa_escalation'
+                      ? 'Waiting for the supervisor to decide it.'
+                      : d.qa_name
+                        ? `Being checked by ${d.qa_name}. The supervisor can decide it too.`
+                        : 'Waiting for a QA agent of the team to check it.'}
+                  </p>
+                ) : (
+                  <p style={{ margin: 0 }}>
+                    <strong>{t.state === 'completed' ? "Valid: the agent's mistake." : 'Not valid.'}</strong> {t.finding || t.cancel_reason}
+                  </p>
+                )}
+              </div>
+            </section>
+          ) : (
+            <section className="card">
+              <div className="card-header">
+                <h2 className="card-title">Scorecard</h2>
+                <div className="page-actions">
+                  {d.can_manage ? (
+                    <>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setDialog('reassign')}>
+                        Reassign
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setDialog('cancel')}>
+                        Cancel audit
+                      </button>
+                    </>
+                  ) : null}
+                  {d.can_forward ? (
+                    <button className="btn btn-primary btn-sm" onClick={() => setDialog('forward')}>
+                      Send to QA
+                    </button>
+                  ) : null}
+                  {d.can_uphold ? (
+                    <button className="btn btn-secondary btn-sm" onClick={() => setDialog('uphold')}>
+                      Keep score
+                    </button>
+                  ) : null}
+                  {d.can_edit && !editing ? (
+                    <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>
+                      Edit evaluation
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {card.length === 0 ? (
+                <div className="card-body inline-warning">This task type has no metrics yet. A supervisor adds them on Task types.</div>
+              ) : t.state === 'completed' || formOpen ? (
+                <ScorecardForm
+                  card={card}
+                  answers={answers}
+                  thresholds={{
+                    pass: d.task_type.pass_threshold,
+                    borderline: d.task_type.borderline_threshold ?? 0,
+                  }}
+                  readOnly={!formOpen}
+                  onChange={setAnswers}
+                  footer={
+                    formOpen ? (
+                      d.can_evaluate ? (
+                        <>
+                          <button className="btn btn-secondary" disabled={busy} onClick={() => setDialog('cant')}>
+                            Can't audit
+                          </button>
+                          <button
+                            className="btn btn-primary"
+                            disabled={busy}
+                            onClick={() =>
+                              void act(
+                                () => api.submit(t.id, list),
+                                'Evaluation submitted',
+                                (r) => (onDone ? onDone((r as { next_task_id: string | null }).next_task_id) : void detail.reload()),
+                              )
+                            }
+                          >
+                            Submit evaluation
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="btn btn-secondary" onClick={() => void detail.reload()}>
+                            Discard
+                          </button>
+                          <button className="btn btn-primary" disabled={busy} onClick={() => setDialog('edit')}>
+                            Save changes
+                          </button>
+                        </>
+                      )
+                    ) : null
+                  }
+                />
+              ) : (
+                <div className="card-body text-secondary">Not evaluated yet.</div>
+              )}
+            </section>
+          )}
         </div>
       </div>
 
@@ -359,22 +462,30 @@ export function TaskView({
           }
         />
       ) : null}
-      {dialog === 'confirm' ? (
+      {dialog === 'valid' || dialog === 'invalid' ? (
         <ReasonDialog
-          title={`Confirm this ${rep?.noun ?? 'report'}`}
-          placeholder="Note (optional), e.g. listened to the call, the agent gave the wrong ETA"
-          action={rep?.confirm ?? 'Confirm'}
+          title={dialog === 'valid' ? "Valid: the agent's mistake" : 'Not valid'}
+          placeholder={
+            dialog === 'valid'
+              ? 'What you found, e.g. listened to the call, the agent gave the wrong ETA'
+              : "What you found: why it isn't the agent's mistake"
+          }
+          action={dialog === 'valid' ? 'Mark valid' : 'Mark not valid'}
           busy={busy}
-          optional
           onClose={() => setDialog(null)}
-          onSubmit={(note) => void act(() => api.confirmReported(t.id, note), 'Confirmed')}
+          onSubmit={(note) =>
+            void act(
+              () => api.decide(t.id, dialog === 'valid', note),
+              dialog === 'valid' ? "Marked valid: it is on the agent's profile" : 'Marked not valid',
+            )
+          }
         />
       ) : null}
       {dialog === 'cancel' ? (
         <ReasonDialog
-          title={rep ? `Dismiss this ${rep.noun}` : 'Cancel this audit'}
-          placeholder={rep ? "Why it isn't the agent's fault" : 'Why it should not be audited'}
-          action={rep ? 'Dismiss' : 'Cancel audit'}
+          title="Cancel this audit"
+          placeholder="Why it should not be audited"
+          action="Cancel audit"
           busy={busy}
           onClose={() => setDialog(null)}
           onSubmit={(reason) => void act(() => api.cancel(t.id, reason), 'Audit cancelled')}
@@ -384,13 +495,43 @@ export function TaskView({
         <ReasonDialog
           title="Save edited evaluation"
           placeholder={
-            t.ack_status === 'disputed' || t.ack_status === 'dispute_qa' ? 'Reply to the agent (accepts the dispute)' : 'Reason for the change (kept in the history)'
+            scoreChanges
+              ? 'Why the score should change (the supervisor sees it before approving)'
+              : d.can_approve && (t.ack_status === 'disputed' || t.ack_status === 'dispute_qa')
+                ? 'Reply to the agent (accepts the dispute)'
+                : 'Reason for the change (kept in the history)'
           }
-          action="Save"
+          action={scoreChanges ? 'Send for approval' : 'Save'}
+          busy={busy}
+          optional={!scoreChanges}
+          onClose={() => setDialog(null)}
+          onSubmit={(reason) =>
+            void act(
+              () => api.editEvaluation(t.id, list, reason),
+              (r) => ((r as { pending: boolean }).pending ? 'Sent to the supervisor: score changes need approval' : 'Evaluation updated'),
+            )
+          }
+        />
+      ) : null}
+      {dialog === 'approve' && pending ? (
+        <ReasonDialog
+          title="Approve the score change"
+          placeholder="Note for the QA agent (optional)"
+          action="Approve"
           busy={busy}
           optional
           onClose={() => setDialog(null)}
-          onSubmit={(reason) => void act(() => api.editEvaluation(t.id, list, reason), 'Evaluation updated')}
+          onSubmit={(note) => void act(() => api.approveChange(pending.id, note), 'Approved: the new score applies')}
+        />
+      ) : null}
+      {dialog === 'reject' && pending ? (
+        <ReasonDialog
+          title="Reject the score change"
+          placeholder="Why, for the QA agent"
+          action="Reject"
+          busy={busy}
+          onClose={() => setDialog(null)}
+          onSubmit={(note) => void act(() => api.rejectChange(pending.id, note), 'Rejected: the score stays')}
         />
       ) : null}
       {dialog === 'ack' ? (
@@ -553,8 +694,15 @@ function EDeskInfo({ taskId }: { taskId: string }) {
         seller_order_id?: string
         status?: string
         total_amount?: number
-        order_items?: { quantity?: number; product?: { title?: string; sku?: string } }[]
-        tracking_codes?: { tracking_code?: string; tracking_carrier_name?: string; tracking_link?: string }[]
+        order_items?: {
+          quantity?: number
+          product?: { title?: string; sku?: string }
+        }[]
+        tracking_codes?: {
+          tracking_code?: string
+          tracking_carrier_name?: string
+          tracking_link?: string
+        }[]
       }
     | undefined
   const items = useMemo(
@@ -596,7 +744,7 @@ function EDeskInfo({ taskId }: { taskId: string }) {
   )
 }
 
-function ReasonDialog({
+export function ReasonDialog({
   title,
   placeholder,
   action,

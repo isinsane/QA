@@ -35,9 +35,9 @@ export function homePathForRole(role: Role): string {
 export function canAccessPath(role: Role, path: string): boolean {
   if (path === '/account') return true
   if (role === 'admin' || role === 'supervisor') {
-    return !path.startsWith('/queue') && !path.startsWith('/my-scores') && ((path !== '/departments' && path !== '/settings') || role === 'admin')
+    return !path.startsWith('/queue') && !path.startsWith('/my-scores') && !path.startsWith('/my-audits') && ((path !== '/departments' && path !== '/settings') || role === 'admin')
   }
-  if (role === 'qa_agent') return path.startsWith('/queue') || path.startsWith('/tasks/')
+  if (role === 'qa_agent') return path.startsWith('/queue') || path.startsWith('/tasks/') || path.startsWith('/escalations') || path.startsWith('/my-audits') || path.startsWith('/coaching') || path.startsWith('/agents')
   if (role === 'negative_agent') return path.startsWith('/negatives')
   if (role === 'team_leader') return path.startsWith('/tl-escalations')
   return path.startsWith('/my-scores')

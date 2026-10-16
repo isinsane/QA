@@ -13,10 +13,13 @@ import (
 
 // Coaching: a supervisor assigns it (a topic and/or linked audits) to a QA
 // agent, who runs it and records the outcome; the agent acknowledges it.
+// A QA agent can also log a session they already held (logged): it is done at
+// once, linked audits are optional (refresher sessions have none), and the
+// agent isn't asked to acknowledge it.
 
 func (s *Server) routesCoaching(r chi.Router, managers func(http.Handler) http.Handler) {
 	r.Get("/coachings", s.handleListCoachings)
-	r.With(managers).Post("/coachings", s.handleCreateCoaching)
+	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Post("/coachings", s.handleCreateCoaching)
 	r.With(s.requireRoles(model.RoleQA)).Post("/coachings/{id}/complete", s.handleCompleteCoaching)
 	r.With(s.requireRoles(model.RoleEmployee)).Post("/coachings/{id}/acknowledge", s.handleAckCoaching)
 }
@@ -34,13 +37,18 @@ func (s *Server) handleListCoachings(w http.ResponseWriter, r *http.Request) {
 		Joins("JOIN users e ON e.id = c.employee_id").
 		Joins("JOIN users q ON q.id = c.assigned_qa_id").
 		Joins("LEFT JOIN users cb ON cb.id = c.created_by").
-		Order("c.status, c.due_date NULLS LAST, c.created_at DESC")
+		Order("c.status = 'open' DESC, c.due_date NULLS LAST, coalesce(c.completed_at, c.created_at) DESC")
 	u := me(r)
-	switch u.Role {
-	case model.RoleQA:
-		q = q.Where("c.assigned_qa_id = ?", u.ID)
-	case model.RoleEmployee:
+	switch {
+	case u.Role == model.RoleEmployee:
 		q = q.Where("c.employee_id = ?", u.ID)
+	case u.Role != model.RoleQA && !isManager(u): // negatives agents, team leaders
+		q = q.Where("false")
+	case r.URL.Query().Get("employee_id") != "":
+		// One agent's sessions (their page): QA agents and supervisors see any agent's.
+		q = q.Where("c.employee_id = ?", r.URL.Query().Get("employee_id"))
+	case u.Role == model.RoleQA:
+		q = q.Where("c.assigned_qa_id = ?", u.ID)
 	default:
 		if d := deptScope(u); d != nil {
 			q = q.Where("c.department_id = ?", *d)
@@ -55,6 +63,10 @@ func (s *Server) handleListCoachings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateCoaching(w http.ResponseWriter, r *http.Request) {
+	if me(r).Role == model.RoleQA {
+		s.logCoaching(w, r)
+		return
+	}
 	var in struct {
 		EmployeeID   uuid.UUID     `json:"employee_id"`
 		Topic        string        `json:"topic"`
@@ -91,7 +103,7 @@ func (s *Server) handleCreateCoaching(w http.ResponseWriter, r *http.Request) {
 	}
 	u := me(r)
 	c := model.Coaching{
-		DepartmentID: *agent.DepartmentID, EmployeeID: agent.ID, Topic: in.Topic, TaskIDs: in.TaskIDs,
+		DepartmentID: *agent.DepartmentID, EmployeeID: agent.ID, Topic: in.Topic, Kind: "coaching", TaskIDs: in.TaskIDs,
 		AssignedQAID: qa.ID, CreatedBy: &u.ID, Status: "open",
 	}
 	if c.TaskIDs == nil {
@@ -106,6 +118,66 @@ func (s *Server) handleCreateCoaching(w http.ResponseWriter, r *http.Request) {
 		c.DueDate = &d
 	}
 	if err := s.db.WithContext(r.Context()).Create(&c).Error; err != nil {
+		dbError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, c)
+}
+
+// logCoaching records a session a QA agent already held, with any agent.
+func (s *Server) logCoaching(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		EmployeeID uuid.UUID     `json:"employee_id"`
+		Kind       string        `json:"kind"`
+		Topic      string        `json:"topic"`
+		TaskIDs    model.Strings `json:"task_ids"`
+		Notes      string        `json:"notes"`
+		Outcome    string        `json:"outcome"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	in.Topic, in.Notes, in.Outcome = strings.TrimSpace(in.Topic), strings.TrimSpace(in.Notes), strings.TrimSpace(in.Outcome)
+	if in.Kind == "" {
+		in.Kind = "coaching"
+	}
+	switch {
+	case in.Kind != "coaching" && in.Kind != "refresher":
+		writeError(w, http.StatusBadRequest, "the type is coaching or refresher")
+		return
+	case in.Notes == "" || len(in.Notes) > 5000:
+		writeError(w, http.StatusBadRequest, "write what you did in the session (up to 5000 characters)")
+		return
+	case in.Topic == "" && len(in.TaskIDs) == 0:
+		writeError(w, http.StatusBadRequest, "give a topic or link at least one audit")
+		return
+	case len(in.Topic) > 200 || len(in.Outcome) > 2000:
+		writeError(w, http.StatusBadRequest, "the topic or outcome is too long")
+		return
+	}
+	db := s.db.WithContext(r.Context())
+	var agent model.User
+	if db.First(&agent, "id = ? AND role = 'employee' AND active", in.EmployeeID).Error != nil || agent.DepartmentID == nil {
+		writeError(w, http.StatusBadRequest, "pick an active agent")
+		return
+	}
+	if in.TaskIDs == nil {
+		in.TaskIDs = model.Strings{}
+	}
+	if len(in.TaskIDs) > 0 {
+		var n int64
+		db.Model(&model.Task{}).Where("id IN ? AND employee_id = ? AND state = 'completed'", []string(in.TaskIDs), agent.ID).Count(&n)
+		if int(n) != len(in.TaskIDs) {
+			writeError(w, http.StatusBadRequest, "linked audits must be this agent's submitted audits or valid escalations")
+			return
+		}
+	}
+	u, now := me(r), time.Now().UTC()
+	c := model.Coaching{
+		DepartmentID: *agent.DepartmentID, EmployeeID: agent.ID, Topic: in.Topic, Kind: in.Kind, Logged: true, TaskIDs: in.TaskIDs,
+		AssignedQAID: u.ID, CreatedBy: &u.ID, Status: "done", Notes: in.Notes, Outcome: in.Outcome, CompletedAt: &now,
+	}
+	if err := db.Create(&c).Error; err != nil {
 		dbError(w, err)
 		return
 	}
@@ -156,7 +228,7 @@ func (s *Server) handleAckCoaching(w http.ResponseWriter, r *http.Request) {
 	if !ok || !decode(w, r, &in) {
 		return
 	}
-	if c.EmployeeID != me(r).ID || c.Status != "done" || c.AckAt != nil {
+	if c.EmployeeID != me(r).ID || c.Status != "done" || c.AckAt != nil || c.Logged {
 		writeError(w, http.StatusConflict, "nothing to acknowledge here")
 		return
 	}

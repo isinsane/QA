@@ -313,6 +313,148 @@ Decisions taken with you after reading the IT lead's scope. 16 Oct is an interna
 
 ---
 
+## 9c. QA3 scope (16 Oct 2026)
+
+Decisions from your answers on 16 Oct. Points still open are at the end.
+
+### A. Escalations: checked as valid or not, never disputed, never in the score
+
+Escalations don't go into the audit queue. They sit in their own **Escalations** list:
+
+```
+negatives agent / team leader  -> Escalations list -> a QA agent checks it: Valid (agent's mistake) or Not valid, with a note
+QA agent (new QA escalation)   -> Escalations list -> the supervisor approves (valid) or rejects, with a note
+Valid -> on the agent's profile (read-only)       Not valid -> closed, kept in the history
+supervisor: sees the whole list and can decide any of them
+```
+
+- **QA escalation:** a new button in the QA workspace next to Live monitoring and Focus plan. Same form as the others:
+  order / call ID, the agent, what happened.
+- **Escalations list:** QA agents and the supervisor see it.
+  - Tabs: To check / Valid / Not valid.
+  - Filters: source (Negative / TL / QA) and agent.
+  - It replaces today's Negatives and TL escalations pages.
+- **Deciding:** **Valid** or **Not valid**, each with a required note. No scorecard.
+- **No disputes:** an escalation is either the agent's mistake or not. On the profile it is read-only, as now.
+- **Coaching on it:** a valid escalation can be linked to a coaching session (D) about that mistake.
+- **Never in the quality score.**
+- **Existing items:** negatives and TL escalations waiting today (state `review`) land in the new list as To check.
+- **Data:**
+  - kinds `negative`, `tl_escalation`, `qa_escalation`;
+  - `review` keeps meaning "to check";
+  - Valid -> completed with the note as the finding;
+  - Not valid -> cancelled with the note;
+  - the supervisor's Send to QA and the QA-queue path go away.
+
+### B. Agent analysis page
+
+- **Agents directory** (`/agents`): every agent in every team, with this month's average, audits, valid escalations and
+  the last audit. Click one to open their page.
+- **Agent page** (`/agents/:id`): the dashboard, for one agent.
+  - profile header (team, HR department, supervisor, IDs);
+  - date range (presets and custom);
+  - headline numbers: average, pass / borderline / fail, critical fails, audits, disputes, escalations by source, coaching
+    sessions;
+  - weekly trend;
+  - metrics weakest first, i.e. strengths and weaknesses;
+  - results by code / tag;
+  - every audit (open any of them);
+  - escalations and coaching history.
+- **Who sees it:** QA agents, supervisors and admins, for **all agents in all teams**.
+- **Links to it:** from Team, the dashboard, the QA workspace and the agent's name on any audit.
+- **Backend:** one endpoint, `GET /agents/{id}/report`, reusing the dashboard queries with the agent filter.
+
+### C. Excel export (QA agents, supervisors, admins)
+
+- **Buttons:** Export to Excel on the dashboard, the agent page and the directory (tick several).
+- **Options:** agents (one, several, or a whole team), date range (presets or custom) and task type.
+- **Built on the server** with excelize. One `.xlsx` with these sheets:
+  1. **Summary**, one row per agent: name, alias, team, HR department, job title, IDs, audits, average, pass /
+     borderline / fail %, critical fails, acknowledged / pending / disputed, valid escalations by source, coaching
+     sessions.
+  2. **Audits**, one row per audit: date worked, type, kind, interaction / ticket ID, codes / tags, QA agent, score,
+     result, critical, the agent's answer.
+  3. **Audit answers**, one row per audit and metric: metric, answer, points earned / possible, QA note.
+  4. **Metrics**, per agent and metric: answered, average %, zeros.
+  5. **Escalations**: source, date, ID, what happened, reporter, decision, note.
+  6. **Coaching**: date, type, QA agent, topic, notes, outcome.
+
+### D. Coaching sessions logged by QA agents
+
+- **New session:** a button in the QA workspace.
+  - fields: agent, type (**Coaching** or **Refresher**), topic, what was covered, outcome;
+  - linking audits or valid escalations is **optional**;
+  - it saves as done.
+- **No agent acknowledgement** for logged sessions: the QA agent already had it from the agent.
+- **Supervisor's Coaching page:** shows assigned and logged sessions together, filterable by QA agent, agent and type.
+
+### E. QA agents' own audits: history, edits and approval
+
+- **My audits:** a QA workspace view of every audit they submitted, filterable by date, agent, type and result.
+- **Editing:**
+  - **Notes only:** saved at once, with a history entry.
+  - **Any answer** (it changes the score): a **pending change** with a reason. The audit keeps its score until a supervisor
+    approves (applied and re-scored) or rejects it on an **Approvals** tab, showing each metric's before and after.
+  - The same rule applies when a dispute was sent to the QA agent.
+- **After an approved change:** the agent doesn't have to acknowledge again.
+- **Edit history on every audit:** who, when, each metric before -> after, note changes, score before -> after, and who
+  approved. Supervisors' direct edits appear there too; they still edit without approval.
+- **Data:** an `evaluation_changes` table: task, requested by, proposed answers, reason, status, decided by / at, note.
+
+### F. QA agents get the sidebar
+
+Workspace, My audits, Agents, Escalations, Coaching.
+
+### G. N/A metrics can also take N/A weight
+
+- A metric may now be both **Allow N/A** and **Takes N/A weight**.
+  - When it is answered, it takes a share of the N/A weight.
+  - When it is N/A itself, it gives its weight away and takes none.
+  - The scoring engine already works this way; only the editor rule that kept the two apart goes.
+- **Split:** N/A weight is split **by each receiver's own points**, not evenly (this is what the engine does today). A
+  receiver worth 30 takes three times what a receiver worth 10 takes, so the metrics keep the same importance relative to
+  each other, as if the N/A metric had never been on the card.
+  - Example: A 20 pts is N/A; B 10 and C 30 take the weight. B gets 5 and C gets 15, so B 15 and C 45: still 1 to 3.
+  - An even split would give B 20 and C 40 (1 to 2).
+  - Smaller-takes-more would give B 25 and C 35, making the minor metric nearly as heavy as the main one.
+- The guard stays: at least one metric must never be N/A, so an audit always has a score.
+
+### Order of work
+
+1. A (escalations).
+2. G (N/A weight): small, can ride along.
+3. E (edits with approval and edit history).
+4. D (coaching logs).
+5. B (agent page and directory).
+6. C (Excel export).
+
+Each: migration if needed, tests, browser check, push, deploy with `deploy-script.sh`.
+
+### Settled (16 Oct)
+
+- **Supervisor escalations** ("Escalate an interaction", which counts in the score) stay as they are.
+- **Negatives and TL escalations are auto-assigned** to a QA agent of the agent's team, like normal tasks: the least busy
+  active one, online first. They appear in that QA agent's **Escalations** list, not the audit queue. If nobody is
+  available, the assignment pass picks them up later.
+- **QA agents and supervisors** can both mark any of them Valid or Not valid. QA escalations are decided by the
+  supervisor.
+
+### Built (16 Oct), and where it differs from the above
+
+All of A to G is built (migration 00012), not yet committed or deployed. Differences:
+
+- **A:** negatives and TL escalations a supervisor had already sent to QA (ready / assigned) go back to To check.
+- **B:** no `/agents/{id}/report`: the agent page reads `/reports?employee_id=` (open across teams, to QA agents too),
+  plus `/agents` and `/agents/{id}`. It's reached from the sidebar's Agents directory only; links from Team, the
+  workspace and agent names on audits aren't added yet.
+- **C:** no task type option in the export. The dashboard's button exports the picked agent, or the supervisor's team.
+- **D:** New session is on the QA agent's Coaching page, not the workspace footer. The supervisor's Coaching page filters
+  by open / assigned / logged / refresher, not by QA agent or agent.
+- **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
+  score before -> after. The audit's History card is the edit history, and QA agents now see it too.
+
+---
+
 ## 10. Needed from you
 
 1. ~~Employee roster sheet~~ (done: HR sheet).

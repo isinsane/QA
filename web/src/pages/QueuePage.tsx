@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Crosshair, Radio } from 'lucide-react'
+import { Crosshair, Megaphone, Radio } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { Coaching } from '../api/types'
@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext'
 import { auditedUnder, daysAgo, Empty, errorText, fmtDate, KindBadge, Labels, localDate, ScoreBadge } from '../components/bits'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
+import { RaiseQAEscalation } from './ReportedPage'
 import { LiveFieldInputs, TaskView } from './TaskPage'
 
 /** The QA agent's workspace: their queue on the left, the open audit on the right, each scrolling on its own. */
@@ -20,7 +21,7 @@ export function QueuePage() {
   const disputes = useApi(() => api.myDisputes(), [], { pollMs: 60_000 })
   const { toasts, push } = useToasts()
   const [pane, setPane] = useState<'queue' | 'disputes' | 'coaching'>('queue')
-  const [dialog, setDialog] = useState<'live' | 'focus' | Coaching | null>(null)
+  const [dialog, setDialog] = useState<'live' | 'focus' | 'escalate' | Coaching | null>(null)
   const list = queue.data ?? []
   const openCoaching = (coachings.data ?? []).filter((c) => c.status === 'open')
   const disputeList = disputes.data ?? []
@@ -65,7 +66,11 @@ export function QueuePage() {
                 </Empty>
               ) : null}
               {list.map((t) => (
-                <button key={t.id} className={`qa-queue-item${t.id === taskId ? ' active' : ''}`} onClick={() => navigate(`/queue/${t.id}`)}>
+                <button
+                  key={t.id}
+                  className={`qa-queue-item${t.id === taskId ? ' active' : ''}`}
+                  onClick={() => navigate(`/queue/${t.id}`)}
+                >
                   <span className="qa-queue-top">
                     <strong>{t.employee_name}</strong>
                     <span className="text-tertiary">{fmtDate(t.work_date)}</span>
@@ -82,7 +87,11 @@ export function QueuePage() {
             <>
               {disputeList.length === 0 ? <Empty title="No disputes">Disputes your supervisor sends you show up here.</Empty> : null}
               {disputeList.map((t) => (
-                <button key={t.id} className={`qa-queue-item${t.id === taskId ? ' active' : ''}`} onClick={() => navigate(`/queue/${t.id}`)}>
+                <button
+                  key={t.id}
+                  className={`qa-queue-item${t.id === taskId ? ' active' : ''}`}
+                  onClick={() => navigate(`/queue/${t.id}`)}
+                >
                   <span className="qa-queue-top">
                     <strong>{t.employee_name}</strong>
                     <span className="text-tertiary">{fmtDate(t.work_date)}</span>
@@ -118,6 +127,10 @@ export function QueuePage() {
           <button className="btn btn-secondary btn-sm" onClick={() => setDialog('focus')}>
             <Crosshair size={15} />
             Focus plan
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setDialog('escalate')}>
+            <Megaphone size={15} />
+            QA escalation
           </button>
         </div>
       </aside>
@@ -163,6 +176,15 @@ export function QueuePage() {
           onError={(e) => push('error', e)}
         />
       ) : null}
+      {dialog === 'escalate' ? (
+        <RaiseQAEscalation
+          onClose={() => setDialog(null)}
+          onSent={(msg) => {
+            setDialog(null)
+            push('success', msg)
+          }}
+        />
+      ) : null}
       {dialog && typeof dialog === 'object' ? (
         <CoachingDialog
           coaching={dialog}
@@ -180,7 +202,7 @@ export function QueuePage() {
   )
 }
 
-interface DialogProps {
+export interface DialogProps {
   onClose: () => void
   onError: (e: string) => void
 }
@@ -191,7 +213,13 @@ function useTeamPickers(source?: 'sheet') {
   const agents = useApi(() => api.teamAgents(), [])
   const typeList = (types.data ?? []).filter((t) => t.active && t.source !== 'manual' && (!source || t.source === source))
   // Only the agents the picked type audits: calls agents for calls, sales for sales.
-  const agentsFor = (typeId: string) => (agents.data ?? []).filter((a) => auditedUnder(typeList.find((t) => t.id === typeId), a.department))
+  const agentsFor = (typeId: string) =>
+    (agents.data ?? []).filter((a) =>
+      auditedUnder(
+        typeList.find((t) => t.id === typeId),
+        a.department,
+      ),
+    )
   return { typeList, agentsFor }
 }
 
@@ -349,7 +377,9 @@ function FocusDialog({ onClose, onPulled, onError }: DialogProps & { onPulled: (
         <div className="field">
           <label className="field-label">Tag / code</label>
           <select className="select" value={f.label} onChange={(e) => set({ label: e.target.value })} disabled={!f.agent}>
-            <option value="">{f.agent ? (labels.data?.length ? 'Pick one…' : 'Nothing left to audit in this range') : 'Pick an agent first'}</option>
+            <option value="">
+              {f.agent ? (labels.data?.length ? 'Pick one…' : 'Nothing left to audit in this range') : 'Pick an agent first'}
+            </option>
             {(labels.data ?? []).map((l) => (
               <option key={l.label} value={l.label}>
                 {l.label} ({l.rows} available)
@@ -359,14 +389,21 @@ function FocusDialog({ onClose, onPulled, onError }: DialogProps & { onPulled: (
         </div>
         <div className="field">
           <label className="field-label">How many</label>
-          <input className="input" type="number" min={1} max={50} value={f.count} onChange={(e) => set({ count: Number(e.target.value) })} />
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={50}
+            value={f.count}
+            onChange={(e) => set({ count: Number(e.target.value) })}
+          />
         </div>
       </div>
     </Modal>
   )
 }
 
-function CoachingDialog({ coaching: c, onClose, onDone, onError }: DialogProps & { coaching: Coaching; onDone: () => void }) {
+export function CoachingDialog({ coaching: c, onClose, onDone, onError }: DialogProps & { coaching: Coaching; onDone: () => void }) {
   const [notes, setNotes] = useState('')
   const [outcome, setOutcome] = useState('')
   return (

@@ -18,14 +18,13 @@ func TestValidate(t *testing.T) {
 	}
 	yes := func(id, label string) Metric { return Metric{ID: id, Label: label, Type: YesNo, Points: 10} }
 	for name, bad := range map[string]Card{
-		"critical text":       {yes("a", "A"), {ID: "x", Label: "Bad", Type: Text, Critical: true}},
-		"same label":          {yes("a", "Greeting"), yes("b", " greeting ")},
-		"too many points":     {{ID: "a", Label: "A", Type: YesNo, Points: 500}},
-		"scale too long":      {{ID: "a", Label: "A", Type: Scale, Points: 10, ScaleMax: 50}},
-		"receiver allows N/A": {yes("a", "A"), {ID: "b", Label: "B", Type: YesNo, Points: 10, AllowNA: true, NAReceiver: true}},
-		"only text":           {{ID: "x", Label: "Notes", Type: Text}},
-		"everything N/A":      {{ID: "a", Label: "A", Type: YesNo, Points: 10, AllowNA: true}},
-		"duplicate option":    {{ID: "a", Label: "A", Type: Dropdown, Options: []Option{{Label: "Met", Points: 5}, {Label: "met", Points: 0}}}},
+		"critical text":    {yes("a", "A"), {ID: "x", Label: "Bad", Type: Text, Critical: true}},
+		"same label":       {yes("a", "Greeting"), yes("b", " greeting ")},
+		"too many points":  {{ID: "a", Label: "A", Type: YesNo, Points: 500}},
+		"scale too long":   {{ID: "a", Label: "A", Type: Scale, Points: 10, ScaleMax: 50}},
+		"only text":        {{ID: "x", Label: "Notes", Type: Text}},
+		"everything N/A":   {{ID: "a", Label: "A", Type: YesNo, Points: 10, AllowNA: true}},
+		"duplicate option": {{ID: "a", Label: "A", Type: Dropdown, Options: []Option{{Label: "Met", Points: 5}, {Label: "met", Points: 0}}}},
 	} {
 		if Validate(bad) == nil {
 			t.Errorf("%s: accepted", name)
@@ -99,5 +98,47 @@ func TestNAWeightMovesToReceivers(t *testing.T) {
 	ans[0].Value = "no" // A answered: 60 of 100, below borderline
 	if r, _ := Score(c, ans, Thresholds{80, 70}); r.Band != "fail" {
 		t.Fatalf("got %s, want fail", r.Band)
+	}
+}
+
+func TestNAWeightSplitsByOwnPoints(t *testing.T) {
+	// A (20) is N/A; B (10) and C (30) take its weight in proportion to their
+	// own points: B 15, C 45, still 1 to 3. D (40) takes none.
+	c := Card{
+		{ID: "a", Label: "A", Type: YesNo, Points: 20, AllowNA: true},
+		{ID: "b", Label: "B", Type: YesNo, Points: 10, AllowNA: true, NAReceiver: true},
+		{ID: "c", Label: "C", Type: YesNo, Points: 30, NAReceiver: true},
+		{ID: "d", Label: "D", Type: YesNo, Points: 40},
+	}
+	if err := Validate(c); err != nil {
+		t.Fatalf("a metric that allows N/A and takes N/A weight is rejected: %v", err)
+	}
+	th := Thresholds{Pass: 80, Borderline: 70}
+	// B missed: earned 45 + 40 of 15 + 45 + 40 = 85%.
+	r, err := Score(c, Answers{{"a", "na", ""}, {"b", "no", ""}, {"c", "yes", ""}, {"d", "yes", ""}}, th)
+	if err != nil || r.Score == nil || *r.Score != 85 {
+		t.Fatalf("B missed: got %v %v, want 85", r.Score, err)
+	}
+	// B is N/A too: it gives its 10 away and takes nothing, so C takes all 30 (60) of 100.
+	r, err = Score(c, Answers{{"a", "na", ""}, {"b", "na", ""}, {"c", "no", ""}, {"d", "yes", ""}}, th)
+	if err != nil || r.Score == nil || *r.Score != 40 {
+		t.Fatalf("B N/A too: got %v %v, want 40", r.Score, err)
+	}
+}
+
+func TestSameScoring(t *testing.T) {
+	c := Card{
+		{ID: "a", Type: YesNo, Points: 10},
+		{ID: "b", Type: Text},
+	}
+	base := Answers{{MetricID: "a", Value: "yes", Notes: "ok"}, {MetricID: "b", Value: "fine"}}
+	if !c.SameScoring(base, Answers{{MetricID: "a", Value: "yes", Notes: "changed"}, {MetricID: "b", Value: "other comment"}}) {
+		t.Error("notes and text comments don't change the score")
+	}
+	if c.SameScoring(base, Answers{{MetricID: "a", Value: "no"}, {MetricID: "b", Value: "fine"}}) {
+		t.Error("a scored value changed")
+	}
+	if c.SameScoring(base, Answers{{MetricID: "b", Value: "fine"}}) {
+		t.Error("a scored answer went missing")
 	}
 }

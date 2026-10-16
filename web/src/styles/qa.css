@@ -299,6 +299,7 @@
 }
 
 .ws-side-foot {
+  flex-wrap: wrap;
   display: flex;
   gap: 8px;
   padding: 14px;
@@ -1358,4 +1359,15 @@ input[type='checkbox']:disabled {
 
 .text-error {
   color: var(--error-600, #d92d20);
+}
+
+/* A QA agent's score change waiting for a supervisor. */
+.change-note {
+  display: grid;
+  gap: 6px;
+}
+
+.change-list {
+  margin: 0;
+  padding-left: 18px;
 }

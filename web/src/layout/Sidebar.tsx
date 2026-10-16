@@ -1,17 +1,20 @@
 import { Link, NavLink } from 'react-router-dom'
 import {
   Building2,
+  CheckCheck,
+  ClipboardCheck,
   ClipboardList,
   GraduationCap,
+  Headphones,
   LayoutDashboard,
   ListChecks,
   Megaphone,
   MessageSquareWarning,
-  ThumbsDown,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
   Upload,
+  UserSearch,
   Users,
 } from 'lucide-react'
 import { api } from '../api/client'
@@ -19,31 +22,39 @@ import { useApi } from '../api/useApi'
 import { initials, ROLE_LABEL, useAuth } from '../auth/AuthContext'
 import { BrandMark } from '../components/BrandMark'
 
+const MANAGER = ['admin', 'supervisor']
+const ADMIN = ['admin']
+const QA = ['qa_agent']
+
 const NAV = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/tasks', label: 'All tasks', icon: ListChecks },
-  { to: '/disputes', label: 'Disputes', icon: MessageSquareWarning },
-  { to: '/negatives', label: 'Negatives', icon: ThumbsDown },
-  { to: '/tl-escalations', label: 'TL escalations', icon: Megaphone },
-  { to: '/coaching', label: 'Coaching', icon: GraduationCap },
-  { to: '/imports', label: 'Imports', icon: Upload },
-  { to: '/task-types', label: 'Task types', icon: ClipboardList },
-  { to: '/team', label: 'Team', icon: Users },
-  { to: '/departments', label: 'Departments', icon: Building2, adminOnly: true },
-  { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: MANAGER },
+  { to: '/queue', label: 'Workspace', icon: Headphones, roles: QA },
+  { to: '/my-audits', label: 'My audits', icon: ClipboardCheck, roles: QA },
+  { to: '/agents', label: 'Agents', icon: UserSearch, roles: [...MANAGER, ...QA] },
+  { to: '/tasks', label: 'All tasks', icon: ListChecks, roles: MANAGER },
+  { to: '/disputes', label: 'Disputes', icon: MessageSquareWarning, roles: MANAGER },
+  { to: '/approvals', label: 'Approvals', icon: CheckCheck, roles: MANAGER },
+  { to: '/escalations', label: 'Escalations', icon: Megaphone, roles: [...MANAGER, ...QA] },
+  { to: '/coaching', label: 'Coaching', icon: GraduationCap, roles: [...MANAGER, ...QA] },
+  { to: '/imports', label: 'Imports', icon: Upload, roles: MANAGER },
+  { to: '/task-types', label: 'Task types', icon: ClipboardList, roles: MANAGER },
+  { to: '/team', label: 'Team', icon: Users, roles: MANAGER },
+  { to: '/departments', label: 'Departments', icon: Building2, roles: ADMIN },
+  { to: '/settings', label: 'Settings', icon: Settings, roles: ADMIN },
 ]
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
-  // Disputes waiting for the supervisor, shown on the nav item.
-  const waiting = useApi(() => api.tasks({ state: 'dispute_supervisor' }), [], { pollMs: 60_000 })
-  const negatives = useApi(() => api.tasks({ kind: 'negative', state: 'review' }), [], { pollMs: 60_000 })
-  const tl = useApi(() => api.tasks({ kind: 'tl_escalation', state: 'review' }), [], { pollMs: 60_000 })
+  const role = user?.role ?? 'employee'
+  const qa = role === 'qa_agent'
+  // Disputes waiting for the supervisor, and escalations to check (a QA agent's own), shown on the nav items.
+  const waiting = useApi(() => (qa ? Promise.resolve(null) : api.tasks({ state: 'dispute_supervisor' })), [qa], { pollMs: 60_000 })
+  const approvals = useApi(() => (qa ? Promise.resolve(null) : api.changes({ status: 'pending' })), [qa], { pollMs: 60_000 })
+  const toCheck = useApi(() => api.escalations({ state: 'review', mine: qa ? 1 : undefined }), [qa], { pollMs: 60_000 })
   const badge: Record<string, number | undefined> = {
     '/disputes': waiting.data?.total,
-    '/negatives': negatives.data?.total,
-    '/tl-escalations': tl.data?.total,
+    '/escalations': toCheck.data?.total,
+    '/approvals': approvals.data?.total,
   }
 
   return (
@@ -67,7 +78,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       </div>
 
       <nav className="sidebar-nav">
-        {NAV.filter((n) => !n.adminOnly || isAdmin).map(({ to, label, icon: Icon }) => (
+        {NAV.filter((n) => n.roles.includes(role)).map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

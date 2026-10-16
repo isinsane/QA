@@ -4,13 +4,17 @@ import { LoginPage } from './auth/LoginPage'
 import { AppShell } from './layout/AppShell'
 import { ThemeProvider } from './theme/ThemeContext'
 import { AccountPage } from './pages/AccountPage'
+import { AgentPage } from './pages/AgentPage'
+import { AgentsPage } from './pages/AgentsPage'
+import { ApprovalsPage } from './pages/ApprovalsPage'
 import { CoachingPage } from './pages/CoachingPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { DisputesPage } from './pages/DisputesPage'
-import { NEGATIVES, ReportedPage, TL_ESCALATIONS } from './pages/ReportedPage'
+import { EscalationsPage, NEGATIVES, ReportedPage, TL_ESCALATIONS } from './pages/ReportedPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ImportsPage } from './pages/ImportsPage'
+import { MyAuditsPage } from './pages/MyAuditsPage'
 import { MyScoresPage } from './pages/MyScoresPage'
 import { QueuePage } from './pages/QueuePage'
 import { TaskPage } from './pages/TaskPage'
@@ -44,6 +48,11 @@ export default function App() {
               <Route path="/team" element={<TeamPage />} />
               <Route path="/coaching" element={<CoachingPage />} />
               <Route path="/disputes" element={<DisputesPage />} />
+              <Route path="/escalations" element={<EscalationsPage />} />
+              <Route path="/approvals" element={<ApprovalsPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/agents/:agentId" element={<AgentPage />} />
+              <Route path="/my-audits" element={<MyAuditsPage />} />
               <Route path="/negatives" element={<ReportedPage cfg={NEGATIVES} />} />
               <Route path="/tl-escalations" element={<ReportedPage cfg={TL_ESCALATIONS} />} />
               <Route path="/departments" element={<DepartmentsPage />} />

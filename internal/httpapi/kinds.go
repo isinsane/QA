@@ -402,7 +402,7 @@ func (s *Server) agentAnswer(w http.ResponseWriter, r *http.Request, status stri
 		return
 	}
 	if t.Kind.Reviewed() {
-		writeError(w, http.StatusConflict, "negatives and team leader escalations are for your information; there is nothing to answer")
+		writeError(w, http.StatusConflict, "escalations are for your information; there is nothing to answer")
 		return
 	}
 	if t.AckStatus != "" {

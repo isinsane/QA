@@ -31,7 +31,7 @@ func TestLimitsAcrossPeriods(t *testing.T) {
 }
 
 func TestReviewedKindsAgree(t *testing.T) {
-	for _, k := range []Kind{KindSample, KindLive, KindEscalation, KindFocus, KindRotation, KindNegative, KindTLEscalation} {
+	for _, k := range []Kind{KindSample, KindLive, KindEscalation, KindFocus, KindRotation, KindNegative, KindTLEscalation, KindQAEscalation} {
 		inSQL := strings.Contains(ReviewedKinds, "'"+string(k)+"'")
 		if inSQL != k.Reviewed() {
 			t.Errorf("%s: in ReviewedKinds %v, Reviewed() %v", k, inSQL, k.Reviewed())

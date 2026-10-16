@@ -143,7 +143,7 @@ export interface TaskType {
 }
 
 export type TaskState = 'unsampled' | 'review' | 'ready' | 'assigned' | 'completed' | 'cancelled'
-export type Kind = 'sample' | 'live' | 'escalation' | 'focus' | 'rotation' | 'negative' | 'tl_escalation'
+export type Kind = 'sample' | 'live' | 'escalation' | 'focus' | 'rotation' | 'negative' | 'tl_escalation' | 'qa_escalation'
 export type Band = 'pass' | 'borderline' | 'fail'
 export type AckStatus = '' | 'acknowledged' | 'disputed' | 'dispute_qa' | 'upheld' | 'changed'
 
@@ -173,7 +173,32 @@ export interface TaskRow {
   priority: number
   note: string
   reported_by: string
+  /** An escalation's decision note. */
+  finding: string
+  /** A QA agent's score change waits for a supervisor. */
+  change_pending: boolean
   created_at: string
+}
+
+/** A QA agent's change to the score of an audit they submitted. */
+export interface EvaluationChange {
+  id: string
+  task_id: string
+  answers?: Answer[]
+  reason: string
+  score_before: number | null
+  score: number | null
+  status: 'pending' | 'approved' | 'rejected'
+  decision_note: string
+  created_at: string
+  decided_at: string | null
+  requested_by_name: string
+  decided_by_name: string
+  external_id?: string
+  work_date?: string
+  employee_name?: string
+  task_type_name?: string
+  ack_status?: AckStatus
 }
 
 export interface Task {
@@ -204,6 +229,7 @@ export interface Task {
   ack_at: string | null
   dispute_resolution: string
   dispute_resolved_at: string | null
+  finding: string
 }
 
 export interface AuditEntry {
@@ -229,7 +255,9 @@ export interface TaskDetail {
   can_ack: boolean
   can_uphold: boolean
   can_forward: boolean
-  can_confirm: boolean
+  can_decide: boolean
+  can_approve: boolean
+  changes?: EvaluationChange[]
   reported_by?: string
 }
 
@@ -286,6 +314,9 @@ export interface Coaching {
   employee_id: string
   employee_name: string
   topic: string
+  kind: 'coaching' | 'refresher'
+  /** Logged by a QA agent after the session; the agent doesn't acknowledge it. */
+  logged: boolean
   task_ids: string[]
   assigned_qa_id: string
   qa_name: string
@@ -298,6 +329,33 @@ export interface Coaching {
   ack_at: string | null
   ack_comment: string
   created_at: string
+}
+
+/** An agent in the directory, with their numbers for the period. */
+export interface AgentRow {
+  id: string
+  name: string
+  alias_name: string
+  team: string
+  department_id: string | null
+  hr_department: string
+  job_title: string
+  evaluations: number
+  avg_score: number | null
+  pass_rate: number | null
+  escalations: number
+  last_audit: string | null
+}
+
+export interface AgentInfo {
+  id: string
+  name: string
+  alias_name: string
+  email: string | null
+  agent_code: string | null
+  active: boolean
+  team: string
+  profile: Record<string, string> | null
 }
 
 export interface Reports {

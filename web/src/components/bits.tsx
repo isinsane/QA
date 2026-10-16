@@ -152,12 +152,13 @@ const KIND_SHORT: Record<Kind, string> = {
   rotation: 'Rotation',
   negative: 'Negative',
   tl_escalation: 'TL escalation',
+  qa_escalation: 'QA escalation',
 }
 
 /** Nothing for a daily sample: it is the ordinary case. */
 export function KindBadge({ kind, match }: { kind: Kind; match?: string }) {
   if (kind === 'sample') return null
-  const tone = kind === 'escalation' || kind === 'negative' || kind === 'tl_escalation' ? 'badge-error' : kind === 'live' ? 'badge-brand' : 'badge-purple'
+  const tone = kind === 'escalation' || kind === 'negative' || kind === 'tl_escalation' || kind === 'qa_escalation' ? 'badge-error' : kind === 'live' ? 'badge-brand' : 'badge-purple'
   return (
     <span className={`badge ${tone}`}>
       {KIND_SHORT[kind]}
@@ -190,7 +191,26 @@ const STATE_TONE: Record<TaskState, string> = {
 }
 
 export function StateBadge({ state }: { state: TaskState }) {
-  return <span className={`badge ${STATE_TONE[state]}`}>{state === 'review' ? 'with supervisor' : state}</span>
+  return <span className={`badge ${STATE_TONE[state]}`}>{state === 'review' ? 'to check' : state}</span>
+}
+
+/** Previous / next for a paged list; nothing when it fits on one page. */
+export function Pager({ page, total, size, onPage }: { page: number; total: number; size: number; onPage: (p: number) => void }) {
+  const pages = Math.max(1, Math.ceil(total / (size || 50)))
+  if (pages <= 1) return null
+  return (
+    <div className="card-foot">
+      <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        Previous
+      </button>
+      <span className="text-secondary">
+        Page {page} of {pages}
+      </span>
+      <button className="btn btn-secondary btn-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+        Next
+      </button>
+    </div>
+  )
 }
 
 export function Labels({ labels, empty = 'no code / tag' }: { labels: string[] | null; empty?: string }) {
