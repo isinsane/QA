@@ -45,7 +45,7 @@ export const TL_ESCALATIONS: ReportKind = {
   role: 'team_leader',
   reportTitle: 'Escalate an interaction',
   reporterSubtitle:
-    "For an order or call of an agent on your team. A QA agent checks it and marks it valid (the agent's mistake) or not valid.",
+    "For an order or call of any agent, in any team. A QA agent of their team checks it and marks it valid (the agent's mistake) or not valid.",
   agentLabel: 'Agent',
   errorLabel: 'What happened',
   errorPlaceholder: 'What the agent did, and why it needs a look',
@@ -149,7 +149,7 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
         <div className="field">
           <label className="field-label">{cfg.agentLabel}</label>
           <select className="select" value={f.employee_id} onChange={(e) => setF({ ...f, employee_id: e.target.value, task_type_id: '' })}>
-            <option value="">{agents.data && agents.data.length === 0 ? 'No agents on your team' : 'Pick the agent…'}</option>
+            <option value="">{agents.data && agents.data.length === 0 ? 'No agents yet' : 'Pick the agent…'}</option>
             {teams.map((team) => (
               <optgroup key={team} label={team}>
                 {(agents.data ?? [])

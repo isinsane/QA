@@ -21,26 +21,26 @@ import (
 // agent's mistake: it shows on their profile) or Not valid, with a note.
 // Never scored, never disputed.
 //
-//   - Negatives: a negatives agent reports a negative review, about any agent.
-//   - Team leader escalations: a team leader (floor support) escalates work
-//     of an agent on their own team.
-//   - QA escalations: a QA agent raises one about any agent.
+//   - Negatives: a negatives agent reports a negative review.
+//   - Team leader escalations: a team leader (floor support) escalates work.
+//   - QA escalations: a QA agent raises one.
+//
+// Each can be about any agent of any team; the agent's team checks it.
 //
 // Negatives and TL escalations are auto-assigned to a QA agent of the team to
 // check (internal/assign); its QA agents and the supervisor may decide them.
 // QA escalations are decided by the supervisor.
 type reporter struct {
-	kind     model.Kind
-	role     model.Role
-	path     string
-	noun     string // in messages: "negative", "escalation"
-	teamOnly bool   // the reporter picks from their own team's agents only
+	kind model.Kind
+	role model.Role
+	path string
+	noun string // in messages: "negative", "escalation"
 }
 
 var reporters = []reporter{
-	{model.KindNegative, model.RoleNegative, "/negatives", "negative", false},
-	{model.KindTLEscalation, model.RoleTeamLeader, "/tl-escalations", "escalation", true},
-	{model.KindQAEscalation, model.RoleQA, "/qa-escalations", "escalation", false},
+	{model.KindNegative, model.RoleNegative, "/negatives", "negative"},
+	{model.KindTLEscalation, model.RoleTeamLeader, "/tl-escalations", "escalation"},
+	{model.KindQAEscalation, model.RoleQA, "/qa-escalations", "escalation"},
 }
 
 func (s *Server) routesReported(r chi.Router, managers func(http.Handler) http.Handler) {
@@ -96,25 +96,10 @@ func reportTypes(u model.User, types []model.TaskType) []model.TaskType {
 	return out
 }
 
-// agentScope limits the agents a reporter can pick: their own team for a
-// team-only kind (admins see everyone), everyone otherwise.
-func agentScope(rp reporter, u *model.User) *uuid.UUID {
-	if rp.teamOnly && u.Role != model.RoleAdmin {
-		if u.DepartmentID == nil {
-			return &uuid.Nil // nobody
-		}
-		return u.DepartmentID
-	}
-	return nil
-}
-
 func (s *Server) reportAgents(rp reporter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		db := s.db.WithContext(r.Context())
 		q := db.Where("role = 'employee' AND active").Order("name")
-		if d := agentScope(rp, me(r)); d != nil {
-			q = q.Where("department_id = ?", *d)
-		}
 		var users []model.User
 		if err := q.Find(&users).Error; err != nil {
 			dbError(w, err)
@@ -166,12 +151,8 @@ func (s *Server) report(rp reporter) http.HandlerFunc {
 		u := me(r)
 		db := s.db.WithContext(r.Context())
 		var agent model.User
-		q := db.Where("id = ? AND role = 'employee' AND active", in.EmployeeID)
-		if d := agentScope(rp, u); d != nil {
-			q = q.Where("department_id = ?", *d)
-		}
-		if q.First(&agent).Error != nil {
-			writeError(w, http.StatusBadRequest, "pick an active agent"+map[bool]string{true: " of your team", false: ""}[rp.teamOnly])
+		if db.Where("id = ? AND role = 'employee' AND active", in.EmployeeID).First(&agent).Error != nil {
+			writeError(w, http.StatusBadRequest, "pick an active agent")
 			return
 		}
 		var types []model.TaskType

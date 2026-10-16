@@ -465,8 +465,10 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   exports; changes nothing (the server refuses every write but its own password and sign-out). The Settings page hides
   the default password from it. Created by an admin on Team, with no team.
 - **Team leaders (16 Oct):** view only, for **their own team** (what a supervisor sees, without Settings or Departments),
-  plus their TL escalations page (their home), where they still escalate their team's agents. Nothing else they send is
-  accepted. The View only role (HR) keeps every team.
+  plus their TL escalations page (their home), where they escalate any agent of any team (the agent's team checks it).
+  Nothing else they send is accepted. The View only role (HR) keeps every team. Negatives and QA escalations were
+  already open to any agent; the supervisor's "Escalate an interaction" (a scored audit in their own queue) stays with
+  their team.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 
