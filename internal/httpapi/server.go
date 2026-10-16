@@ -79,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 			r.With(managers).Post("/users", s.handleCreateUser)
 			r.With(managers).Post("/users/import", s.handleImportRoster)
 			r.With(managers).Patch("/users/{id}", s.handleUpdateUser)
+			r.With(managers).Delete("/users/{id}", s.handleDeleteUser)
 			r.With(managers).Post("/users/{id}/password", s.handleSetUserPassword)
 
 			s.routesTaskTypes(r, managers)

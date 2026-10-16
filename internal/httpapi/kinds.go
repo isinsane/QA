@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -127,6 +128,10 @@ func (s *Server) handleStartLive(w http.ResponseWriter, r *http.Request) {
 // liveFields are the sheet columns a QA agent types in for a live audit: the
 // latest upload's columns, minus the call ID, agent and start time (the
 // portal has those) and the ones the settings hide (Vonage fills them in).
+// liveExtras are asked on every live audit after the sheet's own columns,
+// and may stay empty.
+var liveExtras = []string{"Phone number", "Order number"}
+
 func (s *Server) liveFields(r *http.Request, tt *model.TaskType) []string {
 	var cols model.Strings
 	_ = s.db.WithContext(r.Context()).Raw(`SELECT detail->'columns' FROM import_runs
@@ -144,22 +149,31 @@ func (s *Server) liveFields(r *http.Request, tt *model.TaskType) []string {
 	if len(out) == 0 && tt.Columns.Label != "" {
 		out = []string{tt.Columns.Label}
 	}
+	for _, x := range liveExtras {
+		if !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
 	return out
 }
 
 // cleanLive keeps the entered details of the live fields, trimmed, and names
 // the first required one left empty. Every field is required except the
-// code: some calls have none.
+// code (some calls have none) and the phone and order number.
 func cleanLive(fields []string, label string, in map[string]string) (model.JSONMap, string) {
 	out := model.JSONMap{}
 	for _, f := range fields {
 		v := strings.TrimSpace(in[f])
-		if v == "" && f != label {
+		if v == "" && !liveOptional(f, label) {
 			return nil, f
 		}
 		out[f] = v
 	}
 	return out, ""
+}
+
+func liveOptional(field, label string) bool {
+	return field == label || slices.Contains(liveExtras, field)
 }
 
 func liveLabels(details model.JSONMap, label string) model.Strings {
@@ -178,7 +192,14 @@ func (s *Server) handleLiveFields(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"fields": s.liveFields(r, tt), "label": tt.Columns.Label})
+	fields := s.liveFields(r, tt)
+	optional := []string{}
+	for _, f := range fields {
+		if liveOptional(f, tt.Columns.Label) {
+			optional = append(optional, f)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"fields": fields, "label": tt.Columns.Label, "optional": optional})
 }
 
 // handleLiveDetails corrects the call details of a live audit still in the

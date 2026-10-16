@@ -889,6 +889,7 @@ function LiveCard({ detail: d, onSaved, onError }: { detail: TaskDetail; onSaved
               taskTypeId={d.task_type.id}
               fields={fields.data.fields}
               label={fields.data.label}
+              optional={fields.data.optional}
               value={draft}
               onChange={setDraft}
             />
@@ -946,12 +947,15 @@ export function LiveFieldInputs({
   taskTypeId,
   fields,
   label,
+  optional = [label],
   value,
   onChange,
 }: {
   taskTypeId: string
   fields: string[]
   label: string
+  /** Fields that may stay empty: the code, phone and order number. */
+  optional?: string[]
   value: Record<string, string>
   onChange: (v: Record<string, string>) => void
 }) {
@@ -963,7 +967,7 @@ export function LiveFieldInputs({
         <div className="field" key={k}>
           <label className="field-label">
             {k}
-            {k === label ? ' (if any)' : ''}
+            {optional.includes(k) ? ' (if any)' : ''}
           </label>
           {/direction/i.test(k) ? (
             <select className="select" value={value[k] ?? ''} onChange={(e) => set(k, e.target.value)}>

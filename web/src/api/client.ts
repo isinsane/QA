@@ -111,6 +111,7 @@ export const api = {
   users: (role?: string) => request<User[]>(`/users${qs({ role })}`),
   createUser: (u: Partial<User>) => request<User>('/users', json('POST', u)),
   updateUser: (id: string, u: Partial<User>) => request<User>(`/users/${id}`, json('PATCH', u)),
+  deleteUser: (id: string) => request(`/users/${id}`, { method: 'DELETE' }),
   setUserPassword: (id: string, password: string) => request(`/users/${id}/password`, json('POST', { password })),
   importRoster: (file: File, dryRun: boolean, deactivateMissing: boolean) => {
     const fd = new FormData()
@@ -173,7 +174,8 @@ export const api = {
 
   // QA2
   teamAgents: () => request<{ id: string; name: string; alias_name: string; department: string }[]>('/team/agents'),
-  liveFields: (taskTypeId: string) => request<{ fields: string[]; label: string }>(`/task-types/${taskTypeId}/live-fields`),
+  liveFields: (taskTypeId: string) =>
+    request<{ fields: string[]; label: string; optional: string[] }>(`/task-types/${taskTypeId}/live-fields`),
   startLive: (task_type_id: string, employee_id: string, details: Record<string, string>) =>
     request<{ id: string; live_started_at: string }>('/live', json('POST', { task_type_id, employee_id, details })),
   setLiveDetails: (id: string, details: Record<string, string>) => request(`/tasks/${id}/live`, json('PATCH', { details })),

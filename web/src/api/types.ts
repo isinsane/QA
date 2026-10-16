@@ -20,6 +20,8 @@ export interface User {
 }
 
 export interface RosterResult {
+  /** Rows of people removed on Team, left out. */
+  ignored: number
   added: number
   updated: number
   unchanged: number
@@ -89,6 +91,8 @@ export interface AppSettings {
   call_utc_offset: string
   live_window_seconds: number
   live_hidden_columns: string[]
+  /** HR employee IDs the HR upload leaves out (people removed on Team). */
+  roster_ignore_ids: string[]
   tickets_pull_hour: number
   reply_buckets_top: number
   default_queue_limit: number

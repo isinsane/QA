@@ -232,7 +232,7 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
   const type = typeId || typeList[0]?.id || ''
   const fields = useApi(() => (type ? api.liveFields(type) : Promise.resolve(null)), [type])
   const f = fields.data
-  const missing = (f?.fields ?? []).filter((k) => k !== f?.label && !details[k]?.trim())
+  const missing = (f?.fields ?? []).filter((k) => !(f?.optional ?? [f?.label]).includes(k) && !details[k]?.trim())
 
   return (
     <Modal
@@ -296,7 +296,7 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
           <div className="form-section" style={{ margin: 0 }}>
             The call, as Vonage shows it
           </div>
-          <LiveFieldInputs taskTypeId={type} fields={f.fields} label={f.label} value={details} onChange={setDetails} />
+          <LiveFieldInputs taskTypeId={type} fields={f.fields} label={f.label} optional={f.optional} value={details} onChange={setDetails} />
           <p className="hint-text">Everything except the code is required. You can still correct these while the audit is in your queue.</p>
         </>
       ) : null}

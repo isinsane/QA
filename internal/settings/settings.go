@@ -48,6 +48,9 @@ type Settings struct {
 	RotationCasesPerWeek int `json:"rotation_cases_per_week"`
 	// NewTaskType is what a new task type starts with.
 	NewTaskType TaskTypeDefaults `json:"new_task_type"`
+	// RosterIgnoreIDs are HR employee IDs the HR upload leaves out: people
+	// removed on Team (duplicates in the HR sheet), so they don't come back.
+	RosterIgnoreIDs []string `json:"roster_ignore_ids"`
 }
 
 type TaskTypeDefaults struct {
@@ -67,6 +70,7 @@ func Defaults() Settings {
 		CallUTCOffset:        "-05:00",
 		LiveWindowSeconds:    20,
 		LiveHiddenColumns:    []string{"Conversation ID", "Media manager", "Media type", "Handle time", "Interaction outcome"},
+		RosterIgnoreIDs:      []string{},
 		TicketsPullHour:      6,
 		ReplyBucketsTop:      3,
 		DefaultQueueLimit:    12,

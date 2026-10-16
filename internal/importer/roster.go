@@ -60,6 +60,7 @@ type RosterResult struct {
 	Updated     int            `json:"updated"`
 	Unchanged   int            `json:"unchanged"`
 	Deactivated int            `json:"deactivated"`
+	Ignored     int            `json:"ignored"` // rows of people removed on Team (Settings lists their IDs)
 	Skipped     map[string]int `json:"skipped"` // HR department not audited → rows
 	Changes     []RosterChange `json:"changes"`
 	Errors      []RowError     `json:"errors"`
@@ -116,6 +117,10 @@ func ImportRoster(ctx context.Context, db *gorm.DB, s *Sheet, o RosterOptions) (
 		}
 	}
 
+	ignored := map[string]bool{}
+	for _, id := range settings.Load(ctx, db).RosterIgnoreIDs {
+		ignored[strings.TrimSpace(id)] = true
+	}
 	seenHR := map[string]bool{}
 	for i, row := range s.Rows {
 		line := i + 2
@@ -126,6 +131,10 @@ func ImportRoster(ctx context.Context, db *gorm.DB, s *Sheet, o RosterOptions) (
 		}
 		if name == "" || (email == "" && hrID == "") {
 			res.Errors = append(res.Errors, RowError{line, "needs a name and an Employee ID or email"})
+			continue
+		}
+		if hrID != "" && ignored[hrID] {
+			res.Ignored++ // removed on Team as a duplicate
 			continue
 		}
 		if hrID != "" {

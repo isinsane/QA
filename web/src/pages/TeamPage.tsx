@@ -9,6 +9,9 @@ import { errorText } from '../components/bits'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
 
+// Same name, ignoring case, spaces and punctuation: the HR sheet listing someone twice.
+const nameKey = (n: string) => n.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
+
 const FILTERS: { key: Role | 'all'; label: string }[] = [
   { key: 'all', label: 'Everyone' },
   { key: 'supervisor', label: 'Supervisors' },
@@ -27,21 +30,26 @@ export function TeamPage() {
   const users = useApi(() => api.users(), [])
   const depts = useApi(() => api.departments(), [])
   const { toasts, push } = useToasts()
-  const [filter, setFilter] = useState<Role | 'all'>('all')
+  const [filter, setFilter] = useState<Role | 'all' | 'same_name'>('all')
   const [search, setSearch] = useState('')
   const [dialog, setDialog] = useState<Dialog>(null)
 
   const deptName = (id: string | null) => depts.data?.find((d) => d.id === id)?.name ?? '—'
+  const twice = useMemo(() => {
+    const n = new Map<string, number>()
+    for (const u of users.data ?? []) n.set(nameKey(u.name), (n.get(nameKey(u.name)) ?? 0) + 1)
+    return new Set([...n].filter(([, c]) => c > 1).map(([k]) => k))
+  }, [users.data])
   const list = useMemo(
     () =>
       (users.data ?? []).filter(
         (u) =>
-          (filter === 'all' || u.role === filter) &&
+          (filter === 'all' || (filter === 'same_name' ? twice.has(nameKey(u.name)) : u.role === filter)) &&
           `${u.name} ${u.alias_name} ${(u.sheet_names ?? []).join(' ')} ${u.email ?? ''} ${u.agent_code ?? ''} ${u.profile?.job_title ?? ''}`
             .toLowerCase()
             .includes(search.toLowerCase()),
       ),
-    [users.data, filter, search],
+    [users.data, filter, search, twice],
   )
 
   async function done(text: string) {
@@ -56,8 +64,8 @@ export function TeamPage() {
         <div>
           <h1 className="page-title">Team</h1>
           <p className="page-subtitle">
-            Agents come from the HR sheet; upload it again whenever HR updates it. Calls match on the Vonage ID (linked by name the
-            first time an agent appears), tickets on the eDesk email; the eDesk ID fills in from each ticket pull.
+            Agents come from the HR sheet; upload it again whenever HR updates it. Calls match on the Vonage ID (linked by name the first
+            time an agent appears), tickets on the eDesk email; the eDesk ID fills in from each ticket pull.
           </p>
         </div>
         <div className="page-actions">
@@ -67,7 +75,12 @@ export function TeamPage() {
           </button>
           <button
             className="btn btn-primary"
-            onClick={() => setDialog({ kind: 'edit', user: { role: 'employee', active: true, queue_limit: 12, department_id: me?.department_id ?? null } })}
+            onClick={() =>
+              setDialog({
+                kind: 'edit',
+                user: { role: 'employee', active: true, queue_limit: 12, department_id: me?.department_id ?? null },
+              })
+            }
           >
             <UserPlus size={16} />
             Add person
@@ -81,6 +94,11 @@ export function TeamPage() {
             {f.label}
           </button>
         ))}
+        {twice.size ? (
+          <button className={`filter-chip${filter === 'same_name' ? ' active' : ''}`} onClick={() => setFilter('same_name')}>
+            Same name twice ({(users.data ?? []).filter((u) => twice.has(nameKey(u.name))).length})
+          </button>
+        ) : null}
         <input
           className="input"
           style={{ maxWidth: 260, marginLeft: 'auto' }}
@@ -112,6 +130,15 @@ export function TeamPage() {
                 <tr key={u.id} style={u.active ? undefined : { opacity: 0.55 }}>
                   <td>
                     <strong>{u.name}</strong>
+                    {twice.has(nameKey(u.name)) ? (
+                      <span
+                        className="badge badge-warning"
+                        style={{ marginLeft: 6 }}
+                        title="Someone else has the same name: maybe a duplicate from the HR sheet"
+                      >
+                        same name
+                      </span>
+                    ) : null}
                     {u.alias_name ? <div className="text-tertiary">alias {u.alias_name}</div> : null}
                     {u.sheet_names?.length ? <div className="text-tertiary">in Vonage as {u.sheet_names.join(', ')}</div> : null}
                   </td>
@@ -177,15 +204,15 @@ export function TeamPage() {
         />
       ) : null}
       {dialog?.kind === 'password' ? (
-        <PasswordDialog user={dialog.user} onClose={() => setDialog(null)} onSaved={(t) => void done(t)} onError={(t) => push('error', t)} />
-      ) : null}
-      {dialog?.kind === 'roster' ? (
-        <RosterDialog
-          isAdmin={isAdmin}
+        <PasswordDialog
+          user={dialog.user}
           onClose={() => setDialog(null)}
           onSaved={(t) => void done(t)}
           onError={(t) => push('error', t)}
         />
+      ) : null}
+      {dialog?.kind === 'roster' ? (
+        <RosterDialog isAdmin={isAdmin} onClose={() => setDialog(null)} onSaved={(t) => void done(t)} onError={(t) => push('error', t)} />
       ) : null}
       <ToastStack toasts={toasts} />
     </div>
@@ -208,6 +235,7 @@ function UserDialog({
 }: DialogProps & { initial: Partial<User>; isAdmin: boolean; depts: { id: string; name: string }[] }) {
   const [u, setU] = useState<Partial<User>>(initial)
   const [busy, setBusy] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const roles: Role[] = isAdmin
     ? ['employee', 'team_leader', 'qa_agent', 'negative_agent', 'supervisor', 'admin']
     : ['employee', 'team_leader', 'qa_agent', 'negative_agent']
@@ -255,6 +283,11 @@ function UserDialog({
       onSubmit={() => void save()}
       footer={
         <>
+          {u.id ? (
+            <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => setRemoving(true)}>
+              Remove
+            </button>
+          ) : null}
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
@@ -264,6 +297,40 @@ function UserDialog({
         </>
       }
     >
+      {removing && u.id ? (
+        <Modal
+          title={`Remove ${initial.name}?`}
+          size="sm"
+          onClose={() => setRemoving(false)}
+          onSubmit={() =>
+            void api
+              .deleteUser(u.id as string)
+              .then(() => onSaved(`${initial.name} removed`))
+              .catch((err) => {
+                setRemoving(false)
+                onError(errorText(err))
+              })
+          }
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setRemoving(false)}>
+                Keep
+              </button>
+              <button type="submit" className="btn btn-danger">
+                Remove
+              </button>
+            </>
+          }
+        >
+          <p style={{ margin: 0 }}>
+            For duplicates, such as someone the HR sheet lists twice. Anyone with audits, escalations or coaching can't be removed:
+            deactivate them instead.
+            {initial.hr_id
+              ? ` Employee ID ${initial.hr_id} is left out of future HR uploads (an admin can bring it back on Settings).`
+              : ''}
+          </p>
+        </Modal>
+      ) : null}
       <div className="form-section">Who</div>
       <div className="form-row">
         <div className="field">
@@ -315,17 +382,29 @@ function UserDialog({
       <div className="form-row">
         <div className="field">
           <label className="field-label">Job title</label>
-          <input className="input" value={u.profile?.job_title ?? ''} onChange={(e) => set({ profile: { ...u.profile, job_title: e.target.value } })} />
+          <input
+            className="input"
+            value={u.profile?.job_title ?? ''}
+            onChange={(e) => set({ profile: { ...u.profile, job_title: e.target.value } })}
+          />
         </div>
         <div className="field">
           <label className="field-label">HR department</label>
-          <input className="input" value={u.profile?.department ?? ''} onChange={(e) => set({ profile: { ...u.profile, department: e.target.value } })} />
+          <input
+            className="input"
+            value={u.profile?.department ?? ''}
+            onChange={(e) => set({ profile: { ...u.profile, department: e.target.value } })}
+          />
         </div>
       </div>
       <div className="form-row">
         <div className="field">
           <label className="field-label">Supervisor (HR)</label>
-          <input className="input" value={u.profile?.supervisor ?? ''} onChange={(e) => set({ profile: { ...u.profile, supervisor: e.target.value } })} />
+          <input
+            className="input"
+            value={u.profile?.supervisor ?? ''}
+            onChange={(e) => set({ profile: { ...u.profile, supervisor: e.target.value } })}
+          />
         </div>
         <div className="field">
           <label className="field-label">Organization</label>
@@ -367,7 +446,13 @@ function UserDialog({
           <div className="form-section">Queue</div>
           <div className="field" style={{ maxWidth: 220 }}>
             <label className="field-label">Most audits at once (0 = no cap)</label>
-            <input className="input" type="number" min={0} value={u.queue_limit ?? 12} onChange={(e) => set({ queue_limit: Number(e.target.value) })} />
+            <input
+              className="input"
+              type="number"
+              min={0}
+              value={u.queue_limit ?? 12}
+              onChange={(e) => set({ queue_limit: Number(e.target.value) })}
+            />
           </div>
         </>
       ) : null}
@@ -465,8 +550,8 @@ function RosterDialog({ isAdmin, onClose, onSaved, onError }: DialogProps & { is
       }
     >
       <p className="hint-text">
-        People are matched by Employee ID, then email, so uploading a newer version updates names, emails, aliases, job titles and teams
-        in place.
+        People are matched by Employee ID, then email, so uploading a newer version updates names, emails, aliases, job titles and teams in
+        place.
       </p>
       <input
         type="file"
@@ -496,8 +581,8 @@ function RosterDialog({ isAdmin, onClose, onSaved, onError }: DialogProps & { is
               <span>
                 {isAdmin ? (
                   <>
-                    On <Link to="/departments">Departments</Link>, add your teams and say which HR departments each one takes in (for example
-                    Calls & Sales takes Calls support and New Sales), then upload the sheet again.
+                    On <Link to="/departments">Departments</Link>, add your teams and say which HR departments each one takes in (for
+                    example Calls & Sales takes Calls support and New Sales), then upload the sheet again.
                   </>
                 ) : (
                   'Ask an admin to link your team to its HR departments on the Departments page, then upload the sheet again.'
@@ -509,6 +594,7 @@ function RosterDialog({ isAdmin, onClose, onSaved, onError }: DialogProps & { is
               {nothing
                 ? `Everyone is already up to date (${preview.unchanged} people).`
                 : `${preview.added} to add, ${preview.updated} to update, ${preview.deactivated} to deactivate, ${preview.unchanged} unchanged.`}
+              {preview.ignored ? ` ${preview.ignored} removed duplicate${preview.ignored === 1 ? '' : 's'} left out.` : ''}
             </div>
           )}
           {preview.errors.length ? (
@@ -527,7 +613,9 @@ function RosterDialog({ isAdmin, onClose, onSaved, onError }: DialogProps & { is
                   {preview.changes.map((c, i) => (
                     <tr key={i}>
                       <td>
-                        <span className={`badge ${c.action === 'added' ? 'badge-success' : c.action === 'deactivated' ? 'badge-warning' : 'badge-brand'}`}>
+                        <span
+                          className={`badge ${c.action === 'added' ? 'badge-success' : c.action === 'deactivated' ? 'badge-warning' : 'badge-brand'}`}
+                        >
                           {c.action}
                         </span>
                       </td>
@@ -542,7 +630,8 @@ function RosterDialog({ isAdmin, onClose, onSaved, onError }: DialogProps & { is
           ) : null}
           {skipped.length ? (
             <p className="hint-text text-tertiary">
-              Not brought in, because no team here takes in these HR departments: {skipped.map(([d, n]) => `${d || 'no department'} ${n}`).join(' · ')}
+              Not brought in, because no team here takes in these HR departments:{' '}
+              {skipped.map(([d, n]) => `${d || 'no department'} ${n}`).join(' · ')}
             </p>
           ) : null}
         </>

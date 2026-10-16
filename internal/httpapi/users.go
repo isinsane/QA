@@ -1,12 +1,16 @@
 package httpapi
 
 import (
+	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/oaldesi/qa-portal/internal/model"
+	"github.com/oaldesi/qa-portal/internal/settings"
 )
 
 // ---------- departments ----------
@@ -284,6 +288,57 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Deactivating or taking a QA agent offline changes who can take work.
 	s.runAssign(r.Context())
 	writeJSON(w, http.StatusOK, view(u))
+}
+
+// handleDeleteUser removes someone with no work on record: a duplicate the HR
+// sheet created. Anyone with audits, escalations or coaching is deactivated
+// instead. An HR employee ID is remembered (Settings), so the next HR upload
+// doesn't bring them back.
+func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	id, ok := urlID(w, r)
+	if !ok {
+		return
+	}
+	actor, db := me(r), s.db.WithContext(r.Context())
+	var u model.User
+	if err := db.First(&u, "id = ?", id).Error; err != nil {
+		dbError(w, err)
+		return
+	}
+	switch {
+	case !canManage(actor, u):
+		writeError(w, http.StatusForbidden, "you cannot remove this user")
+		return
+	case u.ID == actor.ID:
+		writeError(w, http.StatusBadRequest, "you cannot remove yourself")
+		return
+	}
+	var work int64
+	db.Raw(`SELECT (SELECT count(*) FROM tasks WHERE employee_id = @id OR assigned_qa_id = @id OR evaluated_by = @id OR created_by = @id)
+	             + (SELECT count(*) FROM coachings WHERE employee_id = @id OR assigned_qa_id = @id OR created_by = @id)
+	             + (SELECT count(*) FROM evaluation_changes WHERE requested_by = @id OR decided_by = @id)`,
+		map[string]any{"id": u.ID}).Scan(&work)
+	if work > 0 {
+		writeError(w, http.StatusConflict, fmt.Sprintf("%s has %d audits, escalations or coaching sessions on record, so they can't be removed. Deactivate them instead.", u.Name, work))
+		return
+	}
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if u.HRID != nil && *u.HRID != "" {
+			cfg := settings.Load(r.Context(), tx)
+			if !slices.Contains(cfg.RosterIgnoreIDs, *u.HRID) {
+				cfg.RosterIgnoreIDs = append(cfg.RosterIgnoreIDs, *u.HRID)
+				if err := settings.Save(r.Context(), tx, cfg, actor.ID); err != nil {
+					return err
+				}
+			}
+		}
+		return tx.Delete(&model.User{}, "id = ?", u.ID).Error
+	})
+	if err != nil {
+		dbError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func (s *Server) handleSetUserPassword(w http.ResponseWriter, r *http.Request) {

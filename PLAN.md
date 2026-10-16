@@ -458,6 +458,9 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   with the same name); a sheet row with no interaction ID is skipped, not a refusal; the daily tickets pull catches up
   any day of the last week still missing (back to the type's first day); an admin's Vonage upload names the team when
   more than one team takes sheets.
+- **Since then (16 Oct, later):** Team can remove a duplicate (someone with no work on record; the HR employee ID goes on
+  Settings' "HR employee IDs left out" list so the next HR upload skips it), and flags names that appear twice. Live
+  audits also ask for Phone number and Order number, both optional.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 

@@ -307,6 +307,26 @@ export function SettingsPage() {
             onChange={(e) => set({ default_password: e.target.value })}
           />
         </Row>
+        <Row
+          wide
+          title="HR employee IDs left out"
+          hint="People removed on Team (duplicates in the HR sheet). The HR upload skips these IDs; remove one to bring that person back on the next upload."
+        >
+          <div className="label-chips">
+            {(s.roster_ignore_ids ?? []).length === 0 ? <span className="text-tertiary">None.</span> : null}
+            {(s.roster_ignore_ids ?? []).map((id) => (
+              <button
+                key={id}
+                type="button"
+                className="label-chip removable"
+                title="Bring back on the next HR upload"
+                onClick={() => set({ roster_ignore_ids: (s.roster_ignore_ids ?? []).filter((x) => x !== id) })}
+              >
+                {id} ✕
+              </button>
+            ))}
+          </div>
+        </Row>
       </section>
 
       <section className="card settings-card">
