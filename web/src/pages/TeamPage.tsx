@@ -275,28 +275,163 @@ function UserDialog({
   }
 
   return (
-    <Modal
-      title={u.id ? `Edit ${initial.name}` : 'Add person'}
-      subtitle={fromHR ? 'From the HR sheet. The next HR upload sets the fields it has again.' : undefined}
-      size="md"
-      onClose={onClose}
-      onSubmit={() => void save()}
-      footer={
-        <>
-          {u.id ? (
-            <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => setRemoving(true)}>
-              Remove
+    <>
+      <Modal
+        title={u.id ? `Edit ${initial.name}` : 'Add person'}
+        subtitle={fromHR ? 'From the HR sheet. The next HR upload sets the fields it has again.' : undefined}
+        size="md"
+        onClose={onClose}
+        onSubmit={() => void save()}
+        footer={
+          <>
+            {u.id ? (
+              <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => setRemoving(true)}>
+                Remove
+              </button>
+            ) : null}
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              Cancel
             </button>
+            <button type="submit" className="btn btn-primary" disabled={busy || !u.name?.trim()}>
+              {u.id ? 'Save changes' : 'Add'}
+            </button>
+          </>
+        }
+      >
+        <div className="form-section">Who</div>
+        <div className="form-row">
+          <div className="field">
+            <label className="field-label">Name</label>
+            <input className="input" autoFocus value={u.name ?? ''} onChange={(e) => set({ name: e.target.value })} />
+          </div>
+          <div className="field">
+            <label className="field-label">Email {u.role === 'employee' ? '(also the eDesk login for tickets)' : ''}</label>
+            <input className="input" type="email" value={u.email ?? ''} onChange={(e) => set({ email: e.target.value })} />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="field">
+            <label className="field-label">Alias (the name they use on calls)</label>
+            <input className="input" value={u.alias_name ?? ''} onChange={(e) => set({ alias_name: e.target.value })} />
+          </div>
+          <div className="field">
+            <label className="field-label">Employee ID (HR)</label>
+            <input className="input mono" value={u.hr_id ?? ''} onChange={(e) => set({ hr_id: e.target.value })} />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="field">
+            <label className="field-label">Role</label>
+            <select className="select" value={u.role} onChange={(e) => set({ role: e.target.value as Role })}>
+              {roles.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABEL[r]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {isAdmin && u.role !== 'admin' ? (
+            <div className="field">
+              <label className="field-label">Team</label>
+              <select className="select" value={u.department_id ?? ''} onChange={(e) => set({ department_id: e.target.value || null })}>
+                <option value="">Pick one…</option>
+                {depts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : null}
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || !u.name?.trim()}>
-            {u.id ? 'Save changes' : 'Add'}
-          </button>
-        </>
-      }
-    >
+        </div>
+
+        <div className="form-section">Job</div>
+        <div className="form-row">
+          <div className="field">
+            <label className="field-label">Job title</label>
+            <input
+              className="input"
+              value={u.profile?.job_title ?? ''}
+              onChange={(e) => set({ profile: { ...u.profile, job_title: e.target.value } })}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label">HR department</label>
+            <input
+              className="input"
+              value={u.profile?.department ?? ''}
+              onChange={(e) => set({ profile: { ...u.profile, department: e.target.value } })}
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="field">
+            <label className="field-label">Supervisor (HR)</label>
+            <input
+              className="input"
+              value={u.profile?.supervisor ?? ''}
+              onChange={(e) => set({ profile: { ...u.profile, supervisor: e.target.value } })}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label">Organization</label>
+            <input
+              className="input"
+              value={u.profile?.organization ?? ''}
+              onChange={(e) => set({ profile: { ...u.profile, organization: e.target.value } })}
+            />
+          </div>
+        </div>
+
+        {u.role === 'employee' ? (
+          <>
+            <div className="form-section">How the data finds them</div>
+            <div className="form-row">
+              <div className="field">
+                <label className="field-label">Vonage ID (calls sheet)</label>
+                <input className="input mono" value={u.agent_code ?? ''} onChange={(e) => set({ agent_code: e.target.value })} />
+              </div>
+              <div className="field">
+                <label className="field-label">eDesk ID</label>
+                <input className="input mono" value={u.edesk_id ?? ''} onChange={(e) => set({ edesk_id: e.target.value })} />
+              </div>
+            </div>
+            <div className="field">
+              <label className="field-label">Other spellings in Vonage sheets (comma-separated)</label>
+              <input
+                className="input"
+                placeholder="e.g. Bartholomew Alnoury"
+                value={(u.sheet_names ?? []).join(', ')}
+                onChange={(e) => set({ sheet_names: e.target.value.split(',').map((x) => x.trimStart()) })}
+              />
+            </div>
+          </>
+        ) : null}
+
+        {u.role === 'qa_agent' ? (
+          <>
+            <div className="form-section">Queue</div>
+            <div className="field" style={{ maxWidth: 220 }}>
+              <label className="field-label">Most audits at once (0 = no cap)</label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                value={u.queue_limit ?? 12}
+                onChange={(e) => set({ queue_limit: Number(e.target.value) })}
+              />
+            </div>
+          </>
+        ) : null}
+
+        {u.id ? (
+          <label className="field-inline">
+            <input type="checkbox" checked={u.active ?? true} onChange={(e) => set({ active: e.target.checked })} />
+            Active (an inactive QA agent hands their open audits back to the queue; an inactive agent is no longer audited)
+          </label>
+        ) : null}
+      </Modal>
+      {/* Beside the edit dialog, not inside it: a form inside its form would submit as a page reload. */}
       {removing && u.id ? (
         <Modal
           title={`Remove ${initial.name}?`}
@@ -331,139 +466,7 @@ function UserDialog({
           </p>
         </Modal>
       ) : null}
-      <div className="form-section">Who</div>
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Name</label>
-          <input className="input" autoFocus value={u.name ?? ''} onChange={(e) => set({ name: e.target.value })} />
-        </div>
-        <div className="field">
-          <label className="field-label">Email {u.role === 'employee' ? '(also the eDesk login for tickets)' : ''}</label>
-          <input className="input" type="email" value={u.email ?? ''} onChange={(e) => set({ email: e.target.value })} />
-        </div>
-      </div>
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Alias (the name they use on calls)</label>
-          <input className="input" value={u.alias_name ?? ''} onChange={(e) => set({ alias_name: e.target.value })} />
-        </div>
-        <div className="field">
-          <label className="field-label">Employee ID (HR)</label>
-          <input className="input mono" value={u.hr_id ?? ''} onChange={(e) => set({ hr_id: e.target.value })} />
-        </div>
-      </div>
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Role</label>
-          <select className="select" value={u.role} onChange={(e) => set({ role: e.target.value as Role })}>
-            {roles.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABEL[r]}
-              </option>
-            ))}
-          </select>
-        </div>
-        {isAdmin && u.role !== 'admin' ? (
-          <div className="field">
-            <label className="field-label">Team</label>
-            <select className="select" value={u.department_id ?? ''} onChange={(e) => set({ department_id: e.target.value || null })}>
-              <option value="">Pick one…</option>
-              {depts.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="form-section">Job</div>
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Job title</label>
-          <input
-            className="input"
-            value={u.profile?.job_title ?? ''}
-            onChange={(e) => set({ profile: { ...u.profile, job_title: e.target.value } })}
-          />
-        </div>
-        <div className="field">
-          <label className="field-label">HR department</label>
-          <input
-            className="input"
-            value={u.profile?.department ?? ''}
-            onChange={(e) => set({ profile: { ...u.profile, department: e.target.value } })}
-          />
-        </div>
-      </div>
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Supervisor (HR)</label>
-          <input
-            className="input"
-            value={u.profile?.supervisor ?? ''}
-            onChange={(e) => set({ profile: { ...u.profile, supervisor: e.target.value } })}
-          />
-        </div>
-        <div className="field">
-          <label className="field-label">Organization</label>
-          <input
-            className="input"
-            value={u.profile?.organization ?? ''}
-            onChange={(e) => set({ profile: { ...u.profile, organization: e.target.value } })}
-          />
-        </div>
-      </div>
-
-      {u.role === 'employee' ? (
-        <>
-          <div className="form-section">How the data finds them</div>
-          <div className="form-row">
-            <div className="field">
-              <label className="field-label">Vonage ID (calls sheet)</label>
-              <input className="input mono" value={u.agent_code ?? ''} onChange={(e) => set({ agent_code: e.target.value })} />
-            </div>
-            <div className="field">
-              <label className="field-label">eDesk ID</label>
-              <input className="input mono" value={u.edesk_id ?? ''} onChange={(e) => set({ edesk_id: e.target.value })} />
-            </div>
-          </div>
-          <div className="field">
-            <label className="field-label">Other spellings in Vonage sheets (comma-separated)</label>
-            <input
-              className="input"
-              placeholder="e.g. Bartholomew Alnoury"
-              value={(u.sheet_names ?? []).join(', ')}
-              onChange={(e) => set({ sheet_names: e.target.value.split(',').map((x) => x.trimStart()) })}
-            />
-          </div>
-        </>
-      ) : null}
-
-      {u.role === 'qa_agent' ? (
-        <>
-          <div className="form-section">Queue</div>
-          <div className="field" style={{ maxWidth: 220 }}>
-            <label className="field-label">Most audits at once (0 = no cap)</label>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              value={u.queue_limit ?? 12}
-              onChange={(e) => set({ queue_limit: Number(e.target.value) })}
-            />
-          </div>
-        </>
-      ) : null}
-
-      {u.id ? (
-        <label className="field-inline">
-          <input type="checkbox" checked={u.active ?? true} onChange={(e) => set({ active: e.target.checked })} />
-          Active (an inactive QA agent hands their open audits back to the queue; an inactive agent is no longer audited)
-        </label>
-      ) : null}
-    </Modal>
+    </>
   )
 }
 
