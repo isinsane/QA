@@ -92,7 +92,7 @@ export const api = {
   },
 
   taskTypes: () => request<TaskType[]>('/task-types'),
-  createTaskType: (t: { department_id: string; code: string; name: string; source: string }) =>
+  createTaskType: (t: { department_id?: string; code: string; name: string; source: string }) =>
     request<TaskType>('/task-types', json('POST', t)),
   updateTaskType: (id: string, patch: Partial<TaskType>) => request<TaskType>(`/task-types/${id}`, json('PATCH', patch)),
   taskTypeLabels: (id: string) => request<{ label: string; rows: number }[]>(`/task-types/${id}/labels`),

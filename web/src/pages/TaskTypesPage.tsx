@@ -139,7 +139,8 @@ function CreateType({
       onClose={onClose}
       onSubmit={() =>
         void api
-          .createTaskType({ ...f, code: f.code || slug(f.name) })
+          // A supervisor has no team picker: their own team is used.
+          .createTaskType({ ...f, department_id: f.department_id || undefined, code: f.code || slug(f.name) })
           .then(onCreated)
           .catch((err) => onError(errorText(err)))
       }

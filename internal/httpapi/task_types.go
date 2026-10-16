@@ -37,20 +37,30 @@ var codePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,40}$`)
 
 func (s *Server) handleCreateTaskType(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		DepartmentID uuid.UUID `json:"department_id"`
+		// A string, not a uuid.UUID: a supervisor's form has no team picker
+		// and sends "", which a UUID field would reject as a bad body.
+		DepartmentID string `json:"department_id"`
 		Code, Name   string
 		Source       string
 	}
 	if !decode(w, r, &in) {
 		return
 	}
-	// A supervisor creates types for their own department only.
+	// A supervisor creates types for their own department only; an admin
+	// picks one.
+	var dept uuid.UUID
 	if d := deptScope(me(r)); d != nil {
-		in.DepartmentID = *d
+		dept = *d
+	} else if id, err := uuid.Parse(in.DepartmentID); err == nil &&
+		s.db.WithContext(r.Context()).First(&model.Department{}, "id = ?", id).Error == nil {
+		dept = id
+	} else {
+		writeError(w, http.StatusBadRequest, "pick the team this task type belongs to")
+		return
 	}
 	d := s.cfg(r).NewTaskType
 	tt := model.TaskType{
-		DepartmentID: in.DepartmentID, Code: strings.TrimSpace(in.Code), Name: strings.TrimSpace(in.Name),
+		DepartmentID: dept, Code: strings.TrimSpace(in.Code), Name: strings.TrimSpace(in.Name),
 		Source: in.Source, Active: true, Scorecard: scorecard.Card{},
 		PassThreshold: d.PassThreshold, BorderlineThreshold: d.BorderlineThreshold, SamplePercent: d.SamplePercent,
 		UntaggedPercent: d.UntaggedPercent, RotationDays: d.RotationDays,
