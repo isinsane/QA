@@ -64,6 +64,9 @@ func (s *Server) agentRows(r *http.Request, from, to string) ([]agentRow, error)
 		Where("e.role = 'employee' AND e.active").
 		Group("e.id, d.name").Order("e.name")
 	p := r.URL.Query()
+	if u := me(r); u.Role == model.RoleTeamLeader { // their own team's agents only
+		q = q.Where("e.department_id = ?", deptScope(u))
+	}
 	if v := p.Get("department_id"); v != "" {
 		q = q.Where("e.department_id = ?", v)
 	}
@@ -95,7 +98,8 @@ func (s *Server) handleAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var u model.User
-	if s.db.WithContext(r.Context()).First(&u, "id = ? AND role = 'employee'", id).Error != nil {
+	if s.db.WithContext(r.Context()).First(&u, "id = ? AND role = 'employee'", id).Error != nil ||
+		(me(r).Role == model.RoleTeamLeader && (u.DepartmentID == nil || !inScope(me(r), *u.DepartmentID))) {
 		writeError(w, http.StatusNotFound, "agent not found")
 		return
 	}

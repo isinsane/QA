@@ -23,9 +23,9 @@ import { useApi } from '../api/useApi'
 import { initials, ROLE_LABEL, useAuth } from '../auth/AuthContext'
 import { BrandMark } from '../components/BrandMark'
 
-// View-only accounts and team leaders see what admins see.
+// View-only accounts see what admins see (every team); team leaders what a supervisor sees (their team).
 const MANAGER = ['admin', 'supervisor', 'viewer', 'team_leader']
-const ADMIN = ['admin', 'viewer', 'team_leader']
+const ADMIN = ['admin', 'viewer']
 const QA = ['qa_agent']
 
 const NAV = [

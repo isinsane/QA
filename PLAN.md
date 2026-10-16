@@ -464,8 +464,9 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
 - **View only role (16 Oct):** for HR and others who follow quality. Sees every page an admin sees, every team, and
   exports; changes nothing (the server refuses every write but its own password and sign-out). The Settings page hides
   the default password from it. Created by an admin on Team, with no team.
-- **Team leaders (16 Oct):** the same view-only access to everything, plus their TL escalations page (their home), where
-  they still escalate their own team's agents. Nothing else they send is accepted.
+- **Team leaders (16 Oct):** view only, for **their own team** (what a supervisor sees, without Settings or Departments),
+  plus their TL escalations page (their home), where they still escalate their team's agents. Nothing else they send is
+  accepted. The View only role (HR) keeps every team.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 

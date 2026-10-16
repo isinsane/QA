@@ -39,7 +39,7 @@ export function canAccessPath(role: Role, path: string): boolean {
       !path.startsWith('/queue') &&
       !path.startsWith('/my-scores') &&
       !path.startsWith('/my-audits') &&
-      ((path !== '/departments' && path !== '/settings') || role !== 'supervisor')
+      ((path !== '/departments' && path !== '/settings') || role === 'admin' || role === 'viewer')
     )
   }
   if (role === 'qa_agent')

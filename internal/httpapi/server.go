@@ -108,10 +108,10 @@ func (s *Server) requireUser(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "please sign in again")
 			return
 		}
-		// View-only accounts and team leaders read everything; the only things
-		// they change are their own password and sign-out, and a team leader
-		// sends escalations.
-		if readsAll(u) && !reads(r) && r.URL.Path != "/api/me/password" && r.URL.Path != "/api/me/logout" &&
+		// View-only accounts and team leaders only read; the only things they
+		// change are their own password and sign-out, and a team leader sends
+		// escalations.
+		if viewOnly(u) && !reads(r) && r.URL.Path != "/api/me/password" && r.URL.Path != "/api/me/logout" &&
 			!(u.Role == model.RoleTeamLeader && r.Method == http.MethodPost && r.URL.Path == "/api/tl-escalations") {
 			writeError(w, http.StatusForbidden, "this is a view-only account: it can't change anything")
 			return
@@ -125,8 +125,10 @@ func (s *Server) requireRoles(roles ...model.Role) func(http.Handler) http.Handl
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u := me(r)
 			for _, role := range roles {
-				// View-only accounts and team leaders may read whatever an admin or supervisor can.
-				if u.Role == role || (readsAll(u) && reads(r) && (role == model.RoleAdmin || role == model.RoleSupervisor)) {
+				// A view-only account may read whatever an admin or supervisor can; a
+				// team leader what a supervisor can (their team: see deptScope).
+				if u.Role == role || (reads(r) && (u.Role == model.RoleViewer && role == model.RoleAdmin ||
+					viewOnly(u) && role == model.RoleSupervisor)) {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -138,9 +140,9 @@ func (s *Server) requireRoles(roles ...model.Role) func(http.Handler) http.Handl
 
 func reads(r *http.Request) bool { return r.Method == http.MethodGet || r.Method == http.MethodHead }
 
-// readsAll: view-only accounts and team leaders see every page and team, and
-// change nothing (team leaders still send their escalations).
-func readsAll(u *model.User) bool {
+// viewOnly: view-only accounts (every team) and team leaders (their own team)
+// read and change nothing; team leaders still send their escalations.
+func viewOnly(u *model.User) bool {
 	return u.Role == model.RoleViewer || u.Role == model.RoleTeamLeader
 }
 
@@ -150,10 +152,10 @@ func me(r *http.Request) *model.User {
 }
 
 // deptScope is the department a non-admin is confined to; nil means "all".
-// Every list and report query for managers goes through it. View-only
-// accounts and team leaders see every team, like an admin.
+// Every list and report query for managers goes through it. A view-only
+// account sees every team, like an admin; a team leader their own.
 func deptScope(u *model.User) *uuid.UUID {
-	if u.Role == model.RoleAdmin || readsAll(u) {
+	if u.Role == model.RoleAdmin || u.Role == model.RoleViewer {
 		return nil
 	}
 	return u.DepartmentID

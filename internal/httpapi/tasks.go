@@ -153,6 +153,8 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case u.Role == model.RoleQA && p.Get("mine") == "1": // the audits they submitted (escalations they decided aren't audits)
 		q = q.Where("t.evaluated_by = ? AND t.kind NOT IN "+model.ReviewedKinds, u.ID)
+	case u.Role == model.RoleTeamLeader: // their own team's, even on an agent's page
+		q = q.Where("tt.department_id = ?", deptScope(u))
 	case p.Get("employee_id") != "":
 		// One agent's work: QA agents and supervisors see any agent's.
 	case u.Role == model.RoleQA:
@@ -276,8 +278,10 @@ func (s *Server) loadTaskAs(w http.ResponseWriter, r *http.Request, read bool) (
 	u := me(r)
 	visible := false
 	switch u.Role {
-	case model.RoleAdmin, model.RoleSupervisor, model.RoleViewer, model.RoleTeamLeader:
+	case model.RoleAdmin, model.RoleSupervisor, model.RoleViewer:
 		visible = read || inScope(u, tt.DepartmentID)
+	case model.RoleTeamLeader: // their own team's only
+		visible = inScope(u, tt.DepartmentID)
 	case model.RoleQA:
 		visible = read || (t.AssignedQAID != nil && *t.AssignedQAID == u.ID) || (t.EvaluatedBy != nil && *t.EvaluatedBy == u.ID) ||
 			// Escalations of their team: any of its QA agents may decide them.

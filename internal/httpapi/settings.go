@@ -24,7 +24,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	s.db.WithContext(r.Context()).Raw(`SELECT a.updated_at, u.name AS updated_by FROM app_settings a
 		LEFT JOIN users u ON u.id = a.updated_by WHERE a.id = 1`).Scan(&meta)
 	cfg, defaults := s.cfg(r), settings.Defaults()
-	if readsAll(me(r)) {
+	if viewOnly(me(r)) {
 		// It signs anyone in who hasn't chosen a password: not for view-only accounts or team leaders.
 		cfg.DefaultPassword, defaults.DefaultPassword = "(hidden)", "(hidden)"
 	}

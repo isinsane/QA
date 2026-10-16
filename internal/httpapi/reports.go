@@ -48,7 +48,7 @@ func (s *Server) handleMySummary(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Query()
 	scope := deptScope(me(r))
-	if p.Get("employee_id") != "" {
+	if p.Get("employee_id") != "" && me(r).Role != model.RoleTeamLeader { // team leaders: their team only
 		scope = nil
 	} else if me(r).Role == model.RoleQA {
 		writeError(w, http.StatusForbidden, "pick an agent")
