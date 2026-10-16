@@ -144,9 +144,10 @@ func (c Columns) Takes(row map[string]string) bool {
 	return false
 }
 
-// VonageColumns is the "Disposition codes by interaction" export, used for
-// both calls and sales.
-var VonageColumns = Columns{ExternalID: "Interaction ID", AgentCode: "Agent ID", AgentName: "Agent", Label: "Disposition code", StartTime: "Start time"}
+// VonageColumns is the "Disposition codes by interaction" export, one sheet
+// for calls and sales (told apart by Service name; see RowColumn). It names
+// agents only, so they are matched by name.
+var VonageColumns = Columns{ExternalID: "Interaction ID", AgentName: "First agent name", Label: "Disposition code", StartTime: "Start time"}
 
 // Audits reports whether an agent's work belongs under this type. With
 // agent groups set, the agent's HR department must be one of them; someone

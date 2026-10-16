@@ -2,9 +2,27 @@ import { Fragment, useState } from 'react'
 import { CloudDownload, FileSpreadsheet, Upload } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
-import type { ImportResult } from '../api/types'
+import type { ImportResult, TaskType } from '../api/types'
 import { errorText, fmtDate, fmtDateTime, yesterday } from '../components/bits'
 import { ToastStack, useToasts } from '../components/Toasts'
+
+/** Upload choices: task types that share one sheet (same Shared-sheet column) are a single upload. */
+function uploadChoices(types: TaskType[]) {
+  const out: { id: string; name: string }[] = []
+  const shared = new Map<string, { id: string; name: string }>()
+  for (const t of types) {
+    const col = t.columns.row_column?.trim()
+    const group = col ? shared.get(col) : undefined
+    if (group) {
+      group.name += ` + ${t.name}`
+      continue
+    }
+    const choice = { id: t.id, name: t.name }
+    if (col) shared.set(col, choice)
+    out.push(choice)
+  }
+  return out
+}
 
 export function ImportsPage() {
   const types = useApi(() => api.taskTypes(), [])
@@ -25,7 +43,7 @@ export function ImportsPage() {
       </div>
       {sheetTypes.length ? (
         <SheetUpload
-          types={sheetTypes}
+          types={uploadChoices(sheetTypes)}
           onDone={(msg) => {
             push('success', msg)
             void history.reload()
@@ -144,13 +162,19 @@ function SheetUpload({
         <div className="form-row">
           <div className="field">
             <label className="field-label">Task type</label>
-            <select className="select" value={typeId} onChange={(e) => (setTypeId(e.target.value), setPreview(null))}>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+            {types.length > 1 ? (
+              <select className="select" value={typeId} onChange={(e) => (setTypeId(e.target.value), setPreview(null))}>
+                {types.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="input" style={{ display: 'flex', alignItems: 'center' }}>
+                {types[0].name}
+              </div>
+            )}
           </div>
           <div className="field">
             <label className="field-label">The day this work was done</label>
