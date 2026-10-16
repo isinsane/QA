@@ -448,6 +448,20 @@ export function TaskView({
   )
 }
 
+/** The clipboard API only exists on HTTPS or localhost; the LAN server is plain HTTP, so fall back to the old way. */
+function copyText(text: string): Promise<void> {
+  if (window.isSecureContext && navigator.clipboard) return navigator.clipboard.writeText(text)
+  const box = document.createElement('textarea')
+  box.value = text
+  box.style.position = 'fixed'
+  box.style.opacity = '0'
+  document.body.appendChild(box)
+  box.select()
+  const ok = document.execCommand('copy')
+  box.remove()
+  return ok ? Promise.resolve() : Promise.reject(new Error('copy failed'))
+}
+
 function CopyID({ id, label }: { id: string; label: string }) {
   const [copied, setCopied] = useState(false)
   return (
@@ -458,7 +472,7 @@ function CopyID({ id, label }: { id: string; label: string }) {
         className="btn btn-secondary btn-sm btn-icon"
         title="Copy"
         onClick={() =>
-          void navigator.clipboard.writeText(id).then(() => {
+          void copyText(id).then(() => {
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1500)
           })

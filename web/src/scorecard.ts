@@ -72,8 +72,10 @@ export function preview(card: Metric[], answers: Record<string, Answer>, th: Thr
   return { earned: e, possible: p, score, critical_failed: critical, passed: b === 'pass', band: b }
 }
 
+/** 8 hex characters. getRandomValues, not randomUUID: the portal is served over plain HTTP on the LAN, where
+ * browsers leave randomUUID out (it needs HTTPS or localhost) and Add metric would crash. */
 export function newMetricId(): string {
-  return crypto.randomUUID().slice(0, 8)
+  return Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 export const METRIC_TYPES: { value: Metric['type']; label: string }[] = [
