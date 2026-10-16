@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"github.com/oaldesi/qa-portal/internal/importer"
 	"github.com/oaldesi/qa-portal/internal/model"
@@ -58,6 +59,8 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	q := s.db.WithContext(r.Context()).Where("source = ? AND active", model.SourceSheet).Order("name")
 	if d := deptScope(me(r)); d != nil {
 		q = q.Where("department_id = ?", *d)
+	} else if v := r.FormValue("department_id"); v != "" {
+		q = q.Where("department_id = ?", v)
 	}
 	if err := q.Find(&types).Error; err != nil {
 		dbError(w, err)
@@ -84,6 +87,19 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(fits) == 0 {
 		writeError(w, http.StatusBadRequest, "This sheet doesn't fit any task type. "+strings.Join(misfits, ". ")+".")
+		return
+	}
+	// Never across teams: an admin says which team's sheet it is.
+	var deptIDs []uuid.UUID
+	for _, f := range fits {
+		if !slices.Contains(deptIDs, f.tt.DepartmentID) {
+			deptIDs = append(deptIDs, f.tt.DepartmentID)
+		}
+	}
+	if len(deptIDs) > 1 {
+		var names []string
+		s.db.WithContext(r.Context()).Model(&model.Department{}).Where("id IN ?", deptIDs).Order("name").Pluck("name", &names)
+		writeError(w, http.StatusBadRequest, "This sheet fits task types of several teams ("+strings.Join(names, ", ")+"). Pick the team it is for.")
 		return
 	}
 	if msg := wrongDay(importer.SheetDays(sheet, fits[0].tt.Columns.StartTime, clock), day); msg != "" {

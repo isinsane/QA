@@ -454,6 +454,10 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   whose column (e.g. Service name) is one of its values, and one upload fills every task type set up on that column.
   The Team edit dialog edits every field (alias, employee ID, job title, HR department, supervisor, organization). A
   critical metric no longer fails the audit by itself (migration 00013 ticks the box on audits that failed the old way).
+- **Go-live review (16 Oct):** only employees are matched from sheets and tickets (never a team leader or QA agent
+  with the same name); a sheet row with no interaction ID is skipped, not a refusal; the daily tickets pull catches up
+  any day of the last week still missing (back to the type's first day); an admin's Vonage upload names the team when
+  more than one team takes sheets.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 

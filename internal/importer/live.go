@@ -73,8 +73,8 @@ func (l *liveResult) save(tx *gorm.DB, runID uuid.UUID) error {
 // ParseCallTime reads a sheet's Start time in the Vonage clock.
 func ParseCallTime(s string, clock *time.Location) *time.Time {
 	s = strings.TrimSpace(s)
-	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02 15:04", "1/2/2006 15:04:05", "1/2/2006 15:04",
-		"01-02-06 15:04", "1/2/06 15:04", time.RFC3339} {
+	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02 15:04", "2006-01-02T15:04:05", "1/2/2006 15:04:05", "1/2/2006 15:04",
+		"1/2/2006 3:04:05 PM", "1/2/2006 3:04 PM", "01-02-06 15:04", "1/2/06 15:04", "1/2/06 3:04 PM", time.RFC3339} {
 		if t, err := time.ParseInLocation(layout, s, clock); err == nil {
 			return &t
 		}

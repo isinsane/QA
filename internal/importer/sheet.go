@@ -129,13 +129,13 @@ func SheetRows(s *Sheet, c model.Columns, clock *time.Location) ([]Row, error) {
 		}
 	}
 	rows := make([]Row, 0, len(s.Rows))
-	for i, sr := range s.Rows {
+	for _, sr := range s.Rows {
 		if !c.Takes(sr) {
 			continue // another task type's row of a shared sheet
 		}
 		ext := sr[c.ExternalID]
 		if ext == "" {
-			return nil, fmt.Errorf("row %d has no %s", i+2, c.ExternalID)
+			continue // a totals line or a stray cell, not a call
 		}
 		data := make(map[string]any, len(sr))
 		for k, v := range sr {

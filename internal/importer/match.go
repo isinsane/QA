@@ -58,9 +58,9 @@ func matchEmployees(ctx context.Context, db *gorm.DB, tt model.TaskType, rows []
 	held := map[string]bool{}
 	if len(ids) > 0 {
 		var users []model.User
-		q := db.WithContext(ctx).Where("agent_code IN ?", ids)
+		q := db.WithContext(ctx).Where("role = 'employee' AND agent_code IN ?", ids)
 		if tt.Source == model.SourceTicketsAPI {
-			q = db.WithContext(ctx).Where("lower(email) IN ?", ids)
+			q = db.WithContext(ctx).Where("role = 'employee' AND lower(email) IN ?", ids)
 		}
 		if err := q.Find(&users).Error; err != nil {
 			return nil, nil, err
@@ -83,7 +83,7 @@ func matchEmployees(ctx context.Context, db *gorm.DB, tt model.TaskType, rows []
 	}
 
 	var team []model.User
-	if err := db.WithContext(ctx).Where("active").Find(&team).Error; err != nil {
+	if err := db.WithContext(ctx).Where("role = 'employee' AND active").Find(&team).Error; err != nil {
 		return nil, nil, err
 	}
 	idx := newNameIndex(team)

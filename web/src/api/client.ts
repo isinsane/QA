@@ -126,9 +126,10 @@ export const api = {
   updateTaskType: (id: string, patch: Partial<TaskType>) => request<TaskType>(`/task-types/${id}`, json('PATCH', patch)),
   taskTypeLabels: (id: string) => request<{ label: string; rows: number }[]>(`/task-types/${id}/labels`),
 
-  upload: (workDate: string, file: File, dryRun: boolean) => {
+  upload: (workDate: string, file: File, dryRun: boolean, departmentId = '') => {
     const fd = new FormData()
     fd.set('work_date', workDate)
+    if (departmentId) fd.set('department_id', departmentId)
     fd.set('file', file)
     fd.set('dry_run', dryRun ? '1' : '0')
     return request<UploadResult>('/imports', { method: 'POST', body: fd })

@@ -8,6 +8,7 @@ import { ToastStack, useToasts } from '../components/Toasts'
 
 export function ImportsPage() {
   const types = useApi(() => api.taskTypes(), [])
+  const depts = useApi(() => api.departments(), [])
   const history = useApi(() => api.imports(), [])
   const { toasts, push } = useToasts()
   const sheetTypes = (types.data ?? []).filter((t) => t.source === 'sheet' && t.active)
@@ -26,6 +27,7 @@ export function ImportsPage() {
       {sheetTypes.length ? (
         <SheetUpload
           types={sheetTypes}
+          depts={depts.data ?? []}
           onDone={(msg) => {
             push('success', msg)
             void history.reload()
@@ -92,9 +94,24 @@ export function ImportsPage() {
   )
 }
 
-function SheetUpload({ types, onDone, onError }: { types: TaskType[]; onDone: (msg: string) => void; onError: (e: string) => void }) {
+function SheetUpload({
+  types,
+  depts,
+  onDone,
+  onError,
+}: {
+  types: TaskType[]
+  depts: { id: string; name: string }[]
+  onDone: (msg: string) => void
+  onError: (e: string) => void
+}) {
+  // Several teams take Vonage sheets (an admin sees them all): say whose sheet it is.
+  const teams = depts.filter((d) => types.some((t) => t.department_id === d.id))
+  const [teamId, setTeamId] = useState('')
+  const team = teams.length > 1 ? teamId || teams[0].id : ''
+  const teamTypes = team ? types.filter((t) => t.department_id === team) : types
   // With several Vonage task types, each must take only its own rows (Shared sheet), or both take every row.
-  const unsplit = types.length > 1 ? types.filter((t) => !t.columns.row_column?.trim()) : []
+  const unsplit = teamTypes.length > 1 ? teamTypes.filter((t) => !t.columns.row_column?.trim()) : []
   const [day, setDay] = useState(yesterday())
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -110,12 +127,15 @@ function SheetUpload({ types, onDone, onError }: { types: TaskType[]; onDone: (m
     if (!file) return
     setBusy(true)
     try {
-      const res = await api.upload(day, file, dryRun)
+      const res = await api.upload(day, file, dryRun, team)
       if (dryRun) setPreview(res)
       else {
         const done = res.parts.flatMap((p) => (p.result ? [p.result] : []))
         const sum = (f: (x: ImportResult) => number) => done.reduce((n, x) => n + f(x), 0)
-        onDone(`Imported ${sum((x) => x.run.created)} rows; ${sum((x) => x.run.sampled)} audits queued.`)
+        const problems = res.parts.filter((p) => p.problem).map((p) => `${p.task_type} not imported: ${p.problem}`)
+        onDone(
+          `Imported ${sum((x) => x.run.created)} rows; ${sum((x) => x.run.sampled)} audits queued.${problems.length ? ` ${problems.join(' ')}` : ''}`,
+        )
         pick(null)
       }
     } catch (err) {
@@ -131,8 +151,8 @@ function SheetUpload({ types, onDone, onError }: { types: TaskType[]; onDone: (m
         <div>
           <h2 className="card-title">Upload the Vonage sheet</h2>
           <p className="card-subtitle">
-            One "Disposition codes by interaction" export (.xlsx or .csv) for calls and sales: {types.map((t) => t.name).join(' and ')} each
-            take their rows.
+            One "Disposition codes by interaction" export (.xlsx or .csv) for calls and sales: {teamTypes.map((t) => t.name).join(' and ')}{' '}
+            each take their rows.
           </p>
         </div>
       </div>
@@ -144,6 +164,18 @@ function SheetUpload({ types, onDone, onError }: { types: TaskType[]; onDone: (m
           </div>
         ) : null}
         <div className="form-row">
+          {teams.length > 1 ? (
+            <div className="field">
+              <label className="field-label">Team</label>
+              <select className="select" value={team} onChange={(e) => (setTeamId(e.target.value), setPreview(null))}>
+                {teams.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div className="field">
             <label className="field-label">The day this work was done</label>
             <input className="input" type="date" value={day} onChange={(e) => (setDay(e.target.value), setPreview(null))} />
