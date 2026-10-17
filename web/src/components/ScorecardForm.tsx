@@ -35,7 +35,11 @@ export function ScorecardForm({ card, answers, thresholds, readOnly, onChange, f
         const loses = (v: string | undefined) => m.critical && v !== undefined && v !== 'na' && earned(m, v) === 0
         const showNotes = !readOnly && m.type !== 'text' && (noting[m.id] || !!a?.notes)
         return (
-          <div className={`metric${!readOnly && m.type !== 'text' && !a?.value ? ' is-open' : ''}`} key={m.id} id={`metric-${m.id}`}>
+          <div
+            className={`metric${m.type !== 'text' ? (a?.value ? ' is-done' : readOnly ? '' : ' is-open') : ''}`}
+            key={m.id}
+            id={`metric-${m.id}`}
+          >
             <div className="metric-row">
               <div className="metric-info">
                 <span className="metric-label">
@@ -152,15 +156,23 @@ function Choices({
   if (m.type === 'dropdown') choices = (m.options ?? []).map((o) => ({ value: o.label, label: `${o.label} (${o.points})` }))
   if (m.allow_na) choices.push({ value: 'na', label: 'N/A' })
 
+  // Picked, an answer shows what it gives: full points green, some amber,
+  // none red, N/A grey.
+  const tone = (v: string) => {
+    const got = earned(m, v)
+    const max = maxPoints(m)
+    return v === 'na' || got === null || !max ? 'na' : got >= max ? 'full' : got > 0 ? 'part' : 'none'
+  }
+
   return (
-    <div className="segmented" role="radiogroup" aria-label={m.label}>
+    <div className="choices" role="radiogroup" aria-label={m.label}>
       {choices.map((c) => (
         <button
           key={c.value}
           type="button"
           role="radio"
           aria-checked={value === c.value}
-          className={`segmented-btn${value === c.value ? ' is-active' : ''}`}
+          className={`choice choice-${tone(c.value)}${value === c.value ? ' is-on' : ''}`}
           disabled={readOnly && value !== c.value}
           onClick={() => !readOnly && onPick(c.value)}
         >

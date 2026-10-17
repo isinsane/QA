@@ -189,7 +189,7 @@ export const api = {
   // QA2
   teamAgents: () => request<{ id: string; name: string; alias_name: string; department: string }[]>('/team/agents'),
   liveFields: (taskTypeId: string) =>
-    request<{ fields: string[]; label: string; optional: string[] }>(`/task-types/${taskTypeId}/live-fields`),
+    request<{ fields: string[]; label: string }>(`/task-types/${taskTypeId}/live-fields`),
   startLive: (task_type_id: string, employee_id: string, details: Record<string, string>) =>
     request<{ id: string; live_started_at: string }>('/live', json('POST', { task_type_id, employee_id, details })),
   setLiveDetails: (id: string, details: Record<string, string>) => request(`/tasks/${id}/live`, json('PATCH', { details })),

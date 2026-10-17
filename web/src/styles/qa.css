@@ -55,13 +55,92 @@
   scroll-margin: 80px;
 }
 
-.metric .segmented-btn {
-  padding: 7px 14px;
-}
-
 .metric.is-open .metric-num {
   color: var(--brand-600, var(--text-secondary));
   font-weight: 700;
+}
+
+.metric.is-done .metric-num {
+  color: var(--success-600);
+  font-weight: 700;
+}
+
+/* A metric's answers: clear buttons; the picked one fills with what it
+   gives (full points green, some amber, none red, N/A grey). Only colors
+   change, quickly; nothing moves. */
+.choices {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.choice {
+  min-width: 46px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background-color 90ms ease-out,
+    border-color 90ms ease-out,
+    color 90ms ease-out;
+}
+
+.choice:hover:not(:disabled):not(.is-on) {
+  border-color: var(--gray-400);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+.choice.is-on {
+  color: #fff;
+}
+
+.choice-full.is-on {
+  background: var(--success-600);
+  border-color: var(--success-600);
+}
+
+.choice-part.is-on {
+  background: var(--warning-500);
+  border-color: var(--warning-500);
+  color: #1d1d1f;
+}
+
+.choice-none.is-on {
+  background: var(--error-600);
+  border-color: var(--error-600);
+}
+
+.choice-na.is-on {
+  background: var(--gray-500);
+  border-color: var(--gray-500);
+}
+
+.choice:disabled {
+  cursor: default;
+}
+
+.choice:disabled:not(.is-on) {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .choice,
+  .score-progress span {
+    transition: none;
+  }
 }
 
 .metric:first-child {

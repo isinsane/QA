@@ -24,14 +24,18 @@ func TestWrongDay(t *testing.T) {
 
 // Phone and order number are asked on every live audit but may stay empty;
 // the sheet's other columns are required, the code is not.
-func TestCleanLive(t *testing.T) {
-	fields := []string{"Direction", "Disposition code", "Phone number", "Order number"}
-	got, missing := cleanLive(fields, "Disposition code", map[string]string{"Direction": " Inbound "})
-	if missing != "" || got["Direction"] != "Inbound" || got["Phone number"] != "" || got["Order number"] != "" {
-		t.Errorf("optional fields left empty: got %v, missing %q", got, missing)
+func TestLiveDetails(t *testing.T) {
+	tt := &model.TaskType{Columns: model.Columns{RowColumn: "Service name", RowValues: model.Strings{"Other Sales"}}}
+	fields := []string{"Connect from", "Disposition code", "Phone number"}
+	got := liveDetails(tt, fields, map[string]string{"Connect from": " 5551234 ", "Service name": "New Sales", "Agent": "x"})
+	want := map[string]string{"Connect from": "5551234", "Disposition code": "", "Phone number": "", "Service name": "Other Sales"}
+	if len(got) != len(want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
-	if _, missing := cleanLive(fields, "Disposition code", map[string]string{"Phone number": "5551234"}); missing != "Direction" {
-		t.Errorf("a required column left empty: missing = %q, want Direction", missing)
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %q, want %q (nothing required, the type's own service name)", k, got[k], v)
+		}
 	}
 }
 

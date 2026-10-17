@@ -91,11 +91,7 @@ func (s *Server) handleStartLive(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "live monitoring is for call types (a Vonage sheet with a start time)")
 		return
 	}
-	details, missing := cleanLive(s.liveFields(r, tt), tt.Columns.Label, in.Details)
-	if missing != "" {
-		writeError(w, http.StatusBadRequest, missing+" is required")
-		return
-	}
+	details := liveDetails(tt, s.liveFields(r, tt), in.Details)
 	agent, ok := s.agentOf(w, r, in.EmployeeID)
 	if !ok || !agentFits(w, tt, agent) {
 		return
@@ -128,15 +124,16 @@ func (s *Server) handleStartLive(w http.ResponseWriter, r *http.Request) {
 // liveFields are the sheet columns a QA agent types in for a live audit: the
 // latest upload's columns, minus the call ID, agent and start time (the
 // portal has those) and the ones the settings hide (Vonage fills them in).
-// liveExtras are asked on every live audit after the sheet's own columns,
-// and may stay empty.
-var liveExtras = []string{"Phone number", "Order number"}
+// liveExtras are asked on every live audit after the sheet's own columns.
+// (Order numbers have their own box on every audit.)
+var liveExtras = []string{"Phone number"}
 
 func (s *Server) liveFields(r *http.Request, tt *model.TaskType) []string {
 	var cols model.Strings
 	_ = s.db.WithContext(r.Context()).Raw(`SELECT detail->'columns' FROM import_runs
 		WHERE task_type_id = ? AND jsonb_typeof(detail->'columns') = 'array' ORDER BY started_at DESC LIMIT 1`, tt.ID).Row().Scan(&cols)
-	own := map[string]bool{tt.Columns.ExternalID: true, tt.Columns.AgentCode: true, tt.Columns.AgentName: true, tt.Columns.StartTime: true}
+	own := map[string]bool{tt.Columns.ExternalID: true, tt.Columns.AgentCode: true, tt.Columns.AgentName: true, tt.Columns.StartTime: true,
+		tt.Columns.RowColumn: true} // the service name: always the type's own (liveDetails)
 	for _, c := range s.cfg(r).LiveHiddenColumns {
 		own[c] = true
 	}
@@ -157,23 +154,19 @@ func (s *Server) liveFields(r *http.Request, tt *model.TaskType) []string {
 	return out
 }
 
-// cleanLive keeps the entered details of the live fields, trimmed, and names
-// the first required one left empty. Every field is required except the
-// code (some calls have none) and the phone and order number.
-func cleanLive(fields []string, label string, in map[string]string) (model.JSONMap, string) {
+// liveDetails keeps the entered details of the live fields, trimmed. None is
+// required: the QA agent fills them in as the call goes, the code often only
+// at its end. A type that takes one service from a shared sheet (calls:
+// "Other Sales") gets that service name without asking.
+func liveDetails(tt *model.TaskType, fields []string, in map[string]string) model.JSONMap {
 	out := model.JSONMap{}
 	for _, f := range fields {
-		v := strings.TrimSpace(in[f])
-		if v == "" && !liveOptional(f, label) {
-			return nil, f
-		}
-		out[f] = v
+		out[f] = strings.TrimSpace(in[f])
 	}
-	return out, ""
-}
-
-func liveOptional(field, label string) bool {
-	return field == label || slices.Contains(liveExtras, field)
+	if c := tt.Columns.RowColumn; c != "" && len(tt.Columns.RowValues) > 0 {
+		out[c] = tt.Columns.RowValues[0]
+	}
+	return out
 }
 
 func liveLabels(details model.JSONMap, label string) model.Strings {
@@ -192,14 +185,7 @@ func (s *Server) handleLiveFields(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	fields := s.liveFields(r, tt)
-	optional := []string{}
-	for _, f := range fields {
-		if liveOptional(f, tt.Columns.Label) {
-			optional = append(optional, f)
-		}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"fields": fields, "label": tt.Columns.Label, "optional": optional})
+	writeJSON(w, http.StatusOK, map[string]any{"fields": s.liveFields(r, tt), "label": tt.Columns.Label})
 }
 
 // handleLiveDetails corrects the call details of a live audit still in the
@@ -219,11 +205,7 @@ func (s *Server) handleLiveDetails(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	details, missing := cleanLive(s.liveFields(r, tt), tt.Columns.Label, in.Details)
-	if missing != "" {
-		writeError(w, http.StatusBadRequest, missing+" is required")
-		return
-	}
+	details := liveDetails(tt, s.liveFields(r, tt), in.Details)
 	raw, _ := json.Marshal(details)
 	updates := map[string]any{"data": gorm.Expr("data || jsonb_build_object('live_entered', ?::jsonb)", string(raw))}
 	if t.MatchStatus != "matched" {

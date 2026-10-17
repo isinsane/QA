@@ -516,6 +516,11 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   only the one assigned may decide it. Negatives are top priority: assigned first, listed first and marked for QA agents
   (and at the top of their Workspace), and for supervisors and admins they have their own Negatives page, out of
   Escalations. Every escalation, negatives included, goes to the agent's own team.
+- **Live monitoring (17 Oct):** starting one asks only the agent (a search); the call's details are filled in on
+  the audit as the call goes, none required, and saving them keeps the scorecard being filled in. The service name
+  is the type's own ("Other Sales" for calls), never asked; order numbers go in the audit's own box. Sessions end 30
+  days after the last visit, not after login. Scorecard answers are their own buttons: the picked one fills green
+  (full points), amber (some), red (none) or grey (N/A).
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 

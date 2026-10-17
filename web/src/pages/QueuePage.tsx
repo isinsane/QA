@@ -6,10 +6,11 @@ import { useApi } from '../api/useApi'
 import type { Coaching } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { auditedUnder, daysAgo, Empty, errorText, fmtDate, KindBadge, Labels, localDate, ScoreBadge } from '../components/bits'
+import { AgentSearch } from '../components/AgentSearch'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
 import { RaiseQAEscalation } from './ReportedPage'
-import { LiveFieldInputs, TaskView } from './TaskPage'
+import { TaskView } from './TaskPage'
 
 /** The QA agent's workspace: their queue on the left, the open audit on the right, each scrolling on its own. */
 export function QueuePage() {
@@ -255,12 +256,11 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
   const { typeList, agentsFor } = useTeamPickers('sheet')
   const [typeId, setTypeId] = useState('')
   const [agentId, setAgentId] = useState('')
-  const [details, setDetails] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const type = typeId || typeList[0]?.id || ''
-  const fields = useApi(() => (type ? api.liveFields(type) : Promise.resolve(null)), [type])
-  const f = fields.data
-  const missing = (f?.fields ?? []).filter((k) => !(f?.optional ?? [f?.label]).includes(k) && !details[k]?.trim())
+  // Who is on the call is all it takes to start: the call's details are not
+  // known yet, so they are filled in on the audit as the call goes.
+  const agents = agentsFor(type).map((a) => ({ ...a, team: '', types: [] }))
 
   return (
     <Modal
@@ -271,7 +271,7 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
       onSubmit={() => {
         setBusy(true)
         api
-          .startLive(type, agentId, details)
+          .startLive(type, agentId, {})
           .then((r) => onStarted(r.id))
           .catch((err) => onError(errorText(err)))
           .finally(() => setBusy(false))
@@ -281,13 +281,13 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || !type || !agentId || !f || missing.length > 0}>
+          <button type="submit" className="btn btn-primary" disabled={busy || !type || !agentId}>
             Start now
           </button>
         </>
       }
     >
-      <div className="form-row">
+      {typeList.length > 1 ? (
         <div className="field">
           <label className="field-label">Type</label>
           <select
@@ -296,7 +296,6 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
             onChange={(e) => {
               setTypeId(e.target.value)
               setAgentId('')
-              setDetails({})
             }}
           >
             {typeList.map((t) => (
@@ -306,28 +305,15 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
             ))}
           </select>
         </div>
-        <div className="field">
-          <label className="field-label">Agent on the call</label>
-          <select className="select" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-            <option value="">Pick the agent…</option>
-            {agentsFor(type).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.alias_name ? ` (${a.alias_name})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {f ? (
-        <>
-          <div className="form-section" style={{ margin: 0 }}>
-            The call, as Vonage shows it
-          </div>
-          <LiveFieldInputs taskTypeId={type} fields={f.fields} label={f.label} optional={f.optional} value={details} onChange={setDetails} />
-          <p className="hint-text">Everything except the code is required. You can still correct these while the audit is in your queue.</p>
-        </>
       ) : null}
+      <div className="field">
+        <label className="field-label">Agent on the call</label>
+        <AgentSearch agents={agents} value={agentId} label="Agent on the call" onChange={setAgentId} />
+      </div>
+      <p className="hint-text" style={{ margin: 0 }}>
+        Fill in the call's details (who called, the code) on the audit as the call goes, and the order numbers under the scorecard.
+        Saving them keeps your answers.
+      </p>
     </Modal>
   )
 }

@@ -99,7 +99,7 @@ export function AgentSearch({
             <strong>{picked.name}</strong>
             {picked.alias_name ? <span className="text-secondary"> · known as {picked.alias_name}</span> : null}
           </span>
-          <small>{[picked.team || 'No team', picked.department].filter(Boolean).join(' · ')}</small>
+          <small>{[picked.team, picked.department].filter(Boolean).join(' · ')}</small>
         </span>
         <button
           type="button"
@@ -167,7 +167,7 @@ export function AgentSearch({
                 <strong>{a.name}</strong>
                 {a.alias_name ? <span className="text-secondary"> · {a.alias_name}</span> : null}
               </span>
-              <small>{[a.team || 'No team', a.department].filter(Boolean).join(' · ')}</small>
+              <small>{[a.team, a.department].filter(Boolean).join(' · ')}</small>
             </li>
           ))}
         </ul>

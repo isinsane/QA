@@ -114,6 +114,10 @@ export function TaskView({
   const [busy, setBusy] = useState(false)
   const d = detail.data
 
+  // Back to what is saved only when that changes (another audit, or this one
+  // submitted or edited): saving a live call's details reloads the audit and
+  // must keep the answers being filled in.
+  const saved = d ? JSON.stringify([d.task.id, d.task.answers, d.task.order_numbers]) : ''
   useEffect(() => {
     const byId: Record<string, Answer> = {}
     for (const a of d?.task.answers ?? []) byId[a.metric_id] = a
@@ -123,7 +127,7 @@ export function TaskView({
     setOrders(d?.task.order_numbers?.length ? d.task.order_numbers : live['Order number'] ? [live['Order number']] : [])
     setOrderDraft('')
     setEditing(false)
-  }, [d])
+  }, [saved]) // eslint-disable-line react-hooks/exhaustive-deps -- d is read for the saved values only
 
   if (detail.error) return <div className="inline-warning">{detail.error}</div>
   if (!d) return <div className="skeleton" style={{ height: 320 }} />
@@ -1037,7 +1041,6 @@ function LiveCard({ detail: d, onSaved, onError }: { detail: TaskDetail; onSaved
               taskTypeId={d.task_type.id}
               fields={fields.data.fields}
               label={fields.data.label}
-              optional={fields.data.optional}
               value={draft}
               onChange={setDraft}
             />
@@ -1095,15 +1098,12 @@ export function LiveFieldInputs({
   taskTypeId,
   fields,
   label,
-  optional = [label],
   value,
   onChange,
 }: {
   taskTypeId: string
   fields: string[]
   label: string
-  /** Fields that may stay empty: the code, phone and order number. */
-  optional?: string[]
   value: Record<string, string>
   onChange: (v: Record<string, string>) => void
 }) {
@@ -1113,10 +1113,7 @@ export function LiveFieldInputs({
     <div className="form-row">
       {fields.map((k) => (
         <div className="field" key={k}>
-          <label className="field-label">
-            {k}
-            {optional.includes(k) ? ' (if any)' : ''}
-          </label>
+          <label className="field-label">{k}</label>
           {/direction/i.test(k) ? (
             <select className="select" value={value[k] ?? ''} onChange={(e) => set(k, e.target.value)}>
               <option value="">Pick…</option>
