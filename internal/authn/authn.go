@@ -32,6 +32,8 @@ var (
 	ErrWrongCurrentPassword = errors.New("current password is incorrect")
 )
 
+// sessionTTL: a session ends after this long without use; each request
+// pushes its end back (Authenticate), so someone using the site stays in.
 const sessionTTL = 30 * 24 * time.Hour
 
 type Service struct{ db *gorm.DB }
@@ -98,7 +100,8 @@ func (s *Service) issueSession(ctx context.Context, userID uuid.UUID) (string, e
 	return raw, nil
 }
 
-// Authenticate resolves a bearer token to its active user.
+// Authenticate resolves a bearer token to its active user, and renews the
+// session: it now ends sessionTTL after this request.
 func (s *Service) Authenticate(ctx context.Context, rawToken string) (*model.User, error) {
 	if strings.TrimSpace(rawToken) == "" {
 		return nil, ErrSessionNotFound
@@ -114,7 +117,9 @@ func (s *Service) Authenticate(ctx context.Context, rawToken string) (*model.Use
 	if err := s.db.WithContext(ctx).First(&u, "id = ? AND active", sess.UserID).Error; err != nil {
 		return nil, ErrSessionNotFound
 	}
-	s.db.WithContext(ctx).Model(&model.Session{}).Where("id = ?", sess.ID).Update("last_seen_at", time.Now().UTC())
+	now := time.Now().UTC()
+	s.db.WithContext(ctx).Model(&model.Session{}).Where("id = ?", sess.ID).
+		Updates(map[string]any{"last_seen_at": now, "expires_at": now.Add(sessionTTL)})
 	return &u, nil
 }
 
