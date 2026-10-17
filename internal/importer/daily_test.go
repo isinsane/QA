@@ -1,4 +1,4 @@
-package qaapi
+package importer
 
 import (
 	"testing"

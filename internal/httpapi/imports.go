@@ -21,6 +21,7 @@ func (s *Server) routesImports(r chi.Router, managers func(http.Handler) http.Ha
 	r.With(managers).Get("/imports", s.handleListImports)
 	r.With(managers).Post("/imports", s.handleUpload)
 	r.With(managers).Post("/imports/tickets", s.handlePullTickets)
+	r.With(managers).Post("/imports/chats", s.handlePullChats)
 }
 
 // yesterday is the default work date: today's upload holds yesterday's work.
@@ -205,6 +206,44 @@ func (s *Server) handlePullTickets(w http.ResponseWriter, r *http.Request) {
 	}
 	uid := me(r).ID
 	res, err := s.ticketsPull(r.Context(), tt, day, &uid)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	s.runAssign(r.Context())
+	writeJSON(w, http.StatusOK, res)
+}
+
+// handlePullChats pulls one reporting day of a live chat task type's closed
+// chats from eDesk now (the daily pull does it on its own each morning).
+func (s *Server) handlePullChats(w http.ResponseWriter, r *http.Request) {
+	if s.chatsPull == nil {
+		writeError(w, http.StatusServiceUnavailable, "eDesk is not configured (EDESK_API_TOKEN)")
+		return
+	}
+	var in struct {
+		Date       string    `json:"date"`
+		TaskTypeID uuid.UUID `json:"task_type_id"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.Date == "" {
+		in.Date = s.yesterday(r)
+	}
+	day, err := model.ParseDate(in.Date)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "date must be YYYY-MM-DD")
+		return
+	}
+	var tt model.TaskType
+	if s.db.WithContext(r.Context()).First(&tt, "id = ? AND source = ? AND active", in.TaskTypeID, model.SourceEDeskChats).Error != nil ||
+		!inScope(me(r), tt.DepartmentID) {
+		writeError(w, http.StatusNotFound, "live chat task type not found")
+		return
+	}
+	uid := me(r).ID
+	res, err := s.chatsPull(r.Context(), tt, day, &uid)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return

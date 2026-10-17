@@ -89,6 +89,8 @@ const (
 	SourceTicketsAPI = "tickets_api"
 	// SourceManual has no feed yet: audits arrive as escalations.
 	SourceManual = "manual"
+	// SourceEDeskChats: live chats closed each day, from the eDesk official API.
+	SourceEDeskChats = "edesk_chats"
 )
 
 type TaskType struct {
@@ -151,6 +153,12 @@ func (c Columns) Takes(row map[string]string) bool {
 // for calls and sales (told apart by Service name; see RowColumn). It names
 // agents only, so they are matched by name.
 var VonageColumns = Columns{ExternalID: "Interaction ID", AgentName: "First agent name", Label: "Disposition code", StartTime: "Start time"}
+
+// ByEmail: the source names agents by their eDesk email (tickets, chats),
+// not by a Vonage ID or name.
+func (tt TaskType) ByEmail() bool {
+	return tt.Source == SourceTicketsAPI || tt.Source == SourceEDeskChats
+}
 
 // Audits reports whether an agent's work belongs under this type. With
 // agent groups set, the agent's HR department must be one of them; someone

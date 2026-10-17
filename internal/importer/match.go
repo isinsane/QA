@@ -26,7 +26,7 @@ const namePrefix = "name:"
 // agentKey tells one agent's rows apart: Agent ID, email, or name.
 func agentKey(tt model.TaskType, r Row) string {
 	if k := strings.TrimSpace(r.AgentKey); k != "" {
-		if tt.Source == model.SourceTicketsAPI {
+		if tt.ByEmail() {
 			return strings.ToLower(k)
 		}
 		return k
@@ -59,7 +59,7 @@ func matchEmployees(ctx context.Context, db *gorm.DB, tt model.TaskType, rows []
 	if len(ids) > 0 {
 		var users []model.User
 		q := db.WithContext(ctx).Where("role = 'employee' AND agent_code IN ?", ids)
-		if tt.Source == model.SourceTicketsAPI {
+		if tt.ByEmail() {
 			q = db.WithContext(ctx).Where("role = 'employee' AND lower(email) IN ?", ids)
 		}
 		if err := q.Find(&users).Error; err != nil {
@@ -67,7 +67,7 @@ func matchEmployees(ctx context.Context, db *gorm.DB, tt model.TaskType, rows []
 		}
 		for _, u := range users {
 			k := ""
-			if tt.Source == model.SourceTicketsAPI && u.Email != nil {
+			if tt.ByEmail() && u.Email != nil {
 				k = strings.ToLower(*u.Email)
 			} else if u.AgentCode != nil {
 				k = *u.AgentCode
@@ -78,7 +78,7 @@ func matchEmployees(ctx context.Context, db *gorm.DB, tt model.TaskType, rows []
 			}
 		}
 	}
-	if tt.Source == model.SourceTicketsAPI {
+	if tt.ByEmail() {
 		return out, nil, nil
 	}
 

@@ -80,8 +80,8 @@ func (s *Server) handleCreateTaskType(w http.ResponseWriter, r *http.Request) {
 	case !codePattern.MatchString(tt.Code):
 		writeError(w, http.StatusBadRequest, "code must be lowercase letters, digits and underscores, e.g. calls_audit")
 		return
-	case tt.Source != model.SourceSheet && tt.Source != model.SourceTicketsAPI && tt.Source != model.SourceManual:
-		writeError(w, http.StatusBadRequest, "source must be sheet, tickets_api or manual")
+	case tt.Source != model.SourceSheet && tt.Source != model.SourceTicketsAPI && tt.Source != model.SourceManual && tt.Source != model.SourceEDeskChats:
+		writeError(w, http.StatusBadRequest, "source must be sheet, tickets_api, edesk_chats or manual")
 		return
 	}
 	if tt.Source == model.SourceSheet {

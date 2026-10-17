@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/oaldesi/qa-portal/internal/edesk"
 	"github.com/oaldesi/qa-portal/internal/model"
 	"github.com/oaldesi/qa-portal/internal/scorecard"
 )
@@ -26,6 +27,7 @@ func (s *Server) routesTasks(r chi.Router, managers func(http.Handler) http.Hand
 	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Get("/tasks", s.handleListTasks)
 	r.Get("/tasks/{id}", s.handleGetTask)
 	r.Get("/tasks/{id}/edesk", s.handleTaskEDesk)
+	r.Get("/tasks/{id}/chat", s.handleTaskChat)
 	r.With(qa).Post("/tasks/{id}/submit", s.handleSubmit)
 	r.With(qa).Post("/tasks/{id}/cant-audit", s.handleCantAudit)
 	// QA agents too: the one who scored a dispute the supervisor sent them.
@@ -781,6 +783,47 @@ func (s *Server) handleEditEvaluation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"result": res, "pending": false})
+}
+
+// handleTaskChat returns a live chat's messages from eDesk, read once and
+// kept on the task (they don't change once the chat is closed). ?refresh=1
+// reads them again.
+func (s *Server) handleTaskChat(w http.ResponseWriter, r *http.Request) {
+	t, tt, ok := s.loadTaskAs(w, r, true)
+	if !ok {
+		return
+	}
+	if tt.Source != model.SourceEDeskChats {
+		writeError(w, http.StatusBadRequest, "not a live chat")
+		return
+	}
+	if kept, ok := t.Data["chat"].([]any); ok && r.URL.Query().Get("refresh") != "1" {
+		writeJSON(w, http.StatusOK, kept)
+		return
+	}
+	if s.edeskChat == nil {
+		writeError(w, http.StatusServiceUnavailable, "eDesk is not configured (EDESK_API_TOKEN)")
+		return
+	}
+	var ids []int64
+	raw, _ := t.Data["messages_ids"].([]any)
+	for _, v := range raw {
+		if f, ok := v.(float64); ok {
+			ids = append(ids, int64(f))
+		}
+	}
+	lines, err := s.edeskChat(r.Context(), ids)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if lines == nil {
+		lines = []edesk.ChatLine{}
+	}
+	js, _ := json.Marshal(lines)
+	s.db.WithContext(r.Context()).Model(&model.Task{}).Where("id = ?", t.ID).
+		Update("data", gorm.Expr("jsonb_set(data, '{chat}', ?::jsonb)", string(js)))
+	writeJSON(w, http.StatusOK, lines)
 }
 
 // handleTaskEDesk returns the eDesk ticket's general info, fetched once and

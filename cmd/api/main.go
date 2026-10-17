@@ -17,6 +17,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/oaldesi/qa-portal/internal/assign"
+	"github.com/oaldesi/qa-portal/internal/chats"
 	"github.com/oaldesi/qa-portal/internal/config"
 	"github.com/oaldesi/qa-portal/internal/db"
 	"github.com/oaldesi/qa-portal/internal/edesk"
@@ -66,6 +67,15 @@ func run() error {
 	if cfg.EDeskToken != "" {
 		ed = edesk.New(cfg.EDeskToken)
 		opts.EDeskTicket = ed.Ticket
+		opts.EDeskChat = ed.Chat
+		opts.ChatsPull = func(ctx context.Context, tt model.TaskType, day model.Date, userID *uuid.UUID) (*importer.Result, error) {
+			return chats.Pull(ctx, gdb, ed, tt, day, userID)
+		}
+		go importer.Daily(ctx, gdb, model.SourceEDeskChats, func(ctx context.Context, tt model.TaskType, day model.Date) (*importer.Result, error) {
+			return chats.Pull(ctx, gdb, ed, tt, day, nil)
+		}, func() { _ = assignPass(ctx) })
+	} else {
+		log.Print("EDESK_API_TOKEN not set: eDesk ticket info and the live chat pull disabled")
 	}
 	if cfg.QAAPIKey != "" && cfg.QAAPIBaseURL != "" {
 		client := qaapi.New(cfg.QAAPIBaseURL, cfg.QAAPIKey)
@@ -75,7 +85,9 @@ func run() error {
 		opts.TicketsPull = func(ctx context.Context, tt model.TaskType, day model.Date, userID *uuid.UUID) (*importer.Result, error) {
 			return qaapi.Pull(ctx, gdb, client, tt, day, userID)
 		}
-		go qaapi.Daily(ctx, gdb, client, func() { _ = assignPass(ctx) })
+		go importer.Daily(ctx, gdb, model.SourceTicketsAPI, func(ctx context.Context, tt model.TaskType, day model.Date) (*importer.Result, error) {
+			return qaapi.Pull(ctx, gdb, client, tt, day, nil)
+		}, func() { _ = assignPass(ctx) })
 	} else {
 		log.Print("QA_API_KEY or QA_API_BASE_URL not set: ticket pull disabled")
 	}

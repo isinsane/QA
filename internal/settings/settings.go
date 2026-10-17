@@ -33,6 +33,9 @@ type Settings struct {
 	TicketsPullHour int `json:"tickets_pull_hour"`
 	// ReplyBucketsTop: ticket picks are spread over 1, 2, … and N+ replies.
 	ReplyBucketsTop int `json:"reply_buckets_top"`
+	// ChatRepliesPerGroup: chat picks are spread over chat lengths in groups
+	// of this many replies (1–5, 6–10, 11–15, then 16+ with 5).
+	ChatRepliesPerGroup int `json:"chat_replies_per_group"`
 	// DefaultPassword lets anyone who hasn't chosen a password yet sign in
 	// once, then makes them choose their own. Empty: off (an admin sets
 	// passwords one by one).
@@ -73,6 +76,7 @@ func Defaults() Settings {
 		RosterIgnoreIDs:      []string{},
 		TicketsPullHour:      6,
 		ReplyBucketsTop:      3,
+		ChatRepliesPerGroup:  5,
 		DefaultQueueLimit:    12,
 		DefaultPassword:      "Welcome1",
 		RotationCasesPerWeek: 3,
@@ -129,6 +133,8 @@ func (s Settings) Validate() error {
 		return fmt.Errorf("the ticket pull hour must be 0 to 23")
 	case s.ReplyBucketsTop < 1 || s.ReplyBucketsTop > 20:
 		return fmt.Errorf("reply buckets must top out between 1 and 20")
+	case s.ChatRepliesPerGroup < 1 || s.ChatRepliesPerGroup > 50:
+		return fmt.Errorf("chat length groups must be 1 to 50 replies")
 	case s.DefaultPassword != "" && (len(s.DefaultPassword) < 8 || len(s.DefaultPassword) > 72):
 		return fmt.Errorf("the default password must be 8 to 72 characters, or empty to turn it off")
 	case s.DefaultQueueLimit < 0:
@@ -174,6 +180,17 @@ func (s Settings) LiveWindow() time.Duration { return time.Duration(s.LiveWindow
 
 // ReplyBucket names a ticket's reply count for sampling: "1 reply", "2
 // replies", … up to the top bucket, "N+ replies".
+// ChatBucket is a chat's length group: up to three groups of
+// ChatRepliesPerGroup replies, then everything longer.
+func (s Settings) ChatBucket(replies int) string {
+	n := max(s.ChatRepliesPerGroup, 1)
+	g := max(replies-1, 0) / n
+	if g >= 3 {
+		return fmt.Sprintf("%d+ replies", 3*n+1)
+	}
+	return fmt.Sprintf("%d–%d replies", g*n+1, (g+1)*n)
+}
+
 func (s Settings) ReplyBucket(replies int) string {
 	switch {
 	case replies >= s.ReplyBucketsTop:

@@ -13,6 +13,7 @@ import { maxPoints, METRIC_TYPES, newMetricId } from '../scorecard'
 const SOURCE_LABEL: Record<Source, string> = {
   sheet: 'Vonage sheet',
   tickets_api: 'Tickets API',
+  edesk_chats: 'eDesk live chats',
   manual: 'Escalations only',
 }
 
@@ -187,6 +188,7 @@ function CreateType({
           <select className="select" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>
             <option value="sheet">Vonage sheet, uploaded daily</option>
             <option value="tickets_api">Tickets API, pulled daily</option>
+            <option value="edesk_chats">eDesk live chats, pulled daily</option>
             <option value="manual">No feed yet (escalations only)</option>
           </select>
         </div>
@@ -267,7 +269,7 @@ function TypeEditor({
   }
 
   const possible = t.scorecard.reduce((sum, m) => sum + maxPoints(m), 0)
-  const word = t.source === 'tickets_api' ? 'tag' : 'code'
+  const word = t.source === 'tickets_api' || t.source === 'edesk_chats' ? 'tag' : 'code'
   const tabs: [Tab, string][] = [
     ['scorecard', `Scorecard (${t.scorecard.length})`],
     ['scoring', 'Pass & borderline'],
@@ -504,7 +506,7 @@ function TypeEditor({
             </div>
             <p className="hint-text">
               Each agent gets {t.sample_percent}% of their {word === 'tag' ? 'tagged tickets' : 'coded calls'} (rounded up, at least one), spread
-              across different {word}s{t.source === 'tickets_api' ? ' and reply counts (1 / 2 / 3+)' : ''}. On top, {t.untagged_percent}% of
+              across different {word}s{t.source === 'tickets_api' ? ' and reply counts (1 / 2 / 3+)' : t.source === 'edesk_chats' ? ' and chat lengths' : ''}. On top, {t.untagged_percent}% of
               everyone's {word === 'tag' ? 'untagged tickets' : 'calls without a code'} goes to the agents with the fewest picks.
             </p>
             <div className="field">

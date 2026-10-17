@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/oaldesi/qa-portal/internal/authn"
+	"github.com/oaldesi/qa-portal/internal/edesk"
 	"github.com/oaldesi/qa-portal/internal/importer"
 	"github.com/oaldesi/qa-portal/internal/model"
 	"github.com/oaldesi/qa-portal/internal/settings"
@@ -29,20 +30,25 @@ type Server struct {
 	// its feature instead of failing the request.
 	assignPass  func(ctx context.Context) error
 	ticketsPull func(ctx context.Context, tt model.TaskType, day model.Date, userID *uuid.UUID) (*importer.Result, error)
+	chatsPull   func(ctx context.Context, tt model.TaskType, day model.Date, userID *uuid.UUID) (*importer.Result, error)
 	edeskTicket func(ctx context.Context, ticketID string) (map[string]any, error)
+	edeskChat   func(ctx context.Context, messageIDs []int64) ([]edesk.ChatLine, error)
 }
 
 type Options struct {
 	WebDir      string
 	AssignPass  func(ctx context.Context) error
 	TicketsPull func(ctx context.Context, tt model.TaskType, day model.Date, userID *uuid.UUID) (*importer.Result, error)
+	ChatsPull   func(ctx context.Context, tt model.TaskType, day model.Date, userID *uuid.UUID) (*importer.Result, error)
 	EDeskTicket func(ctx context.Context, ticketID string) (map[string]any, error)
+	EDeskChat   func(ctx context.Context, messageIDs []int64) ([]edesk.ChatLine, error)
 }
 
 func NewServer(db *gorm.DB, o Options) *Server {
 	return &Server{
 		db: db, authn: authn.NewService(db), webDir: o.WebDir,
-		assignPass: o.AssignPass, ticketsPull: o.TicketsPull, edeskTicket: o.EDeskTicket,
+		assignPass: o.AssignPass, ticketsPull: o.TicketsPull, chatsPull: o.ChatsPull,
+		edeskTicket: o.EDeskTicket, edeskChat: o.EDeskChat,
 	}
 }
 

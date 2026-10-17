@@ -77,6 +77,15 @@ export interface Columns {
   row_values?: string[]
 }
 
+/** One message of a live chat. */
+export interface ChatLine {
+  at: number
+  who: 'agent' | 'customer' | 'bot'
+  name: string
+  kind: string
+  text: string
+}
+
 export interface ReportAgent {
   id: string
   name: string
@@ -95,6 +104,7 @@ export interface AppSettings {
   roster_ignore_ids: string[]
   tickets_pull_hour: number
   reply_buckets_top: number
+  chat_replies_per_group: number
   default_queue_limit: number
   default_password: string
   rotation_cases_per_week: number
@@ -111,7 +121,7 @@ export interface AppSettings {
   }
 }
 
-export type Source = 'sheet' | 'tickets_api' | 'manual'
+export type Source = 'sheet' | 'tickets_api' | 'manual' | 'edesk_chats'
 
 /** A number of audits, or a percent of the agent's work in the period. */
 export interface Limit {

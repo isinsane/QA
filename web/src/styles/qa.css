@@ -1378,3 +1378,45 @@ input[type='checkbox']:disabled {
   color: var(--error-600, #d92d20);
   font-weight: 500;
 }
+
+/* A live chat's transcript on the audit page. */
+.chat-lines {
+  list-style: none;
+  margin: 0;
+  padding: 12px 20px 18px;
+  display: grid;
+  gap: 10px;
+  max-height: 560px;
+  overflow-y: auto;
+}
+
+.chat-line {
+  display: grid;
+  gap: 2px;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+}
+
+.chat-line.chat-agent {
+  justify-self: end;
+  background: color-mix(in srgb, var(--brand-500, #7c5cff) 14%, transparent);
+}
+
+.chat-line.chat-bot {
+  justify-self: center;
+  max-width: 100%;
+  background: transparent;
+  font-size: 12px;
+}
+
+.chat-meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.chat-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

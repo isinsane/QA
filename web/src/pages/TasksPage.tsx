@@ -336,7 +336,7 @@ function EscalateDialog({
   const team = (agents.data ?? []).filter(
     (a) => a.active && (!type || a.department_id === type.department_id) && auditedUnder(type, a.profile?.department),
   )
-  const idLabel = type?.source === 'tickets_api' ? 'Ticket ID' : 'Interaction ID'
+  const idLabel = type?.source === 'tickets_api' ? 'Ticket ID' : type?.source === 'edesk_chats' ? 'Chat ID' : 'Interaction ID'
   return (
     <Modal
       title="Escalate an interaction"

@@ -103,6 +103,17 @@ fi
 
 # ---- build and start ----
 say "Deploying $(git rev-parse --short HEAD) ($(git rev-parse --abbrev-ref HEAD)) on port $port"
+# Which daily pulls this deploy will run (keys stay in .env, never printed).
+if [ -n "$(env_value QA_API_KEY)" ] && [ -n "$(env_value QA_API_BASE_URL)" ]; then
+	say "Tickets pull: on"
+else
+	warn "Tickets pull: off (fill QA_API_KEY and QA_API_BASE_URL in $(pwd)/.env)"
+fi
+if [ -n "$(env_value EDESK_API_TOKEN)" ]; then
+	say "Live chat pull and eDesk ticket info: on"
+else
+	warn "Live chat pull and eDesk ticket info: off (fill EDESK_API_TOKEN in $(pwd)/.env)"
+fi
 docker compose config --quiet || die "compose.yaml or .env is invalid; nothing was started or stopped"
 docker compose up -d --build --remove-orphans
 # Each build leaves a Go and a Node stage behind.

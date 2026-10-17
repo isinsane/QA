@@ -472,6 +472,12 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
 - **Order numbers (17 Oct):** every audit has an optional list of order numbers the QA agent adds while scoring (type,
   Add or Enter, repeat; live audits start with the one typed while listening). Edit evaluation changes them without
   approval. They show on the audit page, are searchable on All tasks and My audits, and go into the Excel export.
+- **Live chats (17 Oct):** a task type with source "eDesk live chats" pulls each day's closed chats (eDesk tickets of
+  type Chat) from the official eDesk API, keeping only chats owned by active agents of that type's team (matched by
+  eDesk ID or email). Sampling is the task type's own, spread across tags and chat lengths (Settings: replies per
+  length group, default 5). The audit page shows the chat and its transcript (read from eDesk on first open, then
+  kept). Same daily loop and week of catch-up as tickets; Imports has Pull now. eDesk's day filter uses the eDesk API
+  user's own timezone. Needs EDESK_API_TOKEN in .env.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history, and QA agents now see it too.
 

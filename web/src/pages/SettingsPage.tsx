@@ -38,7 +38,14 @@ function Row({ title, hint, wide, children }: { title: string; hint?: ReactNode;
   )
 }
 
-function NumberInput({ value, unit, min, max, step, onChange }: {
+function NumberInput({
+  value,
+  unit,
+  min,
+  max,
+  step,
+  onChange,
+}: {
   value: number
   unit?: string
   min?: number
@@ -48,7 +55,15 @@ function NumberInput({ value, unit, min, max, step, onChange }: {
 }) {
   return (
     <div className="input-unit">
-      <input className="input" type="number" min={min} max={max} step={step} value={value} onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))} />
+      <input
+        className="input"
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+      />
       {unit ? <span>{unit}</span> : null}
     </div>
   )
@@ -77,7 +92,8 @@ export function SettingsPage() {
   const settingsDirty = JSON.stringify(s) !== JSON.stringify(loaded.data.settings)
   const dirty = settingsDirty || changedTypes.length > 0
   const deptName = (id: string) => depts.data?.find((d) => d.id === id)?.name ?? ''
-  const editType = (t: TaskType, patch: Partial<Sampling>) => setSampling({ ...sampling, [t.id]: { ...(sampling[t.id] ?? samplingOf(t)), ...patch } })
+  const editType = (t: TaskType, patch: Partial<Sampling>) =>
+    setSampling({ ...sampling, [t.id]: { ...(sampling[t.id] ?? samplingOf(t)), ...patch } })
   const setLimit = (t: TaskType, period: keyof AgentLimits, side: 'min' | 'max', l: Limit | null) => {
     const cur = sampling[t.id] ?? samplingOf(t)
     editType(t, { agent_limits: { ...cur.agent_limits, [period]: { ...cur.agent_limits[period], [side]: l } } })
@@ -147,7 +163,12 @@ export function SettingsPage() {
         </Row>
         <Row title="Vonage clock" hint="The UTC offset Vonage sheets write start times in. Live audits are matched on it.">
           <div className="input-unit">
-            <input className="input mono" placeholder="-05:00" value={s.call_utc_offset} onChange={(e) => set({ call_utc_offset: e.target.value })} />
+            <input
+              className="input mono"
+              placeholder="-05:00"
+              value={s.call_utc_offset}
+              onChange={(e) => set({ call_utc_offset: e.target.value })}
+            />
             <span>UTC</span>
           </div>
         </Row>
@@ -161,7 +182,11 @@ export function SettingsPage() {
         <Row title="Match window" hint="A live audit takes the agent's call that started this close to when the QA agent pressed Start.">
           <NumberInput value={s.live_window_seconds} unit="seconds" min={1} max={600} onChange={(v) => set({ live_window_seconds: v })} />
         </Row>
-        <Row wide title="Columns not asked for" hint="Sheet columns Vonage fills in by itself. Every other column of the sheet is asked for when a live audit starts.">
+        <Row
+          wide
+          title="Columns not asked for"
+          hint="Sheet columns Vonage fills in by itself. Every other column of the sheet is asked for when a live audit starts."
+        >
           <div className="label-chips">
             {s.live_hidden_columns.length === 0 ? <span className="text-tertiary">None: every column is asked for.</span> : null}
             {s.live_hidden_columns.map((c) => (
@@ -202,7 +227,10 @@ export function SettingsPage() {
           <h2 className="card-title">Tickets</h2>
           <p className="card-subtitle">The daily pull from the QA API and how ticket picks are spread.</p>
         </header>
-        <Row title="Daily pull starts at" hint={`Hour of the business clock (${s.business_timezone}) when yesterday's tickets are pulled. It retries until the pull succeeds.`}>
+        <Row
+          title="Daily pull starts at"
+          hint={`Hour of the business clock (${s.business_timezone}) when yesterday's tickets are pulled. It retries until the pull succeeds.`}
+        >
           <NumberInput value={s.tickets_pull_hour} unit=":00" min={0} max={23} onChange={(v) => set({ tickets_pull_hour: v })} />
         </Row>
         <Row
@@ -210,6 +238,18 @@ export function SettingsPage() {
           hint={`Picks are spread across tickets with ${Array.from({ length: Math.max(0, s.reply_buckets_top - 1) }, (_, i) => i + 1).join(', ')}${s.reply_buckets_top > 1 ? ' and ' : ''}${s.reply_buckets_top}+ replies.`}
         >
           <NumberInput value={s.reply_buckets_top} unit="+ replies" min={1} max={20} onChange={(v) => set({ reply_buckets_top: v })} />
+        </Row>
+        <Row
+          title="Live chat lengths"
+          hint={`Picks are spread across chats of ${[0, 1, 2].map((g) => `${g * s.chat_replies_per_group + 1}–${(g + 1) * s.chat_replies_per_group}`).join(', ')} and ${3 * s.chat_replies_per_group + 1}+ replies.`}
+        >
+          <NumberInput
+            value={s.chat_replies_per_group}
+            unit="replies a group"
+            min={1}
+            max={50}
+            onChange={(v) => set({ chat_replies_per_group: v })}
+          />
         </Row>
       </section>
 
@@ -222,7 +262,7 @@ export function SettingsPage() {
         </header>
         {sampled.map((t) => {
           const v = sampling[t.id] ?? samplingOf(t)
-          const word = t.source === 'tickets_api' ? 'tag' : 'code'
+          const word = t.source === 'tickets_api' || t.source === 'edesk_chats' ? 'tag' : 'code'
           return (
             <div className="sampling-row" key={t.id}>
               <div className="sampling-name">
@@ -235,11 +275,25 @@ export function SettingsPage() {
               <div className="sampling-grid">
                 <label className="field">
                   <span className="field-label">With a {word}</span>
-                  <NumberInput value={v.sample_percent} unit="% per agent" min={0} max={100} step={0.5} onChange={(x) => editType(t, { sample_percent: x })} />
+                  <NumberInput
+                    value={v.sample_percent}
+                    unit="% per agent"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    onChange={(x) => editType(t, { sample_percent: x })}
+                  />
                 </label>
                 <label className="field">
                   <span className="field-label">Without a {word}</span>
-                  <NumberInput value={v.untagged_percent} unit="% of all" min={0} max={100} step={0.5} onChange={(x) => editType(t, { untagged_percent: x })} />
+                  <NumberInput
+                    value={v.untagged_percent}
+                    unit="% of all"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    onChange={(x) => editType(t, { untagged_percent: x })}
+                  />
                 </label>
                 <div className="field">
                   <span className="field-label">At least, per agent per day</span>
@@ -285,7 +339,13 @@ export function SettingsPage() {
               : 'Rotation is off for every team.'
           }
         >
-          <NumberInput value={s.rotation_cases_per_week} unit="a week" min={0} max={50} onChange={(v) => set({ rotation_cases_per_week: v })} />
+          <NumberInput
+            value={s.rotation_cases_per_week}
+            unit="a week"
+            min={0}
+            max={50}
+            onChange={(v) => set({ rotation_cases_per_week: v })}
+          />
         </Row>
       </section>
 
@@ -345,13 +405,26 @@ export function SettingsPage() {
           <NumberInput value={t.pass_threshold} unit="%" min={0} max={100} onChange={(v) => setType({ pass_threshold: v })} />
         </Row>
         <Row title="Borderline from" hint="Below the pass mark but at least this is Borderline; lower is a Fail.">
-          <NumberInput value={t.borderline_threshold} unit="%" min={0} max={t.pass_threshold} onChange={(v) => setType({ borderline_threshold: v })} />
+          <NumberInput
+            value={t.borderline_threshold}
+            unit="%"
+            min={0}
+            max={t.pass_threshold}
+            onChange={(v) => setType({ borderline_threshold: v })}
+          />
         </Row>
         <Row title="Sample, with a code or tag" hint="Share of each agent's coded calls or tagged tickets that become audits.">
           <NumberInput value={t.sample_percent} unit="%" min={0} max={100} step={0.5} onChange={(v) => setType({ sample_percent: v })} />
         </Row>
         <Row title="Sample, without" hint="Share of everyone's uncoded or untagged work, pooled across the team.">
-          <NumberInput value={t.untagged_percent} unit="%" min={0} max={100} step={0.5} onChange={(v) => setType({ untagged_percent: v })} />
+          <NumberInput
+            value={t.untagged_percent}
+            unit="%"
+            min={0}
+            max={100}
+            step={0.5}
+            onChange={(v) => setType({ untagged_percent: v })}
+          />
         </Row>
         <Row title="At least, per agent per day" hint="Starting minimum for a new task type.">
           <NumberInput value={t.min_per_agent_per_day} unit="audits" min={0} onChange={(v) => setType({ min_per_agent_per_day: v })} />

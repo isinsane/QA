@@ -135,6 +135,7 @@ export function TaskView({
   const rep = REPORTED[t.kind]
   const forwardNote = [...(d.audit ?? [])].reverse().find((a) => a.action === 'dispute_forwarded')?.detail.reason as string | undefined
   const pending = d.changes?.[0]?.status === 'pending' ? d.changes[0] : null
+  const chat = d.task_type.source === 'edesk_chats'
   // A QA agent's change to a scored answer needs a reason: the supervisor approves it.
   const scoreChanges = !d.can_approve && changedMetrics(card, t.answers, list).length > 0
 
@@ -283,8 +284,8 @@ export function TaskView({
           ) : null}
           <section className="card">
             <div className="card-header">
-              <h2 className="card-title">{d.task_type.source === 'tickets_api' ? 'Ticket' : 'Call'}</h2>
-              <CopyID id={t.external_id} label={d.task_type.source === 'tickets_api' ? 'Ticket ID' : 'Interaction ID'} />
+              <h2 className="card-title">{chat ? 'Live chat' : d.task_type.source === 'tickets_api' ? 'Ticket' : 'Call'}</h2>
+              <CopyID id={t.external_id} label={chat ? 'Chat ID' : d.task_type.source === 'tickets_api' ? 'Ticket ID' : 'Interaction ID'} />
             </div>
             <dl className="kv">
               <dt>Agent</dt>
@@ -292,9 +293,9 @@ export function TaskView({
                 {d.employee.name}
                 {d.employee.agent_code ? <span className="text-tertiary mono"> · {d.employee.agent_code}</span> : null}
               </dd>
-              <dt>{d.task_type.source === 'tickets_api' ? 'Tags' : 'Disposition code'}</dt>
+              <dt>{d.task_type.source === 'sheet' ? 'Disposition code' : 'Tags'}</dt>
               <dd>
-                <Labels labels={t.labels} empty={d.task_type.source === 'tickets_api' ? 'no tag' : 'no code'} />
+                <Labels labels={t.labels} empty={d.task_type.source === 'sheet' ? 'no code' : 'no tag'} />
               </dd>
               {t.order_numbers?.length ? (
                 <>
@@ -302,10 +303,17 @@ export function TaskView({
                   <dd className="mono">{t.order_numbers.join(', ')}</dd>
                 </>
               ) : null}
-              {d.task_type.source === 'tickets_api' ? <TicketFields data={t.data} /> : <SheetFields data={t.data} columns={d.columns} />}
+              {chat ? (
+                <ChatFields data={t.data} />
+              ) : d.task_type.source === 'tickets_api' ? (
+                <TicketFields data={t.data} />
+              ) : (
+                <SheetFields data={t.data} columns={d.columns} />
+              )}
             </dl>
           </section>
           {d.task_type.source === 'tickets_api' ? <EDeskInfo taskId={t.id} /> : null}
+          {chat ? <ChatTranscript taskId={t.id} /> : null}
           {d.audit?.length ? (
             <section className="card">
               <div className="card-header">
@@ -676,6 +684,65 @@ function FieldRow({ label, value }: { label: string; value: unknown }) {
         )}
       </dd>
     </>
+  )
+}
+
+/** eDesk writes ticket times as "2026-10-16 20:05:36" in UTC; show them in local time like the transcript. */
+const utcTime = (v: unknown) => (typeof v === 'string' && v ? fmtDateTime(v.replace(' ', 'T') + 'Z') : null)
+
+/** A live chat as eDesk lists it: when, how long, and its order. */
+function ChatFields({ data }: { data: Record<string, unknown> }) {
+  const order = data.sales_order as { seller_order_id?: string; status?: string; total_amount?: number } | null | undefined
+  return (
+    <>
+      <FieldRow label="Subject" value={data.subject} />
+      <FieldRow label="Started" value={utcTime(data.created_at)} />
+      <FieldRow label="Last message" value={utcTime(data.last_updated_at)} />
+      <FieldRow label="Replies" value={data.replies} />
+      <FieldRow label="Order" value={order?.seller_order_id} />
+      <FieldRow label="Order status" value={order?.status} />
+    </>
+  )
+}
+
+/** The chat, message by message, read from eDesk the first time and then kept. */
+function ChatTranscript({ taskId }: { taskId: string }) {
+  const [refresh, setRefresh] = useState(0)
+  const lines = useApi(() => api.taskChat(taskId, refresh > 0), [taskId, refresh])
+  return (
+    <section className="card">
+      <div className="card-header">
+        <h2 className="card-title">Transcript</h2>
+        <button className="btn btn-ghost btn-sm btn-icon" title="Read again from eDesk" onClick={() => setRefresh((n) => n + 1)}>
+          <RefreshCw size={14} />
+        </button>
+      </div>
+      {lines.error ? <div className="card-body text-secondary">{lines.error}</div> : null}
+      {!lines.data && !lines.error ? <div className="card-body skeleton" style={{ height: 120 }} /> : null}
+      {lines.data ? (
+        <ol className="chat-lines">
+          {lines.data.length === 0 ? <li className="text-tertiary">No messages.</li> : null}
+          {lines.data.map((l, i) => (
+            <li key={i} className={`chat-line chat-${l.who}`}>
+              <span className="chat-meta">
+                {l.who === 'agent' ? l.name || 'Agent' : l.who === 'customer' ? 'Customer' : 'eDesk'}
+                {l.at ? ` · ${new Date(l.at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+              </span>
+              {l.kind === 'ChatNavigate' ? (
+                <span className="text-tertiary">
+                  opened{' '}
+                  <a href={l.text} target="_blank" rel="noreferrer">
+                    {l.text}
+                  </a>
+                </span>
+              ) : (
+                <span className="chat-text">{l.text}</span>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </section>
   )
 }
 

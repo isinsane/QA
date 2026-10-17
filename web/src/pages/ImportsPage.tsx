@@ -15,6 +15,7 @@ export function ImportsPage() {
   const { toasts, push } = useToasts()
   const sheetTypes = (types.data ?? []).filter((t) => t.source === 'sheet' && t.active)
   const ticketType = (types.data ?? []).find((t) => t.source === 'tickets_api' && t.active)
+  const chatTypes = readOnly ? [] : (types.data ?? []).filter((t) => t.source === 'edesk_chats' && t.active)
 
   return (
     <div className="page">
@@ -47,6 +48,18 @@ export function ImportsPage() {
           onError={(e) => push('error', e)}
         />
       ) : null}
+
+      {chatTypes.map((t) => (
+        <ChatsPull
+          key={t.id}
+          type={t}
+          onDone={(msg) => {
+            push('success', msg)
+            void history.reload()
+          }}
+          onError={(e) => push('error', e)}
+        />
+      ))}
 
       <section className="card">
         <div className="card-header">
@@ -340,6 +353,59 @@ function Preview({ res, busy, onCommit, onCancel }: { res: UploadResult; busy: b
         </button>
       </div>
     </>
+  )
+}
+
+/** A live chat task type: yesterday's closed chats come in each morning; any day can be pulled now. */
+function ChatsPull({ type, onDone, onError }: { type: TaskType; onDone: (msg: string) => void; onError: (e: string) => void }) {
+  const [day, setDay] = useState(yesterday())
+  const [busy, setBusy] = useState(false)
+  const [res, setRes] = useState<ImportResult | null>(null)
+
+  async function pull() {
+    setBusy(true)
+    try {
+      const r = await api.pullChats(type.id, day)
+      setRes(r)
+      onDone(`${r.run.created} chats imported; ${r.run.sampled} audits queued.`)
+    } catch (err) {
+      onError(errorText(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="card">
+      <div className="card-header">
+        <div>
+          <h2 className="card-title">{type.name}</h2>
+          <p className="card-subtitle">
+            Live chats closed in eDesk, pulled every morning for the previous day. Only the chats of agents on this team (Team page) come
+            in.
+          </p>
+        </div>
+      </div>
+      <div className="card-body builder-row">
+        <div className="field">
+          <label className="field-label">Day</label>
+          <input className="input" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+        </div>
+        <button className="btn btn-secondary" disabled={busy} onClick={() => void pull()}>
+          <CloudDownload size={16} />
+          {busy ? 'Pulling…' : 'Pull now'}
+        </button>
+      </div>
+      {res ? (
+        <div className="card-body" style={{ paddingTop: 0 }}>
+          <div className={res.run.rows_read ? 'inline-note' : 'inline-warning'}>
+            {res.run.rows_read
+              ? `${res.run.rows_read} chats by this team's agents: ${res.run.created} new, ${res.run.duplicates} already imported. ${res.run.sampled} audits queued.`
+              : "No chats by this team's agents that day. Check the agents are on this team on the Team page, with their eDesk email."}
+          </div>
+        </div>
+      ) : null}
+    </section>
   )
 }
 

@@ -39,3 +39,12 @@ func TestReplyBucket(t *testing.T) {
 		t.Errorf("top 1: got %q", got)
 	}
 }
+
+func TestChatBucket(t *testing.T) {
+	s := Defaults()
+	for replies, want := range map[int]string{0: "1–5 replies", 1: "1–5 replies", 5: "1–5 replies", 6: "6–10 replies", 15: "11–15 replies", 16: "16+ replies", 40: "16+ replies"} {
+		if got := s.ChatBucket(replies); got != want {
+			t.Errorf("%d replies: %q, want %q", replies, got, want)
+		}
+	}
+}

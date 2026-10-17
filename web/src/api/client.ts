@@ -4,6 +4,7 @@ import type {
   Department,
   EvaluationChange,
   ImportResult,
+  ChatLine,
   ImportRun,
   RosterResult,
   Reports,
@@ -136,6 +137,8 @@ export const api = {
     return request<UploadResult>('/imports', { method: 'POST', body: fd })
   },
   pullTickets: (date: string) => request<ImportResult>('/imports/tickets', json('POST', { date })),
+  pullChats: (task_type_id: string, date: string) => request<ImportResult>('/imports/chats', json('POST', { task_type_id, date })),
+  taskChat: (id: string, refresh = false) => request<ChatLine[]>(`/tasks/${id}/chat${refresh ? '?refresh=1' : ''}`),
   imports: () => request<ImportRun[]>('/imports'),
 
   myQueue: () => request<TaskRow[]>('/me/queue'),
