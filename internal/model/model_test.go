@@ -38,3 +38,32 @@ func TestReviewedKindsAgree(t *testing.T) {
 		}
 	}
 }
+
+func TestAuditsByJobTitle(t *testing.T) {
+	chat := TaskType{AgentGroups: Strings{"Live Chat Associate"}}
+	tickets := TaskType{}
+	calls := TaskType{AgentGroups: Strings{"Calls support"}}
+	chatAgent := User{Profile: JSONMap{"department": "Live chat support", "job_title": "Live Chat Associate"}}
+	ticketAgent := User{Profile: JSONMap{"department": "Ticket support", "job_title": "Tickets Associate"}}
+	byHand := User{Profile: JSONMap{}}
+	cases := []struct {
+		name          string
+		tt            TaskType
+		u             User
+		audits, names bool
+	}{
+		{"chat type, chat agent (job title)", chat, chatAgent, true, true},
+		{"chat type, ticket agent", chat, ticketAgent, false, false},
+		{"open type, chat agent", tickets, chatAgent, true, false},
+		{"calls type, by HR department", calls, User{Profile: JSONMap{"department": "calls SUPPORT"}}, true, true},
+		{"chat type, nothing on file", chat, byHand, true, false},
+	}
+	for _, c := range cases {
+		if got := c.tt.Audits(c.u); got != c.audits {
+			t.Errorf("%s: Audits = %v, want %v", c.name, got, c.audits)
+		}
+		if got := c.tt.Names(c.u); got != c.names {
+			t.Errorf("%s: Names = %v, want %v", c.name, got, c.names)
+		}
+	}
+}

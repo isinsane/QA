@@ -29,6 +29,11 @@ type Settings struct {
 	// LiveHiddenColumns are sheet columns a QA agent is not asked to type in
 	// for a live audit (Vonage fills them in itself).
 	LiveHiddenColumns []string `json:"live_hidden_columns"`
+	// IgnoredLabels are tags and codes that say nothing about the work
+	// (eDesk's language tags "9" and "10", say): dropped from every
+	// interaction of every type, on top of a type's own ignore list, so they
+	// neither spread the sample nor show on audits and in reports.
+	IgnoredLabels []string `json:"ignored_labels"`
 	// TicketsPullHour is the business-clock hour the daily ticket pull starts.
 	TicketsPullHour int `json:"tickets_pull_hour"`
 	// ReplyBucketsTop: ticket picks are spread over 1, 2, … and N+ replies.
@@ -73,6 +78,7 @@ func Defaults() Settings {
 		CallUTCOffset:        "-05:00",
 		LiveWindowSeconds:    20,
 		LiveHiddenColumns:    []string{"Conversation ID", "Media manager", "Media type", "Handle time", "Interaction outcome", "Connect from"},
+		IgnoredLabels:        []string{"9", "10"},
 		RosterIgnoreIDs:      []string{},
 		TicketsPullHour:      6,
 		ReplyBucketsTop:      3,

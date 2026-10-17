@@ -215,6 +215,8 @@ export interface AppSettings {
   call_utc_offset: string
   live_window_seconds: number
   live_hidden_columns: string[]
+  /** Tags and codes dropped from every interaction of every type. */
+  ignored_labels: string[]
   /** HR employee IDs the HR upload leaves out (people removed on Team). */
   roster_ignore_ids: string[]
   tickets_pull_hour: number

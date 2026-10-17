@@ -24,13 +24,14 @@ export function FocusPlanDialog({
   onError: (e: string) => void
 }) {
   const options = useApi(() => api.focusOptions(), [])
-  const [f, setF] = useState({ agent: '', type: '', qa: '', from: daysAgo(7), to: localDate(new Date()), count: 5, reason: '' })
+  const [f, setF] = useState({ agent: '', qa: '', from: daysAgo(7), to: localDate(new Date()), count: 5, reason: '' })
   const [random, setRandom] = useState(true)
   const [codes, setCodes] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const set = (patch: Partial<typeof f>) => setF((prev) => ({ ...prev, ...patch }))
   const agent = (options.data?.agents ?? []).find((a) => a.id === f.agent)
-  const type = f.type || agent?.types[0]?.id || ''
+  // Their work is known (the type that names them by job title or HR department comes first).
+  const type = agent?.types[0]?.id || ''
   const qas = (options.data?.qas ?? []).filter((q) => q.department_id === agent?.team_id).sort((a, b) => a.open - b.open)
   const qa = f.qa || qas[0]?.id || ''
   const labels = useApi(
@@ -83,21 +84,9 @@ export function FocusPlanDialog({
             agents={options.data?.agents ?? []}
             value={f.agent}
             label="Agent"
-            onChange={(id) => set({ agent: id, type: '', qa: '' })}
+            onChange={(id) => set({ agent: id, qa: '' })}
           />
         </div>
-        {agent && agent.types.length > 1 ? (
-          <div className="field">
-            <label className="field-label">Work</label>
-            <select className="select" value={type} onChange={(e) => set({ type: e.target.value })}>
-              {agent.types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
       </div>
       <div className="form-row">
         <div className="field">

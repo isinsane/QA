@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/oaldesi/qa-portal/internal/importer"
 	"github.com/oaldesi/qa-portal/internal/model"
 	"github.com/oaldesi/qa-portal/internal/settings"
 )
@@ -40,6 +41,11 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := settings.Save(r.Context(), s.db, in, me(r).ID); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	// Tags and codes now ignored leave the work already imported too.
+	if err := importer.StripLabels(r.Context(), s.db, in.IgnoredLabels); err != nil {
+		dbError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, in)

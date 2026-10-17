@@ -99,7 +99,9 @@ type reportTypeRef struct {
 }
 
 // reportTypes are the active task types of the agent's team that audit
-// them, feed-backed ones (calls, sales, tickets) first.
+// them: the one that names them (HR department or job title: a Live Chat
+// Associate's live chats) first, then feed-backed ones (calls, sales,
+// tickets). The first is their work wherever one is needed.
 func reportTypes(u model.User, types []model.TaskType) []model.TaskType {
 	var out []model.TaskType
 	for _, tt := range types {
@@ -108,6 +110,9 @@ func reportTypes(u model.User, types []model.TaskType) []model.TaskType {
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
+		if ni, nj := out[i].Names(u), out[j].Names(u); ni != nj {
+			return ni
+		}
 		return out[i].Source != model.SourceManual && out[j].Source == model.SourceManual
 	})
 	return out

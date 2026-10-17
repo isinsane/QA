@@ -81,6 +81,7 @@ export function SettingsPage() {
   const [s, setS] = useState<AppSettings | null>(null)
   const [busy, setBusy] = useState(false)
   const [hiddenDraft, setHiddenDraft] = useState('')
+  const [ignoreDraft, setIgnoreDraft] = useState('')
   useEffect(() => {
     if (loaded.data) setS(loaded.data.settings)
   }, [loaded.data])
@@ -105,6 +106,12 @@ export function SettingsPage() {
     const v = hiddenDraft.trim()
     if (v) set({ live_hidden_columns: [...new Set([...s.live_hidden_columns, v])] })
     setHiddenDraft('')
+  }
+  const ignored = s.ignored_labels ?? []
+  const addIgnored = () => {
+    const v = ignoreDraft.trim()
+    if (v) set({ ignored_labels: [...new Set([...ignored, v])] })
+    setIgnoreDraft('')
   }
 
   async function save() {
@@ -250,6 +257,50 @@ export function SettingsPage() {
             max={50}
             onChange={(v) => set({ chat_replies_per_group: v })}
           />
+        </Row>
+      </section>
+
+      <section className="card settings-card">
+        <header className="settings-head">
+          <h2 className="card-title">Tags and codes to ignore</h2>
+          <p className="card-subtitle">
+            Tags and codes that say nothing about the work, like eDesk's language tags 9 and 10. They are dropped from every interaction of
+            every type: they don't steer sampling, show on audits or count in reports. Each task type can ignore more of its own (Task types).
+          </p>
+        </header>
+        <Row wide title="Ignored" hint="Saving also takes them off the work already imported. Case doesn't matter.">
+          <div className="label-chips">
+            {ignored.length === 0 ? <span className="text-tertiary">None: every tag and code counts.</span> : null}
+            {ignored.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className="label-chip removable"
+                title="Stop ignoring"
+                onClick={() => set({ ignored_labels: ignored.filter((x) => x !== c) })}
+              >
+                {c} ✕
+              </button>
+            ))}
+          </div>
+          <div className="builder-row">
+            <input
+              className="input"
+              style={{ maxWidth: 280 }}
+              placeholder="Tag or code, e.g. 9"
+              value={ignoreDraft}
+              onChange={(e) => setIgnoreDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addIgnored()
+                }
+              }}
+            />
+            <button type="button" className="btn btn-secondary btn-sm" disabled={!ignoreDraft.trim()} onClick={addIgnored}>
+              Ignore
+            </button>
+          </div>
         </Row>
       </section>
 

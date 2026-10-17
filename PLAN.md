@@ -521,6 +521,12 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   is the type's own ("Other Sales" for calls), never asked; order numbers go in the audit's own box. Sessions end 30
   days after the last visit, not after login. Scorecard answers are their own buttons: the picked one fills green
   (full points), amber (some), red (none) or grey (N/A).
+- **Tags, work and answers (17 Oct, later):** Settings' "Tags and codes to ignore" (default 9 and 10, eDesk's language
+  tags) drops them from every interaction of every type, on top of each type's own list; saving also takes them off
+  work already imported (migration 00021 did 9 and 10). A task type's "agents audited here" takes job titles as well
+  as HR departments, and the type that names an agent is their work, so no form asks which work (migration 00022 gave
+  live chat types "Live Chat Associate"). Scorecard answers: a quiet track and a soft pill, tinted by what the answer
+  gives, that slides to the next answer picked.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 

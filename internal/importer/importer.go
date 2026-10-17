@@ -102,11 +102,12 @@ func Ingest(ctx context.Context, db *gorm.DB, tt model.TaskType, day model.Date,
 		run.Detail["columns"] = o.Columns
 	}
 
-	// Drop ignored labels ("Read", channel tags) before anything looks at them;
-	// the full set stays in the row's data for the task page.
-	if len(tt.IgnoreLabels) > 0 {
+	// Drop ignored labels (the type's own: "Read", channel tags; and every
+	// type's, from Settings) before anything looks at them; the full set stays
+	// in the row's data for the task page.
+	if ignored := append(slices.Clone(tt.IgnoreLabels), settings.Load(ctx, db).IgnoredLabels...); len(ignored) > 0 {
 		ignore := map[string]bool{}
-		for _, l := range tt.IgnoreLabels {
+		for _, l := range ignored {
 			ignore[strings.ToLower(strings.TrimSpace(l))] = true
 		}
 		for i := range rows {
@@ -418,4 +419,22 @@ func sortedRejected(m map[string]*RejectedAgent) []RejectedAgent {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
+}
+
+// StripLabels takes the given tags/codes (any case) off every interaction
+// already imported, once Settings ignores them.
+func StripLabels(ctx context.Context, db *gorm.DB, labels []string) error {
+	low := []string{}
+	for _, l := range labels {
+		if l = strings.ToLower(strings.TrimSpace(l)); l != "" {
+			low = append(low, l)
+		}
+	}
+	if len(low) == 0 {
+		return nil
+	}
+	return db.WithContext(ctx).Exec(`UPDATE tasks SET labels = (
+			SELECT coalesce(jsonb_agg(e.l ORDER BY e.n), '[]'::jsonb)
+			FROM jsonb_array_elements_text(labels) WITH ORDINALITY e(l, n) WHERE lower(e.l) NOT IN ?)
+		WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(labels) l WHERE lower(l) IN ?)`, low, low).Error
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Answer, Metric } from '../api/types'
 import { earned, maxPoints, preview, type Thresholds } from '../scorecard'
@@ -164,8 +164,42 @@ function Choices({
     return v === 'na' || got === null || !max ? 'na' : got >= max ? 'full' : got > 0 ? 'part' : 'none'
   }
 
+  // A pill sits under the picked answer and slides to the next one picked;
+  // the first pick fades it in where it is.
+  const track = useRef<HTMLDivElement>(null)
+  const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number; slide: boolean } | null>(null)
+  useLayoutEffect(() => {
+    const el = track.current
+    if (!el) return
+    let first = true
+    const place = () => {
+      const on = el.querySelector<HTMLElement>('.choice.is-on')
+      setPill((prev) =>
+        on
+          ? {
+              x: on.offsetLeft,
+              y: on.offsetTop,
+              w: on.offsetWidth,
+              h: on.offsetHeight,
+              slide: first ? prev !== null : (prev?.slide ?? false),
+            }
+          : null,
+      )
+      first = false
+    }
+    place()
+    const ro = new ResizeObserver(place) // fonts loading, the card resizing
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [value])
+
   return (
-    <div className="choices" role="radiogroup" aria-label={m.label}>
+    <div ref={track} className={`choices${readOnly ? ' is-readonly' : ''}`} role="radiogroup" aria-label={m.label}>
+      <span
+        aria-hidden
+        className={`choice-pill choice-${tone(value)}${pill ? ' is-shown' : ''}${pill?.slide ? ' slides' : ''}`}
+        style={pill ? { transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h } : undefined}
+      />
       {choices.map((c) => (
         <button
           key={c.value}

@@ -126,10 +126,10 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const agent = (agents.data ?? []).find((a) => a.id === f.employee_id)
-  // Only a supervisor's escalation is scored, so only it asks which work
-  // (task type, so scorecard) it was; the others go under the agent's first.
+  // The agent's work is known (the type that names them by job title or HR
+  // department comes first); a supervisor's scored escalation says which.
   const pickType = cfg.kind === 'escalation'
-  const typeId = f.task_type_id || agent?.types[0]?.id || ''
+  const typeId = agent?.types[0]?.id || ''
   const ready = f.external_id.trim() && agent && agent.types.length > 0 && f.error.trim()
 
   async function send() {
@@ -179,17 +179,6 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
         agent.types.length === 0 ? (
           <div className="inline-warning" style={{ margin: 0 }}>
             No task type audits {agent.name}'s work yet, so this can't be sent. Ask an admin to set one up.
-          </div>
-        ) : pickType && agent.types.length > 1 ? (
-          <div className="field" style={{ maxWidth: 360 }}>
-            <label className="field-label">Which work it was about</label>
-            <select className="select" value={typeId} onChange={(e) => setF({ ...f, task_type_id: e.target.value })}>
-              {agent.types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
           </div>
         ) : (
           <p className="hint-text" style={{ margin: 0 }}>

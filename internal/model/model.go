@@ -116,8 +116,9 @@ type TaskType struct {
 	RotationEnabled     bool        `json:"rotation_enabled"`
 	RotationDays        int         `json:"rotation_days"`
 	AgentLimits         AgentLimits `gorm:"type:jsonb" json:"agent_limits"`
-	// AgentGroups are the HR departments whose agents this type audits
-	// (calls agents under calls, sales under sales); empty = the whole team.
+	// AgentGroups are the HR departments or job titles whose agents this type
+	// audits (calls agents under calls, sales under sales, Live Chat
+	// Associates under live chats); empty = the whole team.
 	AgentGroups Strings   `gorm:"type:jsonb" json:"agent_groups"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -164,19 +165,32 @@ func (tt TaskType) ByEmail() bool {
 }
 
 // Audits reports whether an agent's work belongs under this type. With
-// agent groups set, the agent's HR department must be one of them; someone
-// with no HR department on file (added by hand) is let through.
+// agent groups set, the agent's HR department or job title must be one of
+// them; someone with neither on file (added by hand) is let through.
 func (tt TaskType) Audits(u User) bool {
-	d := strings.TrimSpace(u.Department())
-	if len(tt.AgentGroups) == 0 || d == "" {
+	if len(tt.AgentGroups) == 0 || strings.TrimSpace(u.Department()) == "" && strings.TrimSpace(u.JobTitle()) == "" {
 		return true
 	}
+	return tt.Names(u)
+}
+
+// Names: this type's agent groups name the agent (HR department or job
+// title), not just let them through. Where several types audit an agent, the
+// one that names them is their work: no need to ask.
+func (tt TaskType) Names(u User) bool {
+	d, title := strings.TrimSpace(u.Department()), strings.TrimSpace(u.JobTitle())
 	for _, g := range tt.AgentGroups {
-		if strings.EqualFold(strings.TrimSpace(g), d) {
+		if g = strings.TrimSpace(g); g != "" && (strings.EqualFold(g, d) || strings.EqualFold(g, title)) {
 			return true
 		}
 	}
 	return false
+}
+
+// JobTitle is the agent's job title, from the HR sheet or Team.
+func (u User) JobTitle() string {
+	t, _ := u.Profile["job_title"].(string)
+	return t
 }
 
 // Department is the agent's HR department, from the HR sheet.

@@ -223,8 +223,9 @@ function TypeEditor({
   // The team's HR departments, with how many agents each, for the "who it audits" picker.
   const hrDepts = Object.entries(
     (people.data ?? [])
-      .filter((u) => u.active && u.department_id === type.department_id && u.profile?.department)
-      .reduce<Record<string, number>>((acc, u) => ({ ...acc, [u.profile.department!]: (acc[u.profile.department!] ?? 0) + 1 }), {}),
+      .filter((u) => u.active && u.department_id === type.department_id)
+      .flatMap((u) => [u.profile?.department, u.profile?.job_title].filter((x): x is string => !!x))
+      .reduce<Record<string, number>>((acc, g) => ({ ...acc, [g]: (acc[g] ?? 0) + 1 }), {}),
   ).map(([label, rows]) => ({ label, rows }))
   const set = (patch: Partial<TaskType>) => setT((prev) => ({ ...prev, ...patch }))
   const dirty = JSON.stringify(t) !== JSON.stringify(type)
@@ -545,10 +546,11 @@ function TypeEditor({
           </div>
           <div className="card-body form-grid" style={{ gap: 22 }}>
             <div className="field">
-              <label className="field-label">Agents audited here (HR department)</label>
+              <label className="field-label">Agents audited here (HR department or job title)</label>
               <p className="hint-text">
-                Only agents of these HR departments get audits of this type, so calls agents aren't sampled from a sales sheet or the
-                other way round. An upload where most rows belong to other agents is refused. Empty: every agent of the team.
+                Only agents of these HR departments or job titles get audits of this type, so calls agents aren't sampled from a sales sheet
+                or the other way round. Where a team has several types, an agent's work is the type that names them (a Live Chat Associate's:
+                live chats), never asked. An upload where most rows belong to other agents is refused. Empty: every agent of the team.
               </p>
               <ChipList
                 listId={`hr-${t.id}`}
