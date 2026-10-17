@@ -8,6 +8,7 @@ import type {
   DisputeAgent,
   HiddenScores,
   QAProductivity,
+  QAWorkItem,
   ImportRun,
   RosterResult,
   Reports,
@@ -174,6 +175,7 @@ export const api = {
 
   reports: (params: Record<string, string | undefined>) => request<Reports>(`/reports${qs(params)}`),
   qaProductivity: (params: Record<string, string | undefined>) => request<QAProductivity>(`/qa-productivity${qs(params)}`),
+  qaWork: (params: Record<string, string | undefined>) => request<QAWorkItem[]>(`/qa-productivity/work${qs(params)}`),
   hiddenScores: () => request<HiddenScores[]>('/reveal'),
   reveal: (departmentId: string) => request<{ revealed: number }>('/reveal', json('POST', { department_id: departmentId })),
   disputeAgents: (params: Record<string, string | undefined>) =>

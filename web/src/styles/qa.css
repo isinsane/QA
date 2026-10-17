@@ -1475,18 +1475,79 @@ input[type='checkbox']:disabled {
   margin-left: 4px;
 }
 
-.hm-other-key {
+.hm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 0 20px 14px;
+}
+
+.hm-toolbar .segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hm-mark-key {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-left: 16px;
+  margin-left: 12px;
 }
 
-.hm-other-key i {
-  width: 6px;
-  height: 6px;
+/* A kind of work: the dot on heat map cells, keys and lists. */
+.mk {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  background: var(--gray-400);
+}
+
+.mk-sample {
+  background: var(--brand-solid);
+}
+
+.mk-live {
+  background: var(--viz-1);
+}
+
+.mk-coaching {
+  background: var(--success-500);
+}
+
+.mk-checked {
   background: var(--warning-500);
+}
+
+.mk-cant {
+  background: var(--error-500);
+}
+
+.hm-marks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3px;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+}
+
+.hm-marks .mk {
+  width: 5px;
+  height: 5px;
+  box-shadow: 0 0 0 1px var(--bg-surface);
+}
+
+.work-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .hm-wrap {
@@ -1608,6 +1669,7 @@ input[type='checkbox']:disabled {
   background: color-mix(in srgb, var(--text-primary) 3.5%, transparent);
   cursor: default;
   transition: box-shadow var(--transition);
+  line-height: 1;
 }
 
 .hm-cell[data-l='1'] {
@@ -1637,15 +1699,8 @@ td.hm-cell:hover {
   box-shadow: 0 0 0 2px var(--brand-500);
 }
 
-.hm-cell.has-other::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--warning-500);
+.hm-cell.is-clickable {
+  cursor: pointer;
 }
 
 /* An agent's total: a bar and the number. */

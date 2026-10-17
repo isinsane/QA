@@ -110,8 +110,33 @@ export interface QAProductivity {
     first: string | null
     last: string | null
   }[]
-  /** bucket: local "YYYY-MM-DDTHH:MI" */
-  series: { qa_id: string; bucket: string; audits: number; other: number }[]
+  /** One QA agent's work in one bucket (local "YYYY-MM-DDTHH:MI"), by kind. */
+  series: {
+    qa_id: string
+    bucket: string
+    sample: number
+    live: number
+    escalation: number
+    focus: number
+    rotation: number
+    coaching: number
+    checked: number
+    cant: number
+  }[]
+}
+
+/** One piece of a QA agent's work, for a heat map cell. */
+export interface QAWorkItem {
+  at: string
+  type: string
+  task_id: string | null
+  coaching_id: string | null
+  agent: string
+  type_name: string
+  score: number | null
+  result: Band | null
+  critical_failed: boolean
+  note: string
 }
 
 /** A team's finished audits its agents don't see yet. */

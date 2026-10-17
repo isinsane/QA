@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { QAProductivity } from '../api/types'
-import { DateRangePicker, Empty, rangeFor, type DateRange } from '../components/bits'
+import { DateRangePicker, Empty, rangeFor, ScoreBadge, type DateRange } from '../components/bits'
+import { Modal } from '../components/Modal'
 
 type By = QAProductivity['by']
 type Agent = QAProductivity['agents'][number]
@@ -46,7 +49,7 @@ function columns(by: By, from: string, to: string, series: Bucket[]): Col[] {
   switch (by) {
     case 'hour': {
       if (!series.length) return []
-      const audited = series.filter((s) => s.audits)
+      const audited = series.filter((s) => count(s, AUDITS))
       const hours = (audited.length ? audited : series).map((s) => Number(s.bucket.slice(11, 13)))
       const lo = from === to ? 0 : Math.min(...hours)
       const hi = from === to ? 23 : Math.max(...hours)
@@ -225,7 +228,50 @@ export function ProductivityPage() {
   )
 }
 
-/** Audits per QA agent per hour / day / week / month: rows are QA agents, darker is busier. */
+/** The kinds of work, as the server names them. */
+type WorkKey = 'sample' | 'live' | 'escalation' | 'focus' | 'rotation' | 'coaching' | 'checked' | 'cant'
+
+const WORK: Record<WorkKey, { many: string; one: string }> = {
+  sample: { many: 'sample audits', one: 'Sample audit' },
+  live: { many: 'live monitoring', one: 'Live monitoring' },
+  escalation: { many: 'escalation audits', one: 'Escalation audit' },
+  focus: { many: 'focus plan audits', one: 'Focus plan audit' },
+  rotation: { many: 'rotation reviews', one: 'Rotation review' },
+  coaching: { many: 'coaching sessions', one: 'Coaching session' },
+  checked: { many: 'escalations checked', one: 'Escalation checked' },
+  cant: { many: "can't audit", one: "Can't audit" },
+}
+const AUDITS: WorkKey[] = ['sample', 'live', 'escalation', 'focus', 'rotation']
+const ALL: WorkKey[] = [...AUDITS, 'coaching', 'checked', 'cant']
+/** Marked in a cell with a colored dot, so they stand out among the audits. */
+const MARKED: WorkKey[] = ['live', 'coaching', 'checked', 'cant']
+
+type Show = 'all' | 'audits' | 'live' | 'coaching' | 'checked' | 'cant'
+const SHOW: [Show, string, WorkKey[]][] = [
+  ['all', 'All work', ALL],
+  ['audits', 'Audits', AUDITS],
+  ['live', 'Live monitoring', ['live']],
+  ['coaching', 'Coaching', ['coaching']],
+  ['checked', 'Escalations checked', ['checked']],
+  ['cant', "Can't audit", ['cant']],
+]
+
+/** "1 coaching session", "3 coaching sessions". */
+const phrase = (n: number, k: WorkKey) => `${n} ${n === 1 ? WORK[k].one.toLowerCase() : WORK[k].many}`
+
+const count = (b: Bucket | undefined, keys: WorkKey[]) => (b ? keys.reduce((n, k) => n + b[k], 0) : 0)
+
+/** The start of the bucket after this one (end of a cell, excluded). */
+function nextBucket(key: string, by: By): string {
+  const d = wall(key)
+  if (by === 'hour') d.setHours(d.getHours() + 1)
+  else if (by === 'day') d.setDate(d.getDate() + 1)
+  else if (by === 'week') d.setDate(d.getDate() + 7)
+  else d.setMonth(d.getMonth() + 1)
+  return `${ymd(d)}T${pad(d.getHours())}:00`
+}
+
+/** Work per QA agent per hour / day / week / month: rows are QA agents, darker is busier. Click a cell for the work itself. */
 function Heatmap({
   agents,
   series,
@@ -241,29 +287,37 @@ function Heatmap({
   range: DateRange
   loading: boolean
 }) {
+  const [show, setShow] = useState<Show>('all')
+  const [open, setOpen] = useState<{ agent: Agent; col: Col } | null>(null)
+  const [, showLabel, keys] = SHOW.find(([k]) => k === show)!
   const cols = columns(by, range.from, range.to, series)
   const cell = new Map(series.map((s) => [`${s.qa_id}|${s.bucket}`, s]))
-  const most = Math.max(1, ...series.map((s) => s.audits))
-  const colTotal = cols.map((c) => series.filter((s) => s.bucket === c.key).reduce((n, s) => n + s.audits, 0))
+  const most = Math.max(1, ...series.map((s) => count(s, keys)))
+  const colTotal = cols.map((c) => series.filter((s) => s.bucket === c.key).reduce((n, s) => n + count(s, keys), 0))
+  const agentTotal = new Map(
+    agents.map((a) => [a.qa_id, series.filter((s) => s.qa_id === a.qa_id).reduce((n, s) => n + count(s, keys), 0)]),
+  )
   const total = colTotal.reduce((a, b) => a + b, 0)
   const peak = colTotal.indexOf(Math.max(...colTotal))
-  const working = agents.filter((a) => a.audits > 0).length
+  const working = agents.filter((a) => agentTotal.get(a.qa_id)).length
+  const maxCol = Math.max(1, ...colTotal)
+  const maxAgent = Math.max(1, ...agentTotal.values())
+  const marks = MARKED.filter((k) => keys.includes(k) && keys.length > 1)
   // Header groups: a day over its hours, a month over its days.
   const groups: { name: string; span: number }[] = []
   for (const c of cols) {
     if (groups.length && groups[groups.length - 1].name === c.group) groups[groups.length - 1].span++
     else groups.push({ name: c.group, span: 1 })
   }
-  const unit = by === 'hour' ? 'hour' : by
-  const maxCol = Math.max(1, ...colTotal)
-  const maxAgent = Math.max(1, ...agents.map((a) => a.audits))
 
   return (
     <section className="card">
       <div className="card-header hm-header">
         <div>
           <h2 className="card-title">Activity</h2>
-          <p className="card-subtitle">Audits each QA agent submitted per {unit}. Hover a cell for details.</p>
+          <p className="card-subtitle">
+            What each QA agent did per {by}. Hover a cell for the breakdown, click it to see each piece of work.
+          </p>
         </div>
         <div className="segmented">
           {BY.map(([k, label]) => (
@@ -273,24 +327,14 @@ function Heatmap({
           ))}
         </div>
       </div>
-      <div className="hm-stats">
-        <div>
-          <span className="hm-stat-value">{total}</span>
-          <span className="hm-stat-label">audits</span>
-        </div>
-        <div>
-          <span className="hm-stat-value">
-            {working}
-            <span className="text-tertiary"> / {agents.filter((a) => a.active).length}</span>
-          </span>
-          <span className="hm-stat-label">QA agents with audits</span>
-        </div>
-        <div>
-          <span className="hm-stat-value">{total && peak >= 0 ? colTotal[peak] : '—'}</span>
-          <span className="hm-stat-label">
-            busiest {unit}
-            {total && peak >= 0 ? `: ${cols[peak].title}` : ''}
-          </span>
+      <div className="hm-toolbar">
+        <div className="segmented">
+          {SHOW.map(([k, label]) => (
+            <button key={k} type="button" className={`segmented-btn${show === k ? ' is-active' : ''}`} onClick={() => setShow(k)}>
+              {MARKED.includes(k as WorkKey) ? <i className={`mk mk-${k}`} /> : null}
+              {label}
+            </button>
+          ))}
         </div>
         <div className="hm-legend" aria-hidden>
           Less
@@ -298,13 +342,35 @@ function Heatmap({
             <i key={l} className="hm-cell" data-l={l} />
           ))}
           More
-          <span className="hm-other-key">
-            <i /> other work
+          {marks.map((k) => (
+            <span key={k} className="hm-mark-key">
+              <i className={`mk mk-${k}`} /> {WORK[k].many}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="hm-stats">
+        <div>
+          <span className="hm-stat-value">{total}</span>
+          <span className="hm-stat-label">{show === 'all' ? 'pieces of work' : showLabel.toLowerCase()}</span>
+        </div>
+        <div>
+          <span className="hm-stat-value">
+            {working}
+            <span className="text-tertiary"> / {agents.filter((a) => a.active).length}</span>
+          </span>
+          <span className="hm-stat-label">QA agents with any</span>
+        </div>
+        <div>
+          <span className="hm-stat-value">{total && peak >= 0 ? colTotal[peak] : '—'}</span>
+          <span className="hm-stat-label">
+            busiest {by}
+            {total && peak >= 0 ? `: ${cols[peak].title}` : ''}
           </span>
         </div>
       </div>
       {loading ? <div className="card-body skeleton" style={{ height: 160 }} /> : null}
-      {!loading && cols.length === 0 ? <Empty title="No audits in this period yet" /> : null}
+      {!loading && cols.length === 0 ? <Empty title="No work in this period yet" /> : null}
       {!loading && cols.length ? (
         <div className="hm-wrap">
           <table
@@ -325,7 +391,7 @@ function Heatmap({
               <tr className="hm-bars">
                 <th className="hm-name">All QA agents</th>
                 {cols.map((c, i) => (
-                  <td key={c.key} title={`${c.title}: ${colTotal[i]} audit${colTotal[i] === 1 ? '' : 's'}`}>
+                  <td key={c.key} title={`${c.title}: ${colTotal[i]}`}>
                     <div className="hm-bar-box">
                       {colTotal[i] ? <span>{colTotal[i]}</span> : null}
                       <i style={{ height: `${(colTotal[i] / maxCol) * 36}px` }} />
@@ -367,23 +433,34 @@ function Heatmap({
                   </th>
                   {cols.map((c) => {
                     const b = cell.get(`${a.qa_id}|${c.key}`)
-                    const n = b?.audits ?? 0
+                    const n = count(b, keys)
+                    const lines = ALL.filter((k) => b?.[k]).map((k) => phrase(b![k], k))
                     return (
                       <td
                         key={c.key}
-                        className={`hm-cell${b?.other ? ' has-other' : ''}`}
+                        className={`hm-cell${count(b, ALL) ? ' is-clickable' : ''}`}
                         data-l={level(n, most)}
-                        title={`${a.name} · ${c.title}: ${n} audit${n === 1 ? '' : 's'}${b?.other ? `, ${b.other} other` : ''}`}
+                        title={`${a.name} · ${c.title}\n${lines.length ? `${lines.join('\n')}\nClick to see each one` : 'Nothing'}`}
+                        onClick={() => (count(b, ALL) ? setOpen({ agent: a, col: c }) : undefined)}
                       >
                         {n || ''}
+                        {b && marks.some((k) => b[k]) ? (
+                          <span className="hm-marks">
+                            {marks
+                              .filter((k) => b[k])
+                              .map((k) => (
+                                <i key={k} className={`mk mk-${k}`} />
+                              ))}
+                          </span>
+                        ) : null}
                       </td>
                     )
                   })}
                   <td className="hm-total">
                     <span className="hm-total-bar">
-                      <i style={{ width: `${(a.audits / maxAgent) * 100}%` }} />
+                      <i style={{ width: `${((agentTotal.get(a.qa_id) ?? 0) / maxAgent) * 100}%` }} />
                     </span>
-                    {a.audits}
+                    {agentTotal.get(a.qa_id) ?? 0}
                   </td>
                 </tr>
               ))}
@@ -391,6 +468,81 @@ function Heatmap({
           </table>
         </div>
       ) : null}
+      {open ? (
+        <WorkModal
+          agent={open.agent}
+          col={open.col}
+          end={nextBucket(open.col.key, by)}
+          sameDay={by === 'hour' || by === 'day'}
+          onClose={() => setOpen(null)}
+        />
+      ) : null}
     </section>
+  )
+}
+
+/** Everything one QA agent did in one cell, in order, each opening the audit or coaching it was. */
+function WorkModal({ agent, col, end, sameDay, onClose }: { agent: Agent; col: Col; end: string; sameDay: boolean; onClose: () => void }) {
+  const navigate = useNavigate()
+  const items = useApi(() => api.qaWork({ qa_id: agent.qa_id, start: col.key, end }), [agent.qa_id, col.key, end])
+  const rows = items.data ?? []
+  const kinds = ALL.map((k) => [k, rows.filter((r) => r.type === k).length] as const).filter(([, n]) => n)
+  return (
+    <Modal
+      title={agent.name}
+      subtitle={`${col.title}${rows.length ? ` · ${kinds.map(([k, n]) => phrase(n, k)).join(' · ')}` : ''}`}
+      size="lg"
+      onClose={onClose}
+    >
+      {items.error ? <div className="inline-warning">{items.error}</div> : null}
+      {items.loading && !items.data ? <div className="skeleton" style={{ height: 120 }} /> : null}
+      {rows.length ? (
+        <div className="table-scroll">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>What</th>
+                <th>Agent</th>
+                <th>Result</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((it, i) => {
+                const to = it.task_id ? `/tasks/${it.task_id}` : it.coaching_id ? '/coaching' : null
+                return (
+                  <tr key={i} className={to ? 'is-clickable' : undefined} onClick={() => (to ? navigate(to) : undefined)}>
+                    <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                      {sameDay ? it.at.slice(11, 16) : clock(it.at, false)}
+                    </td>
+                    <td>
+                      <span className="work-tag">
+                        <i className={`mk mk-${it.type}`} />
+                        {WORK[it.type as WorkKey]?.one ?? it.type}
+                      </span>
+                      {it.type_name ? (
+                        <div className="text-tertiary" style={{ fontSize: 12 }}>
+                          {it.type_name}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td>{it.agent || '—'}</td>
+                    <td className="dispute-text">
+                      {it.score !== null ? (
+                        <ScoreBadge score={it.score} result={it.result} critical={it.critical_failed} />
+                      ) : (
+                        it.note || '—'
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{to ? <ChevronRight size={16} className="text-tertiary" /> : null}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </Modal>
   )
 }
