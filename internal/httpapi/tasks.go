@@ -140,6 +140,7 @@ type taskRow struct {
 	Priority       int             `json:"priority"`
 	Note           string          `json:"note"`
 	ReportedBy     string          `json:"reported_by"`
+	Source         string          `json:"source"`         // a TL / special process escalation's name, after the sender's job title
 	ChangePending  bool            `json:"change_pending"` // a QA agent's score change waits for a supervisor
 	CreatedAt      time.Time       `json:"created_at"`
 }
@@ -150,7 +151,7 @@ func (s *Server) taskRows(r *http.Request) *gorm.DB {
 		        t.completed_at, t.task_type_id, tt.name AS task_type_name, t.employee_id, e.name AS employee_name,
 		        t.assigned_qa_id, coalesce(q.name, ev.name) AS qa_name,
 		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers, t.evaluated_by, t.revealed_at,
-		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, t.created_at,
+		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, coalesce(t.data->>'source', '') AS source, t.created_at,
 		        EXISTS (SELECT 1 FROM evaluation_changes ec WHERE ec.task_id = t.id AND ec.status = 'pending') AS change_pending`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
 		Joins("JOIN users e ON e.id = t.employee_id").
@@ -227,7 +228,7 @@ func (s *Server) handleMyScores(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range rows {
 		// Employees do not see who audited them, ran a live audit or reported them.
-		rows[i].QAName, rows[i].ReportedBy = nil, ""
+		rows[i].QAName, rows[i].ReportedBy, rows[i].Source = nil, "", ""
 	}
 	writeJSON(w, http.StatusOK, rows)
 }
@@ -436,6 +437,9 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if u.Role == model.RoleEmployee {
+		delete(t.Data, "source") // nor the job title of who escalated them
+	}
 	if u.Role != model.RoleEmployee && t.CreatedBy != nil && t.Kind.Reviewed() {
 		var by model.User
 		if s.db.WithContext(r.Context()).Select("name").First(&by, "id = ?", *t.CreatedBy).Error == nil {

@@ -358,6 +358,10 @@ func (s *Server) handleEscalate(w http.ResponseWriter, r *http.Request) {
 	if !ok || !agentFits(w, tt, agent) {
 		return
 	}
+	if agent.DepartmentID == nil || *agent.DepartmentID != tt.DepartmentID { // their team's QA agents and supervisor only
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("%s isn't on the team that audits %s: pick one of their own team's task types", agent.Name, tt.Name))
+		return
+	}
 	u := me(r)
 	escalated := map[string]any{
 		"kind": model.KindEscalation, "priority": 10, "note": in.Reason, "created_by": u.ID,

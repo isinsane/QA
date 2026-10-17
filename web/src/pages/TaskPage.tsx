@@ -58,7 +58,7 @@ const ACTION_LABEL: Record<string, string> = {
   negative_reported: 'Negative reported',
   negative_confirmed: 'Marked valid',
   negative_dismissed: 'Marked not valid',
-  tl_escalation_reported: 'Escalated by the team leader',
+  tl_escalation_reported: 'Escalated',
   tl_escalation_confirmed: 'Marked valid',
   tl_escalation_dismissed: 'Marked not valid',
   qa_escalation_reported: 'Escalated by a QA agent',
@@ -133,6 +133,7 @@ export function TaskView({
   const formOpen = d.can_evaluate || editing
   const list = Object.values(answers)
   const rep = REPORTED[t.kind]
+  const source = typeof t.data?.source === 'string' ? t.data.source : '' // a TL / special process escalation's name
   const forwardNote = [...(d.audit ?? [])].reverse().find((a) => a.action === 'dispute_forwarded')?.detail.reason as string | undefined
   const pending = d.changes?.[0]?.status === 'pending' ? d.changes[0] : null
   const chat = d.task_type.source === 'edesk_chats'
@@ -166,7 +167,7 @@ export function TaskView({
         ) : (
           <StateBadge state={t.state} />
         )}
-        <KindBadge kind={t.kind} match={t.match_status} />
+        <KindBadge kind={t.kind} match={t.match_status} label={source} />
         {t.state === 'completed' && !rep ? <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} /> : null}
         {t.state === 'completed' && (t.kind === 'sample' || t.kind === 'live' || t.kind === 'escalation') ? (
           <AckBadge status={t.ack_status} hidden={!t.revealed_at} />
@@ -181,7 +182,7 @@ export function TaskView({
       {rep ? (
         <div className="inline-warning neg-note">
           <strong>
-            {rep.what}
+            {source || rep.what}
             {d.reported_by ? `, from ${d.reported_by}` : ''}.
           </strong>
           <span>

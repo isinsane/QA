@@ -150,7 +150,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	sum := newSheet(f, "Summary", bold, []col{
 		{"Agent", 26}, {"Alias", 18}, {"Team", 18}, {"HR department", 20}, {"Job title", 22}, {"Supervisor", 20},
 		{"Audits", 9}, {"Average score %", 15}, {"Pass rate %", 12}, {"Borderline", 11}, {"Fail", 8}, {"Critical fails", 13},
-		{"Disputes waiting", 16}, {"Disputes accepted", 17}, {"Disputes rejected", 17}, {"Not acknowledged", 16}, {"Valid negatives", 15}, {"Valid TL escalations", 19},
+		{"Disputes waiting", 16}, {"Disputes accepted", 17}, {"Disputes rejected", 17}, {"Not acknowledged", 16}, {"Valid negatives", 15}, {"Valid TL / special process escalations", 22},
 		{"Valid QA escalations", 19}, {"Coaching sessions", 17}, {"Period", 24},
 	})
 	var profiles []struct {
@@ -221,7 +221,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	esc := newSheet(f, "Escalations", bold, []col{
-		{"Agent", 26}, {"Raised", 18}, {"Source", 16}, {"Order / call", 30}, {"What happened", 50}, {"Raised by", 20},
+		{"Agent", 26}, {"Raised", 18}, {"Source", 30}, {"Order / call", 30}, {"What happened", 50}, {"Raised by", 20},
 		{"Status", 12}, {"Checked by", 20}, {"Finding", 50},
 	})
 	source := map[model.Kind]string{model.KindNegative: "Negative", model.KindTLEscalation: "Team leader", model.KindQAEscalation: "QA"}
@@ -231,7 +231,11 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		if st == "" {
 			st = string(e.State)
 		}
-		esc.add(e.EmployeeName, e.CreatedAt.In(tz).Format("2006-01-02 15:04"), source[e.Kind], e.ExternalID, e.Note, e.ReportedBy,
+		src := source[e.Kind]
+		if e.Source != "" {
+			src = e.Source
+		}
+		esc.add(e.EmployeeName, e.CreatedAt.In(tz).Format("2006-01-02 15:04"), src, e.ExternalID, e.Note, e.ReportedBy,
 			st, deref(e.QAName), e.Finding)
 	}
 

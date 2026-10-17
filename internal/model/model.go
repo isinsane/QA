@@ -30,11 +30,14 @@ const (
 	// RoleViewer sees what an admin sees, every team, and changes nothing
 	// (HR and other people who follow quality).
 	RoleViewer Role = "viewer"
+	// RoleSpecialProcess (A-Z guarantee, chargebacks, ...) escalates the work
+	// of agents of any team, like a team leader, and sees nothing else. No team.
+	RoleSpecialProcess Role = "special_process"
 )
 
 func (r Role) Valid() bool {
 	switch r {
-	case RoleAdmin, RoleSupervisor, RoleQA, RoleEmployee, RoleNegative, RoleTeamLeader, RoleViewer:
+	case RoleAdmin, RoleSupervisor, RoleQA, RoleEmployee, RoleNegative, RoleTeamLeader, RoleViewer, RoleSpecialProcess:
 		return true
 	}
 	return false
@@ -291,7 +294,9 @@ const (
 	KindFocus      Kind = "focus"
 	KindRotation   Kind = "rotation"
 	KindNegative   Kind = "negative" // a reported negative review; tracked apart from scores
-	// KindTLEscalation is a team leader's escalation; reviewed like a negative.
+	// KindTLEscalation is a team leader's or special process agent's
+	// escalation, named after their job title (data.source, "A-Z Guarantee
+	// Team Leader escalation"); reviewed like a negative.
 	KindTLEscalation Kind = "tl_escalation"
 	// KindQAEscalation is raised by a QA agent and decided by the supervisor.
 	KindQAEscalation Kind = "qa_escalation"

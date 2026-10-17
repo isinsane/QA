@@ -92,6 +92,6 @@ export const KIND_LABEL: Record<string, string> = {
   focus: 'Focus plan',
   rotation: 'Rotation (QA over QA)',
   negative: 'Negative review',
-  tl_escalation: 'Team leader escalation',
+  tl_escalation: 'TL / special process escalation',
   qa_escalation: 'QA escalation',
 }

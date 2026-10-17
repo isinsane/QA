@@ -155,13 +155,13 @@ const KIND_SHORT: Record<Kind, string> = {
   qa_escalation: 'QA escalation',
 }
 
-/** Nothing for a daily sample: it is the ordinary case. */
-export function KindBadge({ kind, match }: { kind: Kind; match?: string }) {
+/** Nothing for a daily sample: it is the ordinary case. label replaces the kind's name (an escalation's source). */
+export function KindBadge({ kind, match, label }: { kind: Kind; match?: string; label?: string }) {
   if (kind === 'sample') return null
   const tone = kind === 'escalation' || kind === 'negative' || kind === 'tl_escalation' || kind === 'qa_escalation' ? 'badge-error' : kind === 'live' ? 'badge-brand' : 'badge-purple'
   return (
     <span className={`badge ${tone}`}>
-      {KIND_SHORT[kind]}
+      {label || KIND_SHORT[kind]}
       {kind === 'live' && match === 'flagged' ? ' · no call found' : kind === 'live' && match === 'pending' ? ' · awaiting sheet' : ''}
     </span>
   )

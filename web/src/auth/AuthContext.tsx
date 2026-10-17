@@ -24,6 +24,7 @@ export function homePathForRole(role: Role): string {
     case 'negative_agent':
       return '/negatives'
     case 'team_leader':
+    case 'special_process':
       return '/tl-escalations'
     default:
       return '/dashboard'
@@ -54,6 +55,7 @@ export function canAccessPath(role: Role, path: string): boolean {
       path.startsWith('/agents')
     )
   if (role === 'negative_agent') return path.startsWith('/negatives')
+  if (role === 'special_process') return path.startsWith('/tl-escalations')
   return path.startsWith('/my-scores')
 }
 
@@ -152,6 +154,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   employee: 'Agent',
   negative_agent: 'Negatives agent',
   team_leader: 'Team leader',
+  special_process: 'Special process agent',
   viewer: 'View only',
 }
 

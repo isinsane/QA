@@ -19,6 +19,7 @@ const FILTERS: { key: Role | 'all'; label: string }[] = [
   { key: 'employee', label: 'Agents' },
   { key: 'negative_agent', label: 'Negatives agents' },
   { key: 'team_leader', label: 'Team leaders' },
+  { key: 'special_process', label: 'Special process agents' },
   { key: 'admin', label: 'Admins' },
   { key: 'viewer', label: 'View only' },
 ]
@@ -245,7 +246,7 @@ function UserDialog({
   const [busy, setBusy] = useState(false)
   const [removing, setRemoving] = useState(false)
   const roles: Role[] = isAdmin
-    ? ['employee', 'team_leader', 'qa_agent', 'negative_agent', 'supervisor', 'admin', 'viewer']
+    ? ['employee', 'team_leader', 'special_process', 'qa_agent', 'negative_agent', 'supervisor', 'admin', 'viewer']
     : ['employee', 'team_leader', 'qa_agent', 'negative_agent']
   const set = (patch: Partial<User>) => setU((prev) => ({ ...prev, ...patch }))
   const fromHR = !!initial.hr_id
@@ -338,7 +339,7 @@ function UserDialog({
               ))}
             </select>
           </div>
-          {isAdmin && u.role !== 'admin' && u.role !== 'viewer' ? (
+          {isAdmin && u.role !== 'admin' && u.role !== 'viewer' && u.role !== 'special_process' ? (
             <div className="field">
               <label className="field-label">Team</label>
               <select className="select" value={u.department_id ?? ''} onChange={(e) => set({ department_id: e.target.value || null })}>

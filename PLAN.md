@@ -505,6 +505,11 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
 - **QA agents (17 Oct):** see the Dashboard for their team (no QA activity, calibration, rotation or reveal) and the
   QA productivity heat map of their team's QA agents (no summary). They open only their own cells' work lists, and
   rotation reads to them as sample audits.
+- **Special process agents (17 Oct):** a new role (A-Z guarantee, chargebacks, ...), with no team, that only escalates:
+  any agent of any team, from the same page as team leaders. Their escalations and team leaders' are named after the
+  sender's job title ("A-Z Guarantee Team Leader escalation", saved when sent) and, as before, go to the agent's
+  team: its QA agents check them and its supervisor may decide. A supervisor's escalation must use one of the agent's
+  own team's task types (the server refuses another team's).
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 

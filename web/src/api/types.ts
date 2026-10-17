@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'supervisor' | 'qa_agent' | 'employee' | 'negative_agent' | 'team_leader' | 'viewer'
+export type Role = 'admin' | 'supervisor' | 'qa_agent' | 'employee' | 'negative_agent' | 'team_leader' | 'viewer' | 'special_process'
 
 export interface User {
   id: string
@@ -274,6 +274,8 @@ export interface TaskRow {
   priority: number
   note: string
   reported_by: string
+  /** A team leader's or special process agent's escalation, named after their job title. */
+  source?: string
   /** An escalation's decision note. */
   finding: string
   order_numbers: string[]

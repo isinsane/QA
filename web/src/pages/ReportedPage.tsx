@@ -13,7 +13,8 @@ import { ToastStack, useToasts } from '../components/Toasts'
 export interface ReportKind {
   kind: Kind
   path: string
-  role: Role
+  /** Who files this kind from their own page. */
+  roles: Role[]
   reportTitle: string
   reporterSubtitle: string
   agentLabel: string
@@ -29,7 +30,7 @@ const qaOf = (team: string) => `a QA agent of the ${team || 'agent’s'} team`
 export const NEGATIVES: ReportKind = {
   kind: 'negative',
   path: '/negatives',
-  role: 'negative_agent',
+  roles: ['negative_agent'],
   reportTitle: 'Report a negative',
   reporterSubtitle: "A QA agent of the agent's team checks it and marks it valid (the agent's mistake) or not valid.",
   agentLabel: 'Agent who caused the negative review',
@@ -42,10 +43,10 @@ export const NEGATIVES: ReportKind = {
 export const TL_ESCALATIONS: ReportKind = {
   kind: 'tl_escalation',
   path: '/tl-escalations',
-  role: 'team_leader',
+  roles: ['team_leader', 'special_process'],
   reportTitle: 'Escalate an interaction',
   reporterSubtitle:
-    "For an order or call of any agent, in any team. A QA agent of their team checks it and marks it valid (the agent's mistake) or not valid.",
+    "For an order or call of any agent, in any team. It goes, named after your job title, to the QA agents and supervisor of the agent's team, who mark it valid (the agent's mistake) or not valid.",
   agentLabel: 'Agent',
   errorLabel: 'What happened',
   errorPlaceholder: 'What the agent did, and why it needs a look',
@@ -56,7 +57,7 @@ export const TL_ESCALATIONS: ReportKind = {
 export const QA_ESCALATIONS: ReportKind = {
   kind: 'qa_escalation',
   path: '/qa-escalations',
-  role: 'qa_agent',
+  roles: ['qa_agent'],
   reportTitle: 'QA escalation',
   reporterSubtitle: "The agent's supervisor checks it and marks it valid or not valid.",
   agentLabel: 'Agent',
@@ -70,7 +71,7 @@ export const QA_ESCALATIONS: ReportKind = {
 export const SUP_ESCALATIONS: ReportKind = {
   kind: 'escalation',
   path: '/escalations',
-  role: 'supervisor',
+  roles: ['supervisor', 'admin'],
   reportTitle: 'Escalate an interaction',
   reporterSubtitle:
     "For an order or call of any agent, in any team. It goes to the top of a QA agent's queue in the agent's team, even past the queue cap, and is scored like any audit.",
@@ -84,7 +85,7 @@ export const SUP_ESCALATIONS: ReportKind = {
 /** The reporter's page: the form, then what they sent. */
 export function ReportedPage({ cfg }: { cfg: ReportKind }) {
   const { user } = useAuth()
-  return user?.role === cfg.role ? <ReporterPage cfg={cfg} /> : <EscalationsPage />
+  return user && cfg.roles.includes(user.role) ? <ReporterPage cfg={cfg} /> : <EscalationsPage />
 }
 
 /** Where an escalation stands, in words. */
@@ -308,7 +309,7 @@ const TABS: [Tab, string, string][] = [
 
 const SOURCES: [Kind, string][] = [
   ['negative', 'Negatives'],
-  ['tl_escalation', 'Team leaders'],
+  ['tl_escalation', 'Team leaders & special process'],
   ['qa_escalation', 'QA agents'],
 ]
 
@@ -437,7 +438,7 @@ export function EscalationsPage() {
                     <td className="mono">{t.external_id}</td>
                     <td className="dispute-text">{t.note}</td>
                     <td>
-                      <KindBadge kind={t.kind} /> {t.reported_by || '—'}
+                      <KindBadge kind={t.kind} label={t.source} /> {t.reported_by || '—'}
                       <div className="text-tertiary" style={{ fontSize: 12 }}>
                         {fmtDateTime(t.created_at)}
                       </div>

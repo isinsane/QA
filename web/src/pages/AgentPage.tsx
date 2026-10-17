@@ -127,14 +127,14 @@ export function AgentPage() {
             <div className="card-header">
               <div>
                 <h2 className="card-title">Valid escalations</h2>
-                <p className="card-subtitle">Negatives, team leader and QA escalations found to be the agent's mistake.</p>
+                <p className="card-subtitle">Negatives and escalations (team leaders, special process, QA) found to be the agent's mistake.</p>
               </div>
             </div>
             {esc.length === 0 && !escalations.loading ? <Empty title="None in this period" /> : null}
             <ul className="attention-list dash-scroll">
               {esc.map((t) => (
                 <li key={t.id} className="is-clickable" onClick={() => navigate(`/tasks/${t.id}`)}>
-                  <KindBadge kind={t.kind} />
+                  <KindBadge kind={t.kind} label={t.source} />
                   <span className="attention-what">
                     <strong className="dispute-text">{t.note}</strong>
                     <span className="text-tertiary">

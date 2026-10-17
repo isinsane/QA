@@ -22,7 +22,8 @@ import (
 // Never scored, never disputed.
 //
 //   - Negatives: a negatives agent reports a negative review.
-//   - Team leader escalations: a team leader (floor support) escalates work.
+//   - Team leader escalations: a team leader (floor support) or a special
+//     process agent escalates work, named after their job title.
 //   - QA escalations: a QA agent raises one.
 //
 // Each can be about any agent of any team; the agent's team checks it.
@@ -31,24 +32,37 @@ import (
 // check (internal/assign); its QA agents and the supervisor may decide them.
 // QA escalations are decided by the supervisor.
 type reporter struct {
-	kind model.Kind
-	role model.Role
-	path string
-	noun string // in messages: "negative", "escalation"
+	kind  model.Kind
+	roles []model.Role
+	path  string
+	noun  string // in messages: "negative", "escalation"
 }
 
 var reporters = []reporter{
-	{model.KindNegative, model.RoleNegative, "/negatives", "negative"},
-	{model.KindTLEscalation, model.RoleTeamLeader, "/tl-escalations", "escalation"},
-	{model.KindQAEscalation, model.RoleQA, "/qa-escalations", "escalation"},
+	{model.KindNegative, []model.Role{model.RoleNegative}, "/negatives", "negative"},
+	{model.KindTLEscalation, []model.Role{model.RoleTeamLeader, model.RoleSpecialProcess}, "/tl-escalations", "escalation"},
+	{model.KindQAEscalation, []model.Role{model.RoleQA}, "/qa-escalations", "escalation"},
+}
+
+// escalationSource names a team leader's or special process agent's
+// escalation after their job title: "A-Z Guarantee Team Leader escalation".
+func escalationSource(u *model.User) string {
+	title, _ := u.Profile["job_title"].(string)
+	if title = strings.TrimSpace(title); title == "" {
+		title = map[model.Role]string{model.RoleSpecialProcess: "Special process"}[u.Role]
+		if title == "" {
+			title = "Team leader"
+		}
+	}
+	return title + " escalation"
 }
 
 func (s *Server) routesReported(r chi.Router, managers func(http.Handler) http.Handler) {
 	for _, rp := range reporters {
-		who := s.requireRoles(rp.role, model.RoleAdmin, model.RoleSupervisor)
+		who := s.requireRoles(append(rp.roles, model.RoleAdmin, model.RoleSupervisor)...)
 		r.With(who).Get(rp.path+"/agents", s.reportAgents(rp))
 		r.With(who).Post(rp.path, s.report(rp))
-		r.With(s.requireRoles(rp.role)).Get(rp.path+"/mine", s.myReports(rp))
+		r.With(s.requireRoles(rp.roles...)).Get(rp.path+"/mine", s.myReports(rp))
 	}
 	checkers := s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)
 	r.With(checkers).Post("/tasks/{id}/decide", s.handleDecide)
@@ -184,6 +198,9 @@ func (s *Server) report(rp reporter) http.HandlerFunc {
 			WorkDate: model.Date{Time: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)},
 			Labels:   model.Strings{}, Data: model.JSONMap{}, State: model.StateReview, Kind: rp.kind,
 			Priority: 10, CreatedBy: &u.ID, Note: in.Error,
+		}
+		if rp.kind == model.KindTLEscalation {
+			t.Data["source"] = escalationSource(u)
 		}
 		err := db.Transaction(func(tx *gorm.DB) error {
 			if err := tx.Create(&t).Error; err != nil {

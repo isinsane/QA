@@ -30,7 +30,7 @@ const ADMIN = ['admin', 'viewer']
 const QA = ['qa_agent']
 
 const NAV = [
-  { to: '/tl-escalations', label: 'TL escalations', icon: Siren, roles: ['team_leader'] },
+  { to: '/tl-escalations', label: 'My escalations', icon: Siren, roles: ['team_leader'] },
   { to: '/queue', label: 'Workspace', icon: Headphones, roles: QA },
   { to: '/my-audits', label: 'My audits', icon: ClipboardCheck, roles: QA },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [...MANAGER, ...QA] },

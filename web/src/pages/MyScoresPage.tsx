@@ -35,7 +35,7 @@ const avgOf = (scores: (number | null)[]) => {
 
 const REPORTED_BADGE: Partial<Record<string, string>> = {
   negative: 'negative review',
-  tl_escalation: 'TL escalation',
+  tl_escalation: 'Escalation',
   qa_escalation: 'QA escalation',
 }
 
