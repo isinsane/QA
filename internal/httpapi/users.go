@@ -85,6 +85,42 @@ func (s *Server) handleUpdateDepartment(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, d)
 }
 
+// handleDeleteDepartment removes a department added by mistake: only an
+// empty one, with nobody in it and no task types.
+func (s *Server) handleDeleteDepartment(w http.ResponseWriter, r *http.Request) {
+	id, ok := urlID(w, r)
+	if !ok {
+		return
+	}
+	db := s.db.WithContext(r.Context())
+	var people, types int64
+	db.Model(&model.User{}).Where("department_id = ?", id).Count(&people)
+	db.Model(&model.TaskType{}).Where("department_id = ?", id).Count(&types)
+	if people > 0 || types > 0 {
+		writeError(w, http.StatusConflict, fmt.Sprintf(
+			"it still has %d %s and %d task %s: move them to another department or remove them first",
+			people, plural(people, "person", "people"), types, plural(types, "type", "types")))
+		return
+	}
+	res := db.Delete(&model.Department{}, "id = ?", id)
+	if res.Error != nil {
+		dbError(w, res.Error)
+		return
+	}
+	if res.RowsAffected == 0 {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func plural(n int64, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
+
 // ---------- users ----------
 
 // canManage: admins manage everyone; a supervisor manages the QA agents and

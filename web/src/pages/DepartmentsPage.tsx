@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import { useReadOnly } from '../auth/AuthContext'
 import { errorText } from '../components/bits'
+import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
 
 export function DepartmentsPage() {
@@ -14,6 +15,7 @@ export function DepartmentsPage() {
   const { toasts, push } = useToasts()
   const [name, setName] = useState('')
   const [editing, setEditing] = useState<{ id: string; name: string; hr: string } | null>(null)
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null)
 
   async function run(fn: () => Promise<unknown>, done: string) {
     try {
@@ -128,12 +130,17 @@ export function DepartmentsPage() {
                       </button>
                     </>
                   ) : readOnly ? null : (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setEditing({ id: d.id, name: d.name, hr: (d.hr_names ?? []).join(', ') })}
-                    >
-                      Edit
-                    </button>
+                    <>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setEditing({ id: d.id, name: d.name, hr: (d.hr_names ?? []).join(', ') })}
+                      >
+                        Edit
+                      </button>{' '}
+                      <button className="btn btn-ghost btn-sm" onClick={() => setRemoving({ id: d.id, name: d.name })}>
+                        Remove
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>
@@ -141,6 +148,26 @@ export function DepartmentsPage() {
           </tbody>
         </table>
       </section>
+      {removing ? (
+        <Modal
+          title={`Remove ${removing.name}?`}
+          size="sm"
+          onClose={() => setRemoving(null)}
+          onSubmit={() => void run(() => api.deleteDepartment(removing.id), `${removing.name} removed`).then(() => setRemoving(null))}
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setRemoving(null)}>
+                Keep
+              </button>
+              <button type="submit" className="btn btn-danger">
+                Remove
+              </button>
+            </>
+          }
+        >
+          <p style={{ margin: 0 }}>For a department added by mistake. Only an empty one can be removed: nobody in it and no task types.</p>
+        </Modal>
+      ) : null}
       <ToastStack toasts={toasts} />
     </div>
   )

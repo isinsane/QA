@@ -111,6 +111,7 @@ export const api = {
   departments: () => request<Department[]>('/departments'),
   createDepartment: (name: string) => request<Department>('/departments', json('POST', { name })),
   updateDepartment: (id: string, d: { name: string; hr_names: string[] }) => request(`/departments/${id}`, json('PATCH', d)),
+  deleteDepartment: (id: string) => request(`/departments/${id}`, { method: 'DELETE' }),
 
   users: (role?: string) => request<User[]>(`/users${qs({ role })}`),
   createUser: (u: Partial<User>) => request<User>('/users', json('POST', u)),

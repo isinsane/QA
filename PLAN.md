@@ -497,6 +497,8 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   page (managers): per QA agent for a period, audits by kind, per hour with work, scores given, pass / borderline /
   fail, critical fails, can't audit, escalations checked, coaching, disputes and score changes, first and last action,
   queue and online now; and a grid of audits by hour, day, week or month.
+- **Departments (17 Oct):** an admin can remove a department added by mistake, only while it is empty (nobody in it,
+  no task types).
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 

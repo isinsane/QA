@@ -80,6 +80,7 @@ func (s *Server) Handler() http.Handler {
 			r.With(managers).Get("/departments", s.handleListDepartments)
 			r.With(s.requireRoles(model.RoleAdmin)).Post("/departments", s.handleCreateDepartment)
 			r.With(s.requireRoles(model.RoleAdmin)).Patch("/departments/{id}", s.handleUpdateDepartment)
+			r.With(s.requireRoles(model.RoleAdmin)).Delete("/departments/{id}", s.handleDeleteDepartment)
 
 			r.With(managers).Get("/users", s.handleListUsers)
 			r.With(managers).Post("/users", s.handleCreateUser)
