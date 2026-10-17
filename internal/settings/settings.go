@@ -72,7 +72,7 @@ func Defaults() Settings {
 		BusinessTimezone:     "Asia/Amman",
 		CallUTCOffset:        "-05:00",
 		LiveWindowSeconds:    20,
-		LiveHiddenColumns:    []string{"Conversation ID", "Media manager", "Media type", "Handle time", "Interaction outcome"},
+		LiveHiddenColumns:    []string{"Conversation ID", "Media manager", "Media type", "Handle time", "Interaction outcome", "Connect from"},
 		RosterIgnoreIDs:      []string{},
 		TicketsPullHour:      6,
 		ReplyBucketsTop:      3,
