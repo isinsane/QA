@@ -1420,3 +1420,195 @@ input[type='checkbox']:disabled {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* QA productivity: the activity heat map */
+.hm-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hm-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 32px;
+  padding: 4px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hm-stats > div:not(.hm-legend) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hm-stat-value {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hm-stat-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.hm-legend {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.hm-legend .hm-cell {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 0;
+  border-radius: 3px;
+}
+
+.hm-other-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 14px;
+}
+
+.hm-other-key i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning-500);
+}
+
+.hm-wrap {
+  overflow-x: auto;
+  padding: 12px 16px 16px;
+}
+
+.hm {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 12px;
+}
+
+.hm th {
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-align: center;
+  white-space: nowrap;
+  padding: 2px 0;
+}
+
+.hm .hm-group {
+  text-align: left;
+  padding: 0 4px 4px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.hm .hm-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-surface);
+  text-align: left;
+  min-width: 180px;
+  padding: 0 14px 0 2px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.hm tbody .hm-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+}
+
+.hm tbody .hm-name small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  line-height: 1.1;
+}
+
+.hm-cell {
+  position: relative;
+  min-width: 32px;
+  height: 30px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  cursor: default;
+  transition: box-shadow var(--transition);
+}
+
+.hm-cell[data-l='1'] {
+  background: color-mix(in srgb, var(--brand-solid) 22%, var(--bg-surface));
+}
+
+.hm-cell[data-l='2'] {
+  background: color-mix(in srgb, var(--brand-solid) 38%, var(--bg-surface));
+}
+
+.hm-cell[data-l='3'] {
+  background: color-mix(in srgb, var(--brand-solid) 56%, var(--bg-surface));
+  color: var(--text-on-brand);
+}
+
+.hm-cell[data-l='4'] {
+  background: color-mix(in srgb, var(--brand-solid) 76%, var(--bg-surface));
+  color: var(--text-on-brand);
+}
+
+.hm-cell[data-l='5'] {
+  background: var(--brand-solid);
+  color: var(--text-on-brand);
+}
+
+td.hm-cell:hover {
+  box-shadow: 0 0 0 2px var(--brand-500);
+}
+
+.hm-cell.has-other::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--warning-500);
+}
+
+.hm .hm-total {
+  padding: 0 4px 0 10px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hm tfoot th,
+.hm tfoot td {
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.hm .hm-sum {
+  text-align: center;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
