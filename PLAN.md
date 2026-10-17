@@ -37,7 +37,7 @@ This repo is built fresh, and reusable pieces are copied in, not imported.
 | Employees | Come from the HR sheet (its Employees tab), uploaded again whenever HR updates it. People are matched on HR Employee ID, then email. Only the audited departments are brought in: Calls support, Ticket support, New Sales and Marketplace support. Portal departments carry the same names as HR's |
 | Queue | Auto-assign like followup: personal queues with a cap per QA agent, filled from the agent's own department only |
 | Scorecard | Dynamic metrics per task type, managed by the supervisor (own department) and the admin |
-| Score | Points converted to a %. On a **critical** metric that lost points, the QA agent can tick *Fail the whole audit*, which sets the score to 0 (since 16 Oct; before, earning 0 did it by itself). Every metric has an optional notes box |
+| Score | Points converted to a %. On a **critical** metric that scored 0 (a No; since 17 Oct, partial credit doesn't), the QA agent can tick *Fail the whole audit*, which sets the score to 0 (since 16 Oct; before, earning 0 did it by itself). Every metric has an optional notes box |
 | After submit | Locked for the QA agent. Only the supervisor or admin can edit, and every edit is audit-logged |
 | Employees' view | They log in and see their own evaluations, read-only |
 
@@ -478,8 +478,14 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   length group, default 5). The audit page shows the chat and its transcript (read from eDesk on first open, then
   kept). Same daily loop and week of catch-up as tickets; Imports has Pull now. eDesk's day filter uses the eDesk API
   user's own timezone. Needs EDESK_API_TOKEN in .env.
+- **QA agents blind (17 Oct):** a QA agent never learns who audited, except on their own audits: no QA name or ID on
+  others' audits (queue, disputes, agent page, report, export), no History or edit history there, and no QA activity
+  or calibration on the agent page. Rotation cases read to them as ordinary audits (no badge, note or log entry).
+  "Fail the whole audit" only takes on a critical metric that scored 0. Disputes has a **By agent** tab (accepted =
+  score changed, rejected = score kept, waiting; most rejected first) for managers, and the export's Summary splits
+  disputes into waiting, accepted and rejected.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
-  score before -> after. The audit's History card is the edit history, and QA agents now see it too.
+  score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 
 ---
 

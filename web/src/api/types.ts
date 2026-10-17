@@ -77,6 +77,18 @@ export interface Columns {
   row_values?: string[]
 }
 
+/** An agent's disputes on audits of a period. */
+export interface DisputeAgent {
+  employee_id: string
+  name: string
+  team: string
+  audits: number
+  raised: number
+  accepted: number
+  rejected: number
+  waiting: number
+}
+
 /** One message of a live chat. */
 export interface ChatLine {
   at: number

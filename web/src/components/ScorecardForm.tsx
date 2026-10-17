@@ -31,9 +31,8 @@ export function ScorecardForm({ card, answers, thresholds, readOnly, onChange, f
     <>
       {card.map((m, i) => {
         const a = answers[m.id]
-        // A critical metric that lost points can fail the whole audit, when the QA agent says so.
-        const loses = (v: string | undefined) =>
-          m.critical && v !== undefined && v !== 'na' && (earned(m, v) ?? maxPoints(m)) < maxPoints(m)
+        // A critical metric that scored 0 (a No, not partial credit) can fail the whole audit, when the QA agent says so.
+        const loses = (v: string | undefined) => m.critical && v !== undefined && v !== 'na' && earned(m, v) === 0
         const showNotes = !readOnly && m.type !== 'text' && (noting[m.id] || !!a?.notes)
         return (
           <div className={`metric${!readOnly && m.type !== 'text' && !a?.value ? ' is-open' : ''}`} key={m.id} id={`metric-${m.id}`}>

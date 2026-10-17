@@ -5,6 +5,7 @@ import type {
   EvaluationChange,
   ImportResult,
   ChatLine,
+  DisputeAgent,
   ImportRun,
   RosterResult,
   Reports,
@@ -169,6 +170,8 @@ export const api = {
   cancel: (id: string, reason: string) => request(`/tasks/${id}/cancel`, json('POST', { reason })),
 
   reports: (params: Record<string, string | undefined>) => request<Reports>(`/reports${qs(params)}`),
+  disputeAgents: (params: Record<string, string | undefined>) =>
+    request<{ from: string; to: string; agents: DisputeAgent[] }>(`/disputes/agents${qs(params)}`),
   agents: (params: Record<string, string | undefined>) =>
     request<{ from: string; to: string; agents: AgentRow[] }>(`/agents${qs(params)}`),
   agent: (id: string) => request<AgentInfo>(`/agents/${id}`),

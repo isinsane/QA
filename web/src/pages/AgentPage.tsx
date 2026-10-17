@@ -4,7 +4,7 @@ import { ArrowLeft, Award, ClipboardCheck, Megaphone, Target } from 'lucide-reac
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { Coaching } from '../api/types'
-import { initials } from '../auth/AuthContext'
+import { initials, useAuth } from '../auth/AuthContext'
 import {
   AckBadge,
   DateRangePicker,
@@ -25,6 +25,7 @@ import { StatCard } from '../components/StatCard'
 export function AgentPage() {
   const { agentId = '' } = useParams()
   const navigate = useNavigate()
+  const qaBlind = useAuth().user?.role === 'qa_agent' // only supervisors know who audited
   const [range, setRange] = useState<DateRange>(() => rangeFor('this_month'))
   const [page, setPage] = useState(1)
   const period = { employee_id: agentId, from: range.from, to: range.to }
@@ -165,7 +166,7 @@ export function AgentPage() {
                     <th>Code / tag</th>
                     <th>Score</th>
                     <th>Agent's answer</th>
-                    <th>QA</th>
+                    {qaBlind ? null : <th>QA</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -184,7 +185,7 @@ export function AgentPage() {
                       <td>
                         <AckBadge status={t.ack_status} />
                       </td>
-                      <td>{t.qa_name ?? '—'}</td>
+                      {qaBlind ? null : <td>{t.qa_name ?? '—'}</td>}
                     </tr>
                   ))}
                 </tbody>

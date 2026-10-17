@@ -77,6 +77,7 @@ type taskRow struct {
 	Resolution     string          `json:"dispute_resolution"`
 	Finding        string          `json:"finding"`
 	OrderNumbers   model.Strings   `json:"order_numbers"`
+	EvaluatedBy    *uuid.UUID      `json:"-"` // to tell a QA agent's own audits apart (forQA)
 	MatchStatus    string          `json:"match_status"`
 	Priority       int             `json:"priority"`
 	Note           string          `json:"note"`
@@ -90,7 +91,7 @@ func (s *Server) taskRows(r *http.Request) *gorm.DB {
 		Select(`t.id, t.external_id, t.work_date, t.state, t.labels, t.score, t.passed, t.critical_failed,
 		        t.completed_at, t.task_type_id, tt.name AS task_type_name, t.employee_id, e.name AS employee_name,
 		        t.assigned_qa_id, coalesce(q.name, ev.name) AS qa_name,
-		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers,
+		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers, t.evaluated_by,
 		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, t.created_at,
 		        EXISTS (SELECT 1 FROM evaluation_changes ec WHERE ec.task_id = t.id AND ec.status = 'pending') AS change_pending`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
@@ -98,6 +99,24 @@ func (s *Server) taskRows(r *http.Request) *gorm.DB {
 		Joins("LEFT JOIN users q ON q.id = t.assigned_qa_id").
 		Joins("LEFT JOIN users ev ON ev.id = t.evaluated_by").
 		Joins("LEFT JOIN users cb ON cb.id = t.created_by")
+}
+
+// forQA keeps from a QA agent what only supervisors know: who audited (on
+// anyone's audit but their own) and that an audit is a rotation case (QA
+// over QA), which reads to them as an ordinary audit.
+func forQA(u *model.User, rows []taskRow) {
+	if u.Role != model.RoleQA {
+		return
+	}
+	for i := range rows {
+		if rows[i].Kind == model.KindRotation {
+			rows[i].Kind = model.KindSample
+		}
+		own := rows[i].AssignedQAID != nil && *rows[i].AssignedQAID == u.ID || rows[i].EvaluatedBy != nil && *rows[i].EvaluatedBy == u.ID
+		if !own {
+			rows[i].QAName, rows[i].AssignedQAID = nil, nil
+		}
+	}
 }
 
 func (s *Server) handleMyQueue(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +127,7 @@ func (s *Server) handleMyQueue(w http.ResponseWriter, r *http.Request) {
 		dbError(w, err)
 		return
 	}
+	forQA(me(r), out)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -120,6 +140,7 @@ func (s *Server) handleMyDisputes(w http.ResponseWriter, r *http.Request) {
 		dbError(w, err)
 		return
 	}
+	forQA(me(r), out)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -254,6 +275,7 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		dbError(w, err)
 		return
 	}
+	forQA(u, rows)
 	writeJSON(w, http.StatusOK, map[string]any{"tasks": rows, "total": total, "page": page, "page_size": 50})
 }
 
@@ -322,6 +344,9 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 	manages := isManager(u) && inScope(u, tt.DepartmentID)
 	answers := canAnswerDispute(u, t) && (u.Role == model.RoleQA || manages)
 	own := u.Role == model.RoleQA && t.EvaluatedBy != nil && *t.EvaluatedBy == u.ID
+	// A QA agent learns who audited only on their own audits (queue or scored).
+	ownQA := own || u.Role == model.RoleQA && t.AssignedQAID != nil && *t.AssignedQAID == u.ID
+	seesWho := u.Role != model.RoleEmployee && (u.Role != model.RoleQA || ownQA)
 	var employee model.User
 	s.db.WithContext(r.Context()).First(&employee, "id = ?", t.EmployeeID)
 
@@ -357,7 +382,7 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 			out["reported_by"] = by.Name
 		}
 	}
-	if u.Role != model.RoleEmployee {
+	if seesWho {
 		qaID := t.EvaluatedBy
 		if qaID == nil {
 			qaID = t.AssignedQAID
@@ -369,7 +394,7 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if u.Role != model.RoleEmployee {
+	if seesWho {
 		// Score changes QA agents asked for, newest first; the pending one is on top.
 		changes := []changeRow{}
 		s.db.WithContext(r.Context()).Table("evaluation_changes c").
@@ -384,12 +409,18 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 			ActorName *string `json:"actor_name"`
 		}
 		s.db.WithContext(r.Context()).Table("audit_logs a").Select("a.*, u.name AS actor_name").
-			Joins("LEFT JOIN users u ON u.id = a.actor_id").Where("a.task_id = ?", t.ID).
+			Joins("LEFT JOIN users u ON u.id = a.actor_id").Where("a.task_id = ? AND (? OR a.action NOT IN ('rotation_case', 'rotation_second_review'))", t.ID, u.Role != model.RoleQA).
 			Order("a.created_at DESC").Scan(&logs)
 		out["audit"] = logs
 	}
-	if u.Role == model.RoleEmployee { // nor anyone's ID on it (QA agent, who started it, who answered)
-		t.AssignedQAID, t.EvaluatedBy, t.CreatedBy, t.DisputeResolvedBy = nil, nil, nil, nil
+	if !seesWho { // nor anyone's ID on it (QA agent, who started it, who answered)
+		t.AssignedQAID, t.EvaluatedBy, t.DisputeResolvedBy = nil, nil, nil
+		if u.Role == model.RoleEmployee || !t.Kind.Reviewed() {
+			t.CreatedBy = nil // a live audit's is the QA agent who listened
+		}
+	}
+	if u.Role == model.RoleQA && t.Kind == model.KindRotation { // reads as an ordinary audit
+		t.Kind, t.RotationOf = model.KindSample, nil
 	}
 	writeJSON(w, http.StatusOK, out)
 }

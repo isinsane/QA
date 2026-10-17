@@ -55,7 +55,7 @@ type Answer struct {
 	Value    string `json:"value"`
 	Notes    string `json:"notes,omitempty"`
 	// CriticalFail: the QA agent failed the whole audit on this critical
-	// metric. Only counts on a critical metric that lost points.
+	// metric. Only counts when the metric scored 0 (a No), not partial credit.
 	CriticalFail bool `json:"critical_fail,omitempty"`
 }
 
@@ -194,7 +194,7 @@ func Score(c Card, answers Answers, th Thresholds) (Result, error) {
 		if err != nil {
 			return Result{}, err
 		}
-		if m.Critical && byID[m.ID].CriticalFail && earned < possible {
+		if m.Critical && byID[m.ID].CriticalFail && earned == 0 {
 			critical = true
 		}
 		if m.NAReceiver {

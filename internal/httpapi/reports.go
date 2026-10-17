@@ -16,7 +16,48 @@ import (
 
 func (s *Server) routesReports(r chi.Router, managers func(http.Handler) http.Handler) {
 	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Get("/reports", s.handleReports)
+	r.With(managers).Get("/disputes/agents", s.handleDisputeAgents)
 	r.With(s.requireRoles(model.RoleEmployee)).Get("/me/summary", s.handleMySummary)
+}
+
+type disputeAgent struct {
+	EmployeeID uuid.UUID `json:"employee_id"`
+	Name       string    `json:"name"`
+	Team       string    `json:"team"`
+	Audits     int       `json:"audits"`
+	Raised     int       `json:"raised"`
+	Accepted   int       `json:"accepted"` // the score was changed
+	Rejected   int       `json:"rejected"` // the score was kept
+	Waiting    int       `json:"waiting"`
+}
+
+// handleDisputeAgents counts each agent's disputes on audits of work done in
+// the period (from/to), most rejected first: who disputes often and is
+// rarely right.
+func (s *Server) handleDisputeAgents(w http.ResponseWriter, r *http.Request) {
+	from, to := s.periodOf(r)
+	raised := "t.ack_status IN ('disputed', 'dispute_qa', 'upheld', 'changed')"
+	q := s.db.WithContext(r.Context()).Table("tasks t").
+		Select(`e.id AS employee_id, e.name, coalesce(d.name, '') AS team, count(*) AS audits,
+		        count(*) FILTER (WHERE `+raised+`) AS raised,
+		        count(*) FILTER (WHERE t.ack_status = 'changed') AS accepted,
+		        count(*) FILTER (WHERE t.ack_status = 'upheld') AS rejected,
+		        count(*) FILTER (WHERE t.ack_status IN ('disputed', 'dispute_qa')) AS waiting`).
+		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
+		Joins("JOIN users e ON e.id = t.employee_id").
+		Joins("LEFT JOIN departments d ON d.id = e.department_id").
+		Where("t.state = 'completed' AND t.kind IN "+model.CountedKinds+" AND t.work_date BETWEEN ? AND ?", from, to).
+		Group("e.id, e.name, d.name").Having("count(*) FILTER (WHERE " + raised + ") > 0").
+		Order("rejected DESC, raised DESC, e.name")
+	if d := deptScope(me(r)); d != nil {
+		q = q.Where("tt.department_id = ?", *d)
+	}
+	rows := []disputeAgent{}
+	if err := q.Scan(&rows).Error; err != nil {
+		dbError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"from": from, "to": to, "agents": rows})
 }
 
 type weekStat struct {
@@ -185,9 +226,13 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	}
 	q.Order("t.score, t.work_date DESC").Limit(100).Scan(&failed)
 	out["failed"] = failed
+	forQA(me(r), failed)
 
 	out["metrics"] = s.metricBreakdown(r, done, args)
 	out["calibration"] = s.calibration(r, base, args)
+	if me(r).Role == model.RoleQA { // who audited and calibration are the supervisor's to know
+		out["qa_activity"], out["calibration"] = []any{}, map[string]any{"pairs": []any{}, "qa": []any{}}
+	}
 	writeJSON(w, http.StatusOK, out)
 }
 

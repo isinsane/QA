@@ -997,7 +997,7 @@ function MetricModal({
           <label className="field-inline">
             <input type="checkbox" checked={m.critical} onChange={(e) => set({ critical: e.target.checked })} />
             <span>
-              <strong>Critical</strong>: when it loses points, the QA agent can tick "Fail the whole audit" on it
+              <strong>Critical</strong>: when it scores 0 (a No), the QA agent can tick "Fail the whole audit" on it
             </span>
           </label>
           <label className="field-inline">

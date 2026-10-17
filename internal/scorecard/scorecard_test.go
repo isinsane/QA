@@ -149,3 +149,21 @@ func TestSameScoring(t *testing.T) {
 		t.Error("failing the audit on a metric changes the score")
 	}
 }
+
+// The fail-the-audit box counts only when the critical metric scored 0, not
+// on partial credit.
+func TestCriticalFailOnlyOnZero(t *testing.T) {
+	c := Card{
+		{ID: "hold", Label: "Hold etiquette", Type: Scale, Points: 10, ScaleMax: 4, Critical: true},
+		{ID: "close", Label: "Closing", Type: YesNo, Points: 10},
+	}
+	th := Thresholds{Pass: 80, Borderline: 60}
+	partial, _ := Score(c, Answers{{"hold", "2", "", true}, {"close", "yes", "", false}}, th)
+	if partial.CriticalFailed || partial.Score == nil || *partial.Score != 75 {
+		t.Errorf("partial credit with the box ticked: critical=%v score=%v, want not failed and 75", partial.CriticalFailed, *partial.Score)
+	}
+	zero, _ := Score(c, Answers{{"hold", "0", "", true}, {"close", "yes", "", false}}, th)
+	if !zero.CriticalFailed || *zero.Score != 0 || zero.Band != "fail" {
+		t.Errorf("0 with the box ticked: critical=%v score=%v band=%v, want a fail at 0", zero.CriticalFailed, *zero.Score, zero.Band)
+	}
+}

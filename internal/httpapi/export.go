@@ -88,8 +88,8 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 
 	// Per-agent tallies the summary needs beyond the directory's.
 	type tally struct {
-		borderline, fail, critical, disputed, unacked, negatives, tl, qa, coaching int
-		cards                                                                      []cardAnswers
+		borderline, fail, critical, disputed, accepted, rejected, unacked, negatives, tl, qa, coaching int
+		cards                                                                                          []cardAnswers
 	}
 	per := map[uuid.UUID]*tally{}
 	get := func(id uuid.UUID) *tally {
@@ -112,6 +112,10 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		switch a.AckStatus {
 		case "disputed", "dispute_qa":
 			t.disputed++
+		case "changed":
+			t.accepted++
+		case "upheld":
+			t.rejected++
 		case "":
 			t.unacked++
 		}
@@ -143,7 +147,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	sum := newSheet(f, "Summary", bold, []col{
 		{"Agent", 26}, {"Alias", 18}, {"Team", 18}, {"HR department", 20}, {"Job title", 22}, {"Supervisor", 20},
 		{"Audits", 9}, {"Average score %", 15}, {"Pass rate %", 12}, {"Borderline", 11}, {"Fail", 8}, {"Critical fails", 13},
-		{"Disputed", 10}, {"Not acknowledged", 16}, {"Valid negatives", 15}, {"Valid TL escalations", 19},
+		{"Disputes waiting", 16}, {"Disputes accepted", 17}, {"Disputes rejected", 17}, {"Not acknowledged", 16}, {"Valid negatives", 15}, {"Valid TL escalations", 19},
 		{"Valid QA escalations", 19}, {"Coaching sessions", 17}, {"Period", 24},
 	})
 	var profiles []struct {
@@ -159,7 +163,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		t := get(a.ID)
 		sum.add(a.Name, a.AliasName, a.Team, a.HRDepartment, a.JobTitle, sup[a.ID],
 			a.Evaluations, num(a.AvgScore), num(a.PassRate), t.borderline, t.fail, t.critical,
-			t.disputed, t.unacked, t.negatives, t.tl, t.qa, t.coaching, period)
+			t.disputed, t.accepted, t.rejected, t.unacked, t.negatives, t.tl, t.qa, t.coaching, period)
 	}
 
 	aud := newSheet(f, "Audits", bold, []col{
@@ -171,7 +175,11 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		{"Agent", 26}, {"Worked", 12}, {"Interaction / ticket ID", 38}, {"Metric", 44}, {"Answer", 16},
 		{"Points earned", 13}, {"Points possible", 14}, {"Notes", 50},
 	})
+	qaBlind := me(r).Role == model.RoleQA // only supervisors know who audited
 	for _, a := range audits {
+		if qaBlind {
+			a.QAName = nil
+		}
 		aud.add(a.EmployeeName, a.WorkDate.Format(time.DateOnly), a.TaskTypeName, string(a.Kind), a.ExternalID, strings.Join(a.OrderNumbers, ", "), strings.Join(a.Labels, ", "),
 			num(a.Score), deref(a.Result), yes(a.CriticalFailed), deref(a.QAName), stamp(a.CompletedAt, tz),
 			ackLabel(a.AckStatus), a.AckComment, a.Resolution)

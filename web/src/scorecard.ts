@@ -50,7 +50,7 @@ export function preview(card: Metric[], answers: Record<string, Answer>, th: Thr
     const got = earned(m, v)
     if (got === null) return null
     const p = maxPoints(m)
-    if (m.critical && answers[m.id]?.critical_fail && got < p) critical = true
+    if (m.critical && answers[m.id]?.critical_fail && got === 0) critical = true
     if (m.na_receiver) receiverWeight += p
     lines.push({ m, e: got, p })
   }
