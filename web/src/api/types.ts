@@ -106,6 +106,8 @@ export interface QAProductivity {
     disputed: number
     score_changed: number
     active_hours: number
+    focus_done: number
+    focus_open: number
     /** Local wall-clock times. */
     first: string | null
     last: string | null
@@ -175,6 +177,37 @@ export interface ReportAgent {
   team: string
   department: string
   types: { id: string; name: string }[]
+  team_id?: string
+}
+
+/** A planned set of focus audits of one agent's work for one QA agent. */
+export interface FocusPlan {
+  id: string
+  department_id: string
+  task_type_id: string
+  employee_id: string
+  assigned_qa_id: string
+  created_by: string
+  /** Codes it pulled; none: any code, at random. */
+  labels: string[]
+  from_date: string
+  to_date: string
+  asked: number
+  pulled: number
+  reason: string
+  status: 'open' | 'done' | 'cancelled'
+  created_at: string
+  closed_at: string | null
+  cancel_reason: string
+  agent_name: string
+  agent_alias: string
+  qa_name: string
+  created_by_name: string
+  task_type_name: string
+  team: string
+  done: number
+  left: number
+  avg_score: number | null
 }
 
 export interface AppSettings {
@@ -276,6 +309,8 @@ export interface TaskRow {
   reported_by: string
   /** A team leader's or special process agent's escalation, named after their job title. */
   source?: string
+  /** The focus plan a focus audit belongs to. */
+  focus_plan_id?: string | null
   /** An escalation's decision note. */
   finding: string
   order_numbers: string[]

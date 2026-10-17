@@ -16,6 +16,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { ImportsPage } from './pages/ImportsPage'
 import { MyAuditsPage } from './pages/MyAuditsPage'
 import { MyScoresPage } from './pages/MyScoresPage'
+import { FocusPlansPage } from './pages/FocusPlansPage'
 import { ProductivityPage } from './pages/ProductivityPage'
 import { QueuePage } from './pages/QueuePage'
 import { TaskPage } from './pages/TaskPage'
@@ -53,6 +54,7 @@ export default function App() {
               <Route path="/approvals" element={<ApprovalsPage />} />
               <Route path="/agents" element={<AgentsPage />} />
               <Route path="/qa-productivity" element={<ProductivityPage />} />
+              <Route path="/focus-plans" element={<FocusPlansPage />} />
               <Route path="/agents/:agentId" element={<AgentPage />} />
               <Route path="/my-audits" element={<MyAuditsPage />} />
               <Route path="/negatives" element={<ReportedPage cfg={NEGATIVES} />} />

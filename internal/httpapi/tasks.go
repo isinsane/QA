@@ -41,8 +41,6 @@ func (s *Server) routesTasks(r chi.Router, managers func(http.Handler) http.Hand
 	r.With(qa).Post("/live", s.handleStartLive)
 	r.With(qa).Get("/task-types/{id}/live-fields", s.handleLiveFields)
 	r.With(qa).Patch("/tasks/{id}/live", s.handleLiveDetails)
-	r.With(qa).Get("/focus/labels", s.handleFocusLabels)
-	r.With(qa).Post("/focus", s.handleFocusPlan)
 	r.With(managers).Post("/escalations", s.handleEscalate)
 	employee := s.requireRoles(model.RoleEmployee)
 	r.With(employee).Post("/tasks/{id}/acknowledge", s.handleAcknowledge)
@@ -135,6 +133,7 @@ type taskRow struct {
 	Finding        string          `json:"finding"`
 	OrderNumbers   model.Strings   `json:"order_numbers"`
 	RevealedAt     *time.Time      `json:"revealed_at"`
+	FocusPlanID    *uuid.UUID      `json:"focus_plan_id"`
 	EvaluatedBy    *uuid.UUID      `json:"-"` // to tell a QA agent's own audits apart (forQA)
 	MatchStatus    string          `json:"match_status"`
 	Priority       int             `json:"priority"`
@@ -150,7 +149,7 @@ func (s *Server) taskRows(r *http.Request) *gorm.DB {
 		Select(`t.id, t.external_id, t.work_date, t.state, t.labels, t.score, t.passed, t.critical_failed,
 		        t.completed_at, t.task_type_id, tt.name AS task_type_name, t.employee_id, e.name AS employee_name,
 		        t.assigned_qa_id, coalesce(q.name, ev.name) AS qa_name,
-		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers, t.evaluated_by, t.revealed_at,
+		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers, t.evaluated_by, t.revealed_at, t.focus_plan_id,
 		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, coalesce(t.data->>'source', '') AS source, t.created_at,
 		        EXISTS (SELECT 1 FROM evaluation_changes ec WHERE ec.task_id = t.id AND ec.status = 'pending') AS change_pending`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
@@ -511,6 +510,10 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "this task type has no scorecard yet; ask your supervisor to add metrics")
 		return
 	}
+	if s.focusFirst(r, u, t) {
+		writeError(w, http.StatusConflict, "finish your focus plan first: its audits come before your queue")
+		return
+	}
 	res, err := scorecard.Score(tt.Scorecard, in.Answers, thresholds(tt))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -531,6 +534,9 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		}
 		if upd.RowsAffected == 0 {
 			return errConflict
+		}
+		if err := closeFocusPlan(tx, t.FocusPlanID); err != nil {
+			return err
 		}
 		return s.audit(tx, t.ID, u, "submitted", model.JSONMap{"score": res.Score, "result": res.Band})
 	})
@@ -575,7 +581,7 @@ func taskWriteError(w http.ResponseWriter, err error) {
 func (s *Server) nextTask(r *http.Request, qaID uuid.UUID) *uuid.UUID {
 	var t model.Task
 	if s.db.WithContext(r.Context()).Select("id").Where("state = 'assigned' AND assigned_qa_id = ?", qaID).
-		Order("queue_position").First(&t).Error != nil {
+		Order("kind = 'focus' DESC, queue_position").First(&t).Error != nil { // focus audits first
 		return nil
 	}
 	return &t.ID
@@ -635,6 +641,9 @@ func (s *Server) cancelTask(r *http.Request, t *model.Task, u *model.User, reaso
 		}
 		if upd.RowsAffected == 0 {
 			return errConflict
+		}
+		if err := closeFocusPlan(tx, t.FocusPlanID); err != nil {
+			return err
 		}
 		return s.audit(tx, t.ID, u, action, model.JSONMap{"reason": reason, "from_state": t.State})
 	})

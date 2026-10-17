@@ -180,6 +180,7 @@ export function ProductivityPage() {
                     <th>Can't audit</th>
                     <th title="Negatives and team leader escalations they checked">Escalations checked</th>
                     <th>Coaching</th>
+                    <th title="Focus plans they finished in the period · open now">Focus plans</th>
                     <th title="Disputed by the agent · of those, the score was changed">Disputed · changed</th>
                     <th>First · last action</th>
                   </tr>
@@ -228,6 +229,14 @@ export function ProductivityPage() {
                       <td>{a.cant_audit || <span className="text-tertiary">0</span>}</td>
                       <td>{a.checked || <span className="text-tertiary">0</span>}</td>
                       <td>{a.coaching || <span className="text-tertiary">0</span>}</td>
+                      <td>
+                        {a.focus_done} done
+                        {a.focus_open ? (
+                          <div className="text-tertiary" style={{ fontSize: 12 }}>
+                            {a.focus_open} open
+                          </div>
+                        ) : null}
+                      </td>
                       <td>
                         {a.disputed} · {a.score_changed}
                       </td>

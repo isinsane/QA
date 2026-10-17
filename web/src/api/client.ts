@@ -6,6 +6,7 @@ import type {
   ImportResult,
   ChatLine,
   DisputeAgent,
+  FocusPlan,
   HiddenScores,
   QAProductivity,
   QAWorkItem,
@@ -195,8 +196,24 @@ export const api = {
   setLiveDetails: (id: string, details: Record<string, string>) => request(`/tasks/${id}/live`, json('PATCH', { details })),
   focusLabels: (p: { task_type_id: string; employee_id: string; from: string; to: string }) =>
     request<{ label: string; rows: number }[]>(`/focus/labels${qs(p)}`),
-  focusPlan: (p: { task_type_id: string; employee_id: string; label: string; count: number; from: string; to: string }) =>
-    request<{ pulled: number; asked: number }>('/focus', json('POST', p)),
+  focusOptions: () =>
+    request<{ agents: ReportAgent[]; qas: { id: string; name: string; department_id: string; open: number }[] }>('/focus-plans/options'),
+  focusPlans: (params: Record<string, string | number | undefined>) => request<FocusPlan[]>(`/focus-plans${qs(params)}`),
+  focusPlan: (id: string) =>
+    request<{ plan: FocusPlan; audits: TaskRow[]; results: { pass: number; borderline: number; fail: number }; metrics: Reports['metrics'] }>(
+      `/focus-plans/${id}`,
+    ),
+  createFocusPlan: (p: {
+    task_type_id: string
+    employee_id: string
+    assigned_qa_id?: string
+    labels: string[]
+    count: number
+    from: string
+    to: string
+    reason: string
+  }) => request<FocusPlan>('/focus-plans', json('POST', p)),
+  cancelFocusPlan: (id: string, reason: string) => request(`/focus-plans/${id}/cancel`, json('POST', { reason })),
   escalate: (p: { task_type_id: string; external_id: string; employee_id: string; reason: string }) =>
     request<{ task_id: string }>('/escalations', json('POST', p)),
   acknowledge: (id: string, comment: string) => request(`/tasks/${id}/acknowledge`, json('POST', { comment })),

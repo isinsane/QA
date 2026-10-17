@@ -15,6 +15,8 @@ const TITLES: [string, string][] = [
   ['/coaching', 'Coaching'],
   ['/disputes', 'Disputes'],
   ['/escalations', 'Escalations'],
+  ['/focus-plans', 'Focus plans'],
+  ['/qa-productivity', 'QA productivity'],
   ['/approvals', 'Approvals'],
   ['/my-audits', 'My audits'],
   ['/agents/', 'Agent'],

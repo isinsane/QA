@@ -371,8 +371,33 @@ type Task struct {
 	// from them until their team's scores are revealed (handleReveal).
 	RevealedAt *time.Time `json:"revealed_at"`
 
+	// FocusPlanID is the focus plan a focus audit belongs to.
+	FocusPlanID *uuid.UUID `gorm:"type:uuid" json:"focus_plan_id"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// FocusPlan is a planned set of focus audits of one agent's work for one QA
+// agent: some codes (none: any, at random) in a date range, and why.
+type FocusPlan struct {
+	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DepartmentID uuid.UUID  `gorm:"type:uuid" json:"department_id"`
+	TaskTypeID   uuid.UUID  `gorm:"type:uuid" json:"task_type_id"`
+	EmployeeID   uuid.UUID  `gorm:"type:uuid" json:"employee_id"`
+	AssignedQAID uuid.UUID  `gorm:"column:assigned_qa_id;type:uuid" json:"assigned_qa_id"`
+	CreatedBy    uuid.UUID  `gorm:"type:uuid" json:"created_by"`
+	Labels       Strings    `gorm:"type:jsonb" json:"labels"`
+	FromDate     Date       `json:"from_date"`
+	ToDate       Date       `json:"to_date"`
+	Asked        int        `json:"asked"`
+	Pulled       int        `json:"pulled"`
+	Reason       string     `json:"reason"`
+	Status       string     `json:"status"` // open, done, cancelled
+	CreatedAt    time.Time  `json:"created_at"`
+	ClosedAt     *time.Time `json:"closed_at"`
+	ClosedBy     *uuid.UUID `gorm:"type:uuid" json:"closed_by"`
+	CancelReason string     `json:"cancel_reason"`
 }
 
 type Coaching struct {

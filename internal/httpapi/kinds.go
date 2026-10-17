@@ -247,68 +247,6 @@ func (s *Server) handleFocusLabels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleFocusPlan pulls X not-yet-audited interactions of one agent, all
-// with the same tag/code, into the QA agent's own queue. They don't count in
-// the agent's scores.
-func (s *Server) handleFocusPlan(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		TaskTypeID uuid.UUID `json:"task_type_id"`
-		EmployeeID uuid.UUID `json:"employee_id"`
-		Label      string    `json:"label"`
-		Count      int       `json:"count"`
-		From, To   string
-	}
-	if !decode(w, r, &in) {
-		return
-	}
-	if in.Count < 1 || in.Count > 50 || strings.TrimSpace(in.Label) == "" {
-		writeError(w, http.StatusBadRequest, "pick a tag/code and between 1 and 50 interactions")
-		return
-	}
-	tt, ok := s.teamType(w, r, in.TaskTypeID)
-	if !ok {
-		return
-	}
-	agent, ok := s.agentOf(w, r, in.EmployeeID)
-	if !ok || !agentFits(w, tt, agent) {
-		return
-	}
-	u := me(r)
-	note := "Focus plan: " + in.Label
-	var pulled int64
-	err := s.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
-		var ids []uuid.UUID
-		if err := tx.Raw(`
-			SELECT id FROM tasks
-			WHERE task_type_id = ? AND employee_id = ? AND state = 'unsampled' AND kind = 'sample'
-			  AND work_date BETWEEN ? AND ? AND labels @> jsonb_build_array(?::text)
-			ORDER BY random() LIMIT ?`, tt.ID, agent.ID, in.From, in.To, in.Label, in.Count).Scan(&ids).Error; err != nil {
-			return err
-		}
-		now := time.Now().UTC()
-		pos := nextPosition(tx, u.ID)
-		for i, id := range ids {
-			res := tx.Model(&model.Task{}).Where("id = ? AND state = 'unsampled'", id).Updates(map[string]any{
-				"kind": model.KindFocus, "state": model.StateAssigned, "assigned_qa_id": u.ID, "assigned_at": now,
-				"queue_position": pos + i, "created_by": u.ID, "note": note,
-			})
-			if res.Error != nil {
-				return res.Error
-			}
-			pulled += res.RowsAffected
-			if err := s.audit(tx, id, u, "focus_plan", model.JSONMap{"label": in.Label}); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		dbError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"pulled": pulled, "asked": in.Count})
-}
-
 // handleEscalate is a supervisor sending one interaction to the quality
 // team. It goes to the top of a QA agent's queue, past the queue cap.
 func (s *Server) handleEscalate(w http.ResponseWriter, r *http.Request) {

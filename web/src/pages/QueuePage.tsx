@@ -5,8 +5,9 @@ import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { Coaching } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { auditedUnder, daysAgo, Empty, errorText, fmtDate, KindBadge, Labels, localDate, ScoreBadge } from '../components/bits'
+import { auditedUnder, Empty, errorText, fmtDate, KindBadge, Labels, ScoreBadge } from '../components/bits'
 import { AgentSearch } from '../components/AgentSearch'
+import { FocusPlanDialog } from '../components/FocusPlanDialog'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
 import { RaiseQAEscalation } from './ReportedPage'
@@ -24,14 +25,24 @@ export function QueuePage() {
   const negatives = useApi(() => api.escalations({ state: 'review', source: 'negative' }), [], { pollMs: 30_000 })
   const negList = negatives.data?.tasks ?? []
   const { toasts, push } = useToasts()
-  const [pane, setPane] = useState<'queue' | 'disputes' | 'coaching'>('queue')
+  // Their open focus plans: those audits come before the normal queue.
+  const plans = useApi(() => api.focusPlans({ status: 'open' }), [], { pollMs: 60_000 })
+  const [pane, setPane] = useState<'queue' | 'focus' | 'disputes' | 'coaching'>('queue')
   const [dialog, setDialog] = useState<'live' | 'focus' | 'escalate' | Coaching | null>(null)
-  const list = queue.data ?? []
+  const all = queue.data ?? []
+  const focusList = all.filter((t) => t.kind === 'focus')
+  const list = all.filter((t) => t.kind !== 'focus')
+  const locked = focusList.length > 0
   const openCoaching = (coachings.data ?? []).filter((c) => c.status === 'open')
   const disputeList = disputes.data ?? []
 
-  // Land on the first audit when nothing is open yet.
-  const first = list[0]?.id
+  // Focus audits open: show them first (the queue waits until they're done).
+  useEffect(() => {
+    if (locked) setPane((p) => (p === 'queue' ? 'focus' : p))
+  }, [locked])
+
+  // Land on the first audit when nothing is open yet: a focus audit first.
+  const first = (focusList[0] ?? list[0])?.id
   useEffect(() => {
     if (!taskId && first) navigate(`/queue/${first}`, { replace: true })
   }, [taskId, first, navigate])
@@ -44,6 +55,7 @@ export function QueuePage() {
             {(
               [
                 ['queue', 'Queue', list.length, 'badge-brand'],
+                ['focus', 'Focus', focusList.length, 'badge-purple'],
                 ['disputes', 'Disputes', disputeList.length, 'badge-error'],
                 ['coaching', 'Coaching', openCoaching.length, 'badge-purple'],
               ] as const
@@ -84,7 +96,52 @@ export function QueuePage() {
               ))}
             </div>
           ) : null}
-          {pane === 'queue' ? (
+          {pane === 'queue' && locked ? (
+            <div className="ws-locked">
+              <strong>Finish your focus plan first</strong>
+              <span>
+                {focusList.length} focus audit{focusList.length === 1 ? '' : 's'} left. Your queue opens again when they're done.
+              </span>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPane('focus')}>
+                Go to Focus
+              </button>
+            </div>
+          ) : pane === 'focus' ? (
+            <>
+              {focusList.length === 0 ? <Empty title="No focus plan open">Plans you or your supervisor create show up here.</Empty> : null}
+              {[...(plans.data ?? []), null].map((p) => {
+                const audits = focusList.filter((t) => (p ? t.focus_plan_id === p.id : !(plans.data ?? []).some((x) => x.id === t.focus_plan_id)))
+                if (!audits.length) return null
+                return (
+                  <div key={p?.id ?? 'earlier'} className="ws-plan">
+                    <div className="ws-plan-head">
+                      <strong>{p ? p.agent_name : 'Earlier focus audits'}</strong>
+                      {p ? (
+                        <span className="text-tertiary">
+                          {p.labels.length ? p.labels.join(', ') : 'any code, at random'} · {p.done} of {p.pulled} done
+                        </span>
+                      ) : null}
+                      {p ? <span className="ws-plan-why">{p.reason}</span> : null}
+                    </div>
+                    {audits.map((t) => (
+                      <button
+                        key={t.id}
+                        className={`qa-queue-item${t.id === taskId ? ' active' : ''}`}
+                        onClick={() => navigate(`/queue/${t.id}`)}
+                      >
+                        <span className="qa-queue-top">
+                          <strong>{t.employee_name}</strong>
+                          <span className="text-tertiary">{fmtDate(t.work_date)}</span>
+                        </span>
+                        <span className="qa-queue-meta">{t.task_type_name}</span>
+                        <Labels labels={t.labels} />
+                      </button>
+                    ))}
+                  </div>
+                )
+              })}
+            </>
+          ) : pane === 'queue' ? (
             <>
               {list.length === 0 && !queue.loading ? (
                 <Empty title="Nothing to audit">
@@ -173,6 +230,7 @@ export function QueuePage() {
             }}
             onDone={(next) => {
               void queue.reload()
+              void plans.reload()
               navigate(next ? `/queue/${next}` : '/queue')
             }}
           />
@@ -195,12 +253,19 @@ export function QueuePage() {
         />
       ) : null}
       {dialog === 'focus' ? (
-        <FocusDialog
+        <FocusPlanDialog
+          forQA
           onClose={() => setDialog(null)}
-          onPulled={(n) => {
+          onCreated={(p) => {
             setDialog(null)
-            push('success', `${n} interaction(s) added to your queue`)
+            push(
+              'success',
+              p.pulled < p.asked ? `Focus plan created: ${p.pulled} of ${p.asked} (all there were)` : `Focus plan created: ${p.pulled} audits`,
+            )
             void queue.reload()
+            void plans.reload()
+            setPane('focus')
+            navigate('/queue') // lands on the first focus audit
           }}
           onError={(e) => push('error', e)}
         />
@@ -314,105 +379,6 @@ function LiveDialog({ onClose, onStarted, onError }: DialogProps & { onStarted: 
         Fill in the call's details (who called, the code) on the audit as the call goes, and the order numbers under the scorecard.
         Saving them keeps your answers.
       </p>
-    </Modal>
-  )
-}
-
-function FocusDialog({ onClose, onPulled, onError }: DialogProps & { onPulled: (n: number) => void }) {
-  const { typeList, agentsFor } = useTeamPickers()
-  const [f, setF] = useState({ type: '', agent: '', from: daysAgo(7), to: localDate(new Date()), label: '', count: 5 })
-  const type = f.type || typeList[0]?.id || ''
-  const labels = useApi(
-    () => (type && f.agent ? api.focusLabels({ task_type_id: type, employee_id: f.agent, from: f.from, to: f.to }) : Promise.resolve([])),
-    [type, f.agent, f.from, f.to],
-  )
-  const [busy, setBusy] = useState(false)
-  const set = (patch: Partial<typeof f>) => setF((prev) => ({ ...prev, ...patch }))
-
-  return (
-    <Modal
-      title="Focus plan"
-      subtitle="Pull several not-yet-audited interactions of one agent, all with the same tag or code, into your queue. Focus-plan audits don't count in the agent's scores."
-      size="md"
-      onClose={onClose}
-      onSubmit={() => {
-        setBusy(true)
-        api
-          .focusPlan({ task_type_id: type, employee_id: f.agent, label: f.label, count: f.count, from: f.from, to: f.to })
-          .then((r) => onPulled(r.pulled))
-          .catch((err) => onError(errorText(err)))
-          .finally(() => setBusy(false))
-      }}
-      footer={
-        <>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || !type || !f.agent || !f.label}>
-            Pull into my queue
-          </button>
-        </>
-      }
-    >
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Type</label>
-          <select className="select" value={type} onChange={(e) => set({ type: e.target.value, label: '' })}>
-            {typeList.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label className="field-label">Agent</label>
-          <select className="select" value={f.agent} onChange={(e) => set({ agent: e.target.value, label: '' })}>
-            <option value="">Pick the agent…</option>
-            {agentsFor(type).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">From</label>
-          <input className="input" type="date" value={f.from} onChange={(e) => set({ from: e.target.value, label: '' })} />
-        </div>
-        <div className="field">
-          <label className="field-label">To</label>
-          <input className="input" type="date" value={f.to} onChange={(e) => set({ to: e.target.value, label: '' })} />
-        </div>
-      </div>
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Tag / code</label>
-          <select className="select" value={f.label} onChange={(e) => set({ label: e.target.value })} disabled={!f.agent}>
-            <option value="">
-              {f.agent ? (labels.data?.length ? 'Pick one…' : 'Nothing left to audit in this range') : 'Pick an agent first'}
-            </option>
-            {(labels.data ?? []).map((l) => (
-              <option key={l.label} value={l.label}>
-                {l.label} ({l.rows} available)
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label className="field-label">How many</label>
-          <input
-            className="input"
-            type="number"
-            min={1}
-            max={50}
-            value={f.count}
-            onChange={(e) => set({ count: Number(e.target.value) })}
-          />
-        </div>
-      </div>
     </Modal>
   )
 }

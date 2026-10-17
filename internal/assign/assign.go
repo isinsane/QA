@@ -139,6 +139,8 @@ func (r *Runner) Run(ctx context.Context) error {
 			FROM users u
 			LEFT JOIN tasks t ON t.assigned_qa_id = u.id AND t.state = 'assigned'
 			WHERE u.role = 'qa_agent' AND u.active AND u.is_available
+			  -- focus audits open: their queue waits until those are done
+			  AND NOT EXISTS (SELECT 1 FROM tasks f WHERE f.assigned_qa_id = u.id AND f.state = 'assigned' AND f.kind = 'focus')
 			GROUP BY u.id`).Scan(&agents).Error; err != nil {
 			return err
 		}

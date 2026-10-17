@@ -2,6 +2,7 @@ import { Link, NavLink } from 'react-router-dom'
 import {
   Building2,
   CheckCheck,
+  Crosshair,
   ClipboardCheck,
   ClipboardList,
   GraduationCap,
@@ -38,6 +39,7 @@ const NAV = [
   { to: '/agents', label: 'Agents', icon: UserSearch, roles: [...MANAGER, ...QA] },
   { to: '/tasks', label: 'All tasks', icon: ListChecks, roles: MANAGER },
   { to: '/qa-productivity', label: 'QA productivity', icon: Timer, roles: [...MANAGER, ...QA] },
+  { to: '/focus-plans', label: 'Focus plans', icon: Crosshair, roles: MANAGER },
   { to: '/disputes', label: 'Disputes', icon: MessageSquareWarning, roles: MANAGER },
   { to: '/approvals', label: 'Approvals', icon: CheckCheck, roles: MANAGER },
   { to: '/negatives', label: 'Negatives', icon: ThumbsDown, roles: MANAGER },

@@ -526,6 +526,66 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
 
 ---
 
+## 9d. Focus plans v2 (17 Oct, built: the defaults below were chosen)
+
+### Today
+
+A QA agent opens "Focus plan" in the Workspace, picks an agent, one code, a date range and a count, and that many
+of the agent's not-sampled interactions with the code drop straight into their normal queue as focus audits. They
+never count in scores and the agent never sees them. There is no plan record: nobody can see who planned what or
+why, supervisors can't create one, there is no history, and a code is required (no random pull).
+
+### Proposal
+
+**1. A plan is a record.** `focus_plans`: team, task type, agent, assigned QA agent, created by, codes (none = any
+code, random), work-date range, how many asked, how many pulled, why (required, a sentence), status (open, done,
+cancelled), created / done / cancelled at and by. Each focus audit points to its plan (`tasks.focus_plan_id`). Every
+step is logged (created, each audit done, finished, cancelled).
+
+**2. Who creates it.** A QA agent, for themselves (Workspace). A supervisor or admin, for any QA agent of the team
+(Focus plans page), defaulting to the team's QA agent with the lightest queue.
+
+**3. What it pulls.** The agent's interactions of that type in the date range that were not sampled, either with
+one or more chosen codes (each shown with how many there are) or **any code, at random**. Pulled at once; if fewer
+exist than asked, the plan takes what there is and says so.
+
+**4. Focus comes first.** The Workspace gets a **Focus** tab (Queue · Focus · Disputes · Coaching). While a QA agent
+has an open plan:
+- the Focus tab opens first and lists the plan(s) and their audits;
+- the Queue tab is locked ("Finish your focus plan first: 3 left"), and no new sample audits are given to them (their
+  share goes to the other QA agents online);
+- still allowed: negatives (top priority), disputes sent to them, live monitoring, and supervisor escalations.
+A plan is done when its last audit is submitted (or marked can't audit); the queue opens again.
+
+**5. Hidden from agents.** Agents never see focus audits or plans (as today; focus audits can't be linked to a
+coaching session, since agents see those). QA agents see their own plans only.
+
+**6. Focus plans page** (supervisors: their team; admins and view only: all). Tabs Open / Done / Cancelled. Each
+row: when, agent, QA agent, codes (or "random"), why, progress (4 of 5), average score, created by. A plan opens to
+its audits (each linked) and its results: average, pass / borderline / fail, weakest metrics. A supervisor can
+cancel an open plan: audits not done yet go back to not sampled.
+
+**7. Productivity.** The heat map already shows focus audits; the summary gets plans created and finished.
+
+### Choices (defaults above; say if any should flip)
+
+- Not enough interactions: take what there is now (default) or keep filling the plan as new days are imported.
+- While a plan is open, the normal queue is locked for that QA agent (default) or only moved below the focus audits.
+- Why is required (default) or optional.
+
+### Not in it (later)
+
+Due dates and reminders; plans that repeat; focus plans with no specific agent (a whole code across the team).
+
+### Built (17 Oct)
+
+As proposed, with the three defaults (take what there is; queue locked until done; why required). Migration 00020
+(`focus_plans`, `tasks.focus_plan_id`); `/focus-plans` (list, create, options, one plan, cancel); the Workspace's
+Focus tab; the Focus plans page (supervisors, admins, view only); "Focus plans" in the productivity summary. Focus
+audits made before plans (no plan) also hold the queue, listed under "Earlier focus audits".
+
+---
+
 ## 10. Needed from you
 
 1. ~~Employee roster sheet~~ (done: HR sheet).

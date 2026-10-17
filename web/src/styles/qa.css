@@ -361,14 +361,21 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Queue · Focus · Disputes · Coaching: four equal columns that fit the panel. */
 .ws-switch {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   width: 100%;
 }
 
 .ws-switch .segmented-btn {
-  flex: 1;
   justify-content: center;
+  min-width: 0;
+}
+
+.ws-switch .badge {
+  padding: 0 5px;
+  font-size: 11px;
 }
 
 .ws-side-list {
@@ -1219,9 +1226,9 @@ input[type='checkbox']:disabled {
 }
 
 .ws-switch .segmented-btn {
-  padding: 6px 4px;
-  gap: 4px;
-  font-size: 12.5px;
+  padding: 6px 2px;
+  gap: 3px;
+  font-size: 12px;
 }
 
 .limits-table {
@@ -1922,4 +1929,82 @@ td.hm-cell:hover {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Workspace: the queue waits while focus audits are open. */
+.ws-locked {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin: 12px;
+  padding: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.ws-locked strong {
+  color: var(--text-primary);
+}
+
+/* A focus plan in the Workspace: who, which codes, how far, and why. */
+.ws-plan + .ws-plan {
+  border-top: 1px solid var(--border);
+}
+
+.ws-plan-head {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px 8px;
+  background: color-mix(in srgb, var(--purple-600, var(--brand-solid)) 6%, var(--bg-surface));
+  font-size: 13px;
+}
+
+.ws-plan-head .text-tertiary {
+  font-size: 12px;
+}
+
+.ws-plan-why {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Picking codes for a focus plan. */
+.code-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.code-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 90ms ease-out, border-color 90ms ease-out, color 90ms ease-out;
+}
+
+.code-pick span {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.code-pick.is-on {
+  border-color: var(--brand-solid);
+  background: var(--brand-solid);
+  color: #fff;
+}
+
+.code-pick.is-on span {
+  color: rgb(255 255 255 / 75%);
 }

@@ -64,6 +64,8 @@ type qaProd struct {
 	Disputed    int        `json:"disputed"`      // their audits the agent disputed
 	ScoreChange int        `json:"score_changed"` // of those, the score was changed
 	ActiveHours int        `json:"active_hours"`  // hours with any action
+	FocusDone   int        `json:"focus_done"`    // focus plans they finished in the period
+	FocusOpen   int        `json:"focus_open"`    // focus plans open now
 	First       *time.Time `json:"first"`         // local time, as a wall clock
 	Last        *time.Time `json:"last"`
 }
@@ -161,10 +163,28 @@ func (s *Server) handleQAProductivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var plans []struct {
+		QAID      uuid.UUID
+		FocusDone int
+		FocusOpen int
+	}
+	if err := db.Raw(`SELECT assigned_qa_id AS qa_id,
+	        count(*) FILTER (WHERE status = 'done' AND (closed_at AT TIME ZONE @tz)::date BETWEEN @from AND @to) AS focus_done,
+	        count(*) FILTER (WHERE status = 'open') AS focus_open
+	        FROM focus_plans GROUP BY 1`, args).Scan(&plans).Error; err != nil {
+		dbError(w, err)
+		return
+	}
+
 	// Every QA agent in scope, and anyone since deactivated who did something.
 	byID := map[uuid.UUID]qaProd{}
 	for _, s := range sums {
 		byID[s.QAID] = s
+	}
+	for _, p := range plans {
+		s := byID[p.QAID]
+		s.FocusDone, s.FocusOpen = p.FocusDone, p.FocusOpen
+		byID[p.QAID] = s
 	}
 	out := []qaProd{}
 	for _, a := range qas {

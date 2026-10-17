@@ -90,6 +90,7 @@ type reportAgent struct {
 	Team       string          `json:"team"`
 	Department string          `json:"department"` // HR
 	Types      []reportTypeRef `json:"types"`      // task types a report about them can go to
+	TeamID     *uuid.UUID      `json:"team_id,omitempty"`
 }
 
 type reportTypeRef struct {
