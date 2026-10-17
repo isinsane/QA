@@ -1730,3 +1730,117 @@ td.hm-cell:hover {
   border-radius: 3px;
   background: var(--brand-solid);
 }
+
+/* Agent search: type a name or alias, pick from the matches. */
+.agent-search {
+  position: relative;
+}
+
+.agent-search-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.agent-search-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.agent-search-list li.is-active {
+  background: var(--bg-hover);
+}
+
+.agent-search-list small,
+.agent-picked small {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.agent-search-list .agent-search-none {
+  cursor: default;
+  color: var(--text-tertiary);
+}
+
+.agent-picked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--brand-300);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--brand-solid) 6%, var(--bg-surface));
+}
+
+.agent-picked > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A negative to check: top priority. */
+.table tr.is-priority td {
+  background: color-mix(in srgb, var(--error-500) 7%, var(--bg-surface));
+}
+
+.table tr.is-priority td:first-child {
+  box-shadow: inset 3px 0 0 var(--error-500);
+}
+
+.priority-badge {
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+
+/* The workspace's negatives to check: above the queue, in red. */
+.ws-priority {
+  margin: 8px;
+  border: 1px solid color-mix(in srgb, var(--error-500) 45%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--error-500) 6%, var(--bg-surface));
+  overflow: hidden;
+}
+
+.ws-priority-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--error-600);
+}
+
+.ws-priority-head .badge {
+  margin-left: auto;
+}
+
+.ws-priority .qa-queue-item:first-of-type {
+  border-top: 1px solid color-mix(in srgb, var(--error-500) 25%, var(--border));
+}
+
+.ws-priority .qa-queue-meta {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

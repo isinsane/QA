@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   Settings,
   Siren,
+  ThumbsDown,
   Timer,
   Upload,
   UserSearch,
@@ -39,6 +40,7 @@ const NAV = [
   { to: '/qa-productivity', label: 'QA productivity', icon: Timer, roles: [...MANAGER, ...QA] },
   { to: '/disputes', label: 'Disputes', icon: MessageSquareWarning, roles: MANAGER },
   { to: '/approvals', label: 'Approvals', icon: CheckCheck, roles: MANAGER },
+  { to: '/negatives', label: 'Negatives', icon: ThumbsDown, roles: MANAGER },
   { to: '/escalations', label: 'Escalations', icon: Megaphone, roles: [...MANAGER, ...QA] },
   { to: '/coaching', label: 'Coaching', icon: GraduationCap, roles: [...MANAGER, ...QA] },
   { to: '/imports', label: 'Imports', icon: Upload, roles: MANAGER },
@@ -55,10 +57,15 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   // Disputes waiting for the supervisor, and escalations to check (a QA agent's own), shown on the nav items.
   const waiting = useApi(() => (qa ? Promise.resolve(null) : api.tasks({ state: 'dispute_supervisor' })), [qa], { pollMs: 60_000 })
   const approvals = useApi(() => (qa ? Promise.resolve(null) : api.changes({ status: 'pending' })), [qa], { pollMs: 60_000 })
-  const toCheck = useApi(() => api.escalations({ state: 'review', mine: qa ? 1 : undefined }), [qa], { pollMs: 60_000 })
+  // A QA agent's own to check (negatives too); for managers negatives count apart.
+  const toCheck = useApi(() => api.escalations({ state: 'review', exclude: qa ? undefined : 'negative' }), [qa], { pollMs: 60_000 })
+  const negatives = useApi(() => (qa ? Promise.resolve(null) : api.escalations({ state: 'review', source: 'negative' })), [qa], {
+    pollMs: 60_000,
+  })
   const badge: Record<string, number | undefined> = {
     '/disputes': waiting.data?.total,
     '/escalations': toCheck.data?.total,
+    '/negatives': negatives.data?.total,
     '/approvals': approvals.data?.total,
   }
 

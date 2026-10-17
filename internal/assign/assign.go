@@ -196,7 +196,7 @@ func assignEscalations(tx *gorm.DB) error {
 	if err := tx.Raw(`
 		SELECT t.id, tt.department_id FROM tasks t JOIN task_types tt ON tt.id = t.task_type_id
 		WHERE t.state = 'review' AND t.assigned_qa_id IS NULL AND t.kind IN ('negative', 'tl_escalation')
-		ORDER BY t.created_at, t.id`).Scan(&tasks).Error; err != nil || len(tasks) == 0 {
+		ORDER BY t.kind = 'negative' DESC, t.created_at, t.id`).Scan(&tasks).Error; err != nil || len(tasks) == 0 {
 		return err
 	}
 	var checkers []Checker

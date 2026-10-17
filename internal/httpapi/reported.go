@@ -71,8 +71,8 @@ func (s *Server) routesReported(r chi.Router, managers func(http.Handler) http.H
 	r.With(managers).Get("/escalations/agents", s.reportAgents(reporter{}))
 }
 
-// canDecide: the supervisor (their team) decides any escalation; the team's
-// QA agents decide negatives and TL escalations.
+// canDecide: the supervisor (their team) decides any escalation; the QA
+// agent it is assigned to decides a negative or TL escalation.
 func canDecide(u *model.User, t *model.Task, tt *model.TaskType) bool {
 	switch {
 	case !t.Kind.Reviewed() || t.State != model.StateReview:
@@ -80,7 +80,7 @@ func canDecide(u *model.User, t *model.Task, tt *model.TaskType) bool {
 	case isManager(u):
 		return inScope(u, tt.DepartmentID)
 	}
-	return u.Role == model.RoleQA && t.Kind != model.KindQAEscalation && u.DepartmentID != nil && *u.DepartmentID == tt.DepartmentID
+	return u.Role == model.RoleQA && t.Kind != model.KindQAEscalation && t.AssignedQAID != nil && *t.AssignedQAID == u.ID
 }
 
 type reportAgent struct {
@@ -283,8 +283,11 @@ func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-// handleEscalations lists escalations: to check, valid or not valid. QA
-// agents see their team's (and the ones they raised); supervisors their team's.
+// handleEscalations lists escalations: to check, valid or not valid. A QA
+// agent sees only their own: assigned to them to check, decided by them, or
+// raised by them; supervisors their team's. Negatives to check come first.
+// source picks one kind; exclude leaves one out (the Escalations page leaves
+// negatives to their own page).
 func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
 	u, p := me(r), r.URL.Query()
 	q, order := s.taskRows(r), "t.created_at"
@@ -293,7 +296,7 @@ func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
 		q = q.Where("t.created_by = ? AND (t.kind IN "+model.ReviewedKinds+" OR t.kind = ?)", u.ID, model.KindEscalation)
 		order = "t.created_at DESC"
 	case u.Role == model.RoleQA:
-		q = q.Where("t.kind IN "+model.ReviewedKinds+" AND (tt.department_id = ? OR t.created_by = ?)", u.DepartmentID, u.ID)
+		q = q.Where("t.kind IN "+model.ReviewedKinds+" AND (t.assigned_qa_id = ? OR t.evaluated_by = ? OR t.created_by = ?)", u.ID, u.ID, u.ID)
 	case deptScope(u) != nil:
 		q = q.Where("t.kind IN "+model.ReviewedKinds+" AND tt.department_id = ?", *deptScope(u))
 	default:
@@ -301,7 +304,7 @@ func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
 	}
 	switch p.Get("state") {
 	case "", "review":
-		q = q.Where("t.state = 'review'")
+		q, order = q.Where("t.state = 'review'"), "t.kind = 'negative' DESC, t.created_at"
 	case "valid":
 		q, order = q.Where("t.state = 'completed'"), "t.completed_at DESC"
 	case "not_valid":
@@ -309,6 +312,9 @@ func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := p.Get("source"); v != "" {
 		q = q.Where("t.kind = ?", v)
+	}
+	if v := p.Get("exclude"); v != "" {
+		q = q.Where("t.kind <> ?", v)
 	}
 	if p.Get("mine") == "1" {
 		q = q.Where("t.assigned_qa_id = ?", u.ID)
@@ -323,7 +329,7 @@ func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
 	}
 	page, _ := strconv.Atoi(p.Get("page"))
 	page = max(page, 1)
-	var rows []taskRow
+	rows := []taskRow{}
 	if err := q.Order(order).Offset((page - 1) * 50).Limit(50).Scan(&rows).Error; err != nil {
 		dbError(w, err)
 		return

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Crosshair, Megaphone, Radio } from 'lucide-react'
+import { Crosshair, Megaphone, Radio, ThumbsDown } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { Coaching } from '../api/types'
@@ -19,6 +19,9 @@ export function QueuePage() {
   const queue = useApi(() => api.myQueue(), [], { pollMs: 30_000 })
   const coachings = useApi(() => api.coachings(), [])
   const disputes = useApi(() => api.myDisputes(), [], { pollMs: 60_000 })
+  // Negatives assigned to them: top priority, above everything else.
+  const negatives = useApi(() => api.escalations({ state: 'review', source: 'negative' }), [], { pollMs: 30_000 })
+  const negList = negatives.data?.tasks ?? []
   const { toasts, push } = useToasts()
   const [pane, setPane] = useState<'queue' | 'disputes' | 'coaching'>('queue')
   const [dialog, setDialog] = useState<'live' | 'focus' | 'escalate' | Coaching | null>(null)
@@ -58,6 +61,28 @@ export function QueuePage() {
         </div>
 
         <div className="ws-side-list">
+          {negList.length ? (
+            <div className="ws-priority">
+              <div className="ws-priority-head">
+                <ThumbsDown size={14} />
+                Negatives to check first
+                <span className="badge badge-error">{negList.length}</span>
+              </div>
+              {negList.map((t) => (
+                <button
+                  key={t.id}
+                  className={`qa-queue-item${t.id === taskId ? ' active' : ''}`}
+                  onClick={() => navigate(`/queue/${t.id}`)}
+                >
+                  <span className="qa-queue-top">
+                    <strong>{t.employee_name}</strong>
+                    <span className="text-tertiary">{fmtDate(t.created_at)}</span>
+                  </span>
+                  <span className="qa-queue-meta dispute-text">{t.note}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
           {pane === 'queue' ? (
             <>
               {list.length === 0 && !queue.loading ? (
@@ -141,7 +166,10 @@ export function QueuePage() {
             key={taskId}
             taskId={taskId}
             workspace
-            onChanged={() => void disputes.reload()}
+            onChanged={() => {
+              void disputes.reload()
+              void negatives.reload()
+            }}
             onDone={(next) => {
               void queue.reload()
               navigate(next ? `/queue/${next}` : '/queue')

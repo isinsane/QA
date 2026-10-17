@@ -6,6 +6,7 @@ import { useApi } from '../api/useApi'
 import type { Kind, Role, TaskRow } from '../api/types'
 import { useAuth, useReadOnly } from '../auth/AuthContext'
 import { Empty, errorText, fmtDate, fmtDateTime, KindBadge, ScoreBadge } from '../components/bits'
+import { AgentSearch } from '../components/AgentSearch'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
 
@@ -85,7 +86,7 @@ export const SUP_ESCALATIONS: ReportKind = {
 /** The reporter's page: the form, then what they sent. */
 export function ReportedPage({ cfg }: { cfg: ReportKind }) {
   const { user } = useAuth()
-  return user && cfg.roles.includes(user.role) ? <ReporterPage cfg={cfg} /> : <EscalationsPage />
+  return user && cfg.roles.includes(user.role) ? <ReporterPage cfg={cfg} /> : <EscalationsPage negatives={cfg.kind === 'negative'} />
 }
 
 /** Where an escalation stands, in words. */
@@ -125,7 +126,9 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const agent = (agents.data ?? []).find((a) => a.id === f.employee_id)
-  const teams = [...new Set((agents.data ?? []).map((a) => a.team || 'No team'))].sort()
+  // Only a supervisor's escalation is scored, so only it asks which work
+  // (task type, so scorecard) it was; the others go under the agent's first.
+  const pickType = cfg.kind === 'escalation'
   const typeId = f.task_type_id || agent?.types[0]?.id || ''
   const ready = f.external_id.trim() && agent && agent.types.length > 0 && f.error.trim()
 
@@ -133,13 +136,13 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
     setBusy(true)
     setProblem('')
     try {
-      const r = await api.report(cfg.path, {
+      await api.report(cfg.path, {
         external_id: f.external_id.trim(),
         employee_id: f.employee_id,
         error: f.error.trim(),
         task_type_id: typeId,
       })
-      onSent(`Sent: ${agent?.name}, ${f.external_id.trim()}. It goes to ${cfg.sendTo(agent?.team ?? '')} (${r.task_type}).`)
+      onSent(`Sent: ${agent?.name}, ${f.external_id.trim()}. It goes to ${cfg.sendTo(agent?.team ?? '')}.`)
       setF({ external_id: '', employee_id: '', task_type_id: '', error: '' })
     } catch (err) {
       setProblem(errorText(err))
@@ -164,22 +167,12 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
         </div>
         <div className="field">
           <label className="field-label">{cfg.agentLabel}</label>
-          <select className="select" value={f.employee_id} onChange={(e) => setF({ ...f, employee_id: e.target.value, task_type_id: '' })}>
-            <option value="">{agents.data && agents.data.length === 0 ? 'No agents yet' : 'Pick the agent…'}</option>
-            {teams.map((team) => (
-              <optgroup key={team} label={team}>
-                {(agents.data ?? [])
-                  .filter((a) => (a.team || 'No team') === team)
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                      {a.alias_name ? ` (${a.alias_name})` : ''}
-                      {a.department ? ` · ${a.department}` : ''}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
+          <AgentSearch
+            agents={agents.data ?? []}
+            value={f.employee_id}
+            label={cfg.agentLabel}
+            onChange={(id) => setF({ ...f, employee_id: id, task_type_id: '' })}
+          />
         </div>
       </div>
       {agent ? (
@@ -187,7 +180,7 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
           <div className="inline-warning" style={{ margin: 0 }}>
             No task type audits {agent.name}'s work yet, so this can't be sent. Ask an admin to set one up.
           </div>
-        ) : agent.types.length > 1 ? (
+        ) : pickType && agent.types.length > 1 ? (
           <div className="field" style={{ maxWidth: 360 }}>
             <label className="field-label">Which work it was about</label>
             <select className="select" value={typeId} onChange={(e) => setF({ ...f, task_type_id: e.target.value })}>
@@ -200,7 +193,8 @@ export function ReportForm({ cfg, onSent, onCancel }: { cfg: ReportKind; onSent:
           </div>
         ) : (
           <p className="hint-text" style={{ margin: 0 }}>
-            Goes to {cfg.sendTo(agent.team)}, as {agent.types[0].name}.
+            Goes to {cfg.sendTo(agent.team)}
+            {pickType ? `, as ${agent.types[0].name}` : ''}.
           </p>
         )
       ) : null}
@@ -313,9 +307,13 @@ const SOURCES: [Kind, string][] = [
   ['qa_escalation', 'QA agents'],
 ]
 
-/** Escalations (negatives, team leader and QA escalations): QA agents check
- * them, supervisors decide QA escalations and keep an eye on the rest. */
-export function EscalationsPage() {
+/**
+ * Escalations: QA agents check the ones assigned to them (negatives first),
+ * supervisors decide QA escalations and keep an eye on the rest. For
+ * supervisors and admins negatives have their own page (negatives) and the
+ * Escalations page leaves them out; a QA agent sees all of theirs here.
+ */
+export function EscalationsPage({ negatives = false }: { negatives?: boolean }) {
   const { user } = useAuth()
   const qa = user?.role === 'qa_agent'
   // Supervisors (and admins) escalate interactions of any team from here.
@@ -323,13 +321,15 @@ export function EscalationsPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('review')
   const [source, setSource] = useState('')
-  const [mine, setMine] = useState(qa)
   const [page, setPage] = useState(1)
   const [raising, setRaising] = useState(false)
   const { toasts, push } = useToasts()
-  const params = tab === 'raised' ? { raised: 1, state: 'all', page } : { state: tab, source, mine: mine ? 1 : undefined, page }
-  const list = useApi(() => api.escalations(params), [tab, source, mine, page], { pollMs: 60_000 })
-  const waiting = useApi(() => api.escalations({ state: 'review', mine: qa ? 1 : undefined }), [qa], { pollMs: 60_000 })
+  const only = { source: negatives ? 'negative' : source || undefined, exclude: negatives || qa ? undefined : 'negative' }
+  const params = tab === 'raised' ? { raised: 1, state: 'all', page } : { state: tab, ...only, page }
+  const list = useApi(() => api.escalations(params), [tab, source, page, negatives], { pollMs: 60_000 })
+  const waiting = useApi(() => api.escalations({ state: 'review', ...only, source: negatives ? 'negative' : undefined }), [negatives], {
+    pollMs: 60_000,
+  })
   const rows = list.data?.tasks ?? []
   const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / (list.data?.page_size ?? 50)))
 
@@ -337,10 +337,16 @@ export function EscalationsPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Escalations</h1>
-          <p className="page-subtitle">Negatives, team leader and QA escalations. They don't change quality scores.</p>
+          <h1 className="page-title">{negatives ? 'Negatives' : 'Escalations'}</h1>
+          <p className="page-subtitle">
+            {negatives
+              ? "Negative reviews reported against agents: top priority, the agent's team's QA agents check them first. They don't change quality scores."
+              : qa
+                ? "Escalations assigned to you to check (negatives first), the ones you decided and the ones you raised. They don't change quality scores."
+                : "Team leader, special process and QA escalations. They don't change quality scores."}
+          </p>
         </div>
-        {qa || escalates ? (
+        {(qa || escalates) && !negatives ? (
           <div className="page-actions">
             <button className={`btn ${qa ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setRaising(true)}>
               <Plus size={16} />
@@ -350,7 +356,7 @@ export function EscalationsPage() {
         ) : null}
       </div>
       <div className="tabs" role="tablist">
-        {TABS.filter(([key]) => qa || escalates || key !== 'raised').map(([key, label]) => (
+        {TABS.filter(([key]) => ((qa || escalates) && !negatives) || key !== 'raised').map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -377,21 +383,8 @@ export function EscalationsPage() {
               ? "Interactions you escalated, in any team. A QA agent of the agent's team scores each one like any audit."
               : TABS.find(([k]) => k === tab)?.[2]}
           </p>
-          {tab !== 'raised' ? (
+          {tab !== 'raised' && !negatives ? (
             <div className="page-actions">
-              {qa && tab === 'review' ? (
-                <label className="field-inline">
-                  <input
-                    type="checkbox"
-                    checked={mine}
-                    onChange={(e) => {
-                      setMine(e.target.checked)
-                      setPage(1)
-                    }}
-                  />
-                  Assigned to me
-                </label>
-              ) : null}
               <select
                 className="select"
                 style={{ width: 180 }}
@@ -403,7 +396,7 @@ export function EscalationsPage() {
                 }}
               >
                 <option value="">All sources</option>
-                {SOURCES.map(([k, label]) => (
+                {SOURCES.filter(([k]) => qa || k !== 'negative').map(([k, label]) => (
                   <option key={k} value={k}>
                     {label}
                   </option>
@@ -428,9 +421,16 @@ export function EscalationsPage() {
               </thead>
               <tbody>
                 {rows.map((t) => (
-                  <tr key={t.id} className="is-clickable" onClick={() => navigate(`/tasks/${t.id}`)}>
+                  <tr
+                    key={t.id}
+                    className={`is-clickable${t.kind === 'negative' && t.state === 'review' ? ' is-priority' : ''}`}
+                    onClick={() => navigate(`/tasks/${t.id}`)}
+                  >
                     <td>
                       <strong>{t.employee_name}</strong>
+                      {t.kind === 'negative' && t.state === 'review' ? (
+                        <span className="badge badge-error priority-badge">Top priority</span>
+                      ) : null}
                       <div className="text-tertiary" style={{ fontSize: 12 }}>
                         {t.task_type_name}
                       </div>

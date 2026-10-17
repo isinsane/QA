@@ -510,6 +510,12 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   sender's job title ("A-Z Guarantee Team Leader escalation", saved when sent) and, as before, go to the agent's
   team: its QA agents check them and its supervisor may decide. A supervisor's escalation must use one of the agent's
   own team's task types (the server refuses another team's).
+- **Escalations, later (17 Oct):** the escalation forms find the agent with a search (name, alias, team or HR
+  department, words in any order, forgiving a typo) instead of a list; only a supervisor's (scored) escalation asks
+  which work it was. A QA agent sees only the escalations assigned to them (and the ones they decided or raised), and
+  only the one assigned may decide it. Negatives are top priority: assigned first, listed first and marked for QA agents
+  (and at the top of their Workspace), and for supervisors and admins they have their own Negatives page, out of
+  Escalations. Every escalation, negatives included, goes to the agent's own team.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 
