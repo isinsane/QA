@@ -36,7 +36,8 @@ interface Col {
 
 /**
  * Every bucket of the period, so idle hours and days show as gaps. By hour:
- * the days with work, from the earliest to the latest hour anyone worked.
+ * one day is its 24 hours; several are the days with work, from the earliest
+ * to the latest hour anyone audited.
  */
 function columns(by: By, from: string, to: string, series: Bucket[]): Col[] {
   const days: Date[] = []
@@ -44,10 +45,11 @@ function columns(by: By, from: string, to: string, series: Bucket[]): Col[] {
   const unique = (cols: Col[]) => cols.filter((c, i) => cols.findIndex((x) => x.key === c.key) === i)
   switch (by) {
     case 'hour': {
-      const hours = series.map((s) => Number(s.bucket.slice(11, 13)))
-      if (!hours.length) return []
-      const lo = Math.min(...hours)
-      const hi = Math.max(...hours)
+      if (!series.length) return []
+      const audited = series.filter((s) => s.audits)
+      const hours = (audited.length ? audited : series).map((s) => Number(s.bucket.slice(11, 13)))
+      const lo = from === to ? 0 : Math.min(...hours)
+      const hi = from === to ? 23 : Math.max(...hours)
       const worked = new Set(series.map((s) => s.bucket.slice(0, 10)))
       return days
         .filter((d) => worked.has(ymd(d)))
@@ -89,6 +91,9 @@ function columns(by: By, from: string, to: string, series: Bucket[]): Col[] {
       )
   }
 }
+
+const NAME_W = 210 // px: the QA agent column of the heat map
+const TOTAL_W = 120
 
 /** 0 for nothing, then 1–5 by share of the busiest cell. */
 const level = (n: number, most: number) => (n ? Math.min(5, Math.max(1, Math.ceil((n / most) * 5))) : 0)
@@ -250,6 +255,8 @@ function Heatmap({
     else groups.push({ name: c.group, span: 1 })
   }
   const unit = by === 'hour' ? 'hour' : by
+  const maxCol = Math.max(1, ...colTotal)
+  const maxAgent = Math.max(1, ...agents.map((a) => a.audits))
 
   return (
     <section className="card">
@@ -300,9 +307,34 @@ function Heatmap({
       {!loading && cols.length === 0 ? <Empty title="No audits in this period yet" /> : null}
       {!loading && cols.length ? (
         <div className="hm-wrap">
-          <table className="hm">
+          <table
+            className="hm"
+            style={{
+              minWidth: NAME_W + TOTAL_W + cols.length * 30,
+              maxWidth: NAME_W + TOTAL_W + cols.length * (by === 'week' || by === 'month' ? 160 : 90),
+            }}
+          >
+            <colgroup>
+              <col style={{ width: NAME_W }} />
+              {cols.map((c) => (
+                <col key={c.key} />
+              ))}
+              <col style={{ width: TOTAL_W }} />
+            </colgroup>
             <thead>
-              {by === 'hour' || by === 'day' ? (
+              <tr className="hm-bars">
+                <th className="hm-name">All QA agents</th>
+                {cols.map((c, i) => (
+                  <td key={c.key} title={`${c.title}: ${colTotal[i]} audit${colTotal[i] === 1 ? '' : 's'}`}>
+                    <div className="hm-bar-box">
+                      {colTotal[i] ? <span>{colTotal[i]}</span> : null}
+                      <i style={{ height: `${(colTotal[i] / maxCol) * 36}px` }} />
+                    </div>
+                  </td>
+                ))}
+                <td className="hm-total">{total}</td>
+              </tr>
+              {groups.length > 1 ? (
                 <tr>
                   <th className="hm-name" />
                   {groups.map((g, i) => (
@@ -313,8 +345,8 @@ function Heatmap({
                   <th />
                 </tr>
               ) : null}
-              <tr>
-                <th className="hm-name">QA agent</th>
+              <tr className="hm-labels">
+                <th className="hm-name">{groups.length === 1 ? groups[0].name : null}</th>
                 {cols.map((c) => (
                   <th key={c.key} title={c.title}>
                     {c.label}
@@ -347,21 +379,15 @@ function Heatmap({
                       </td>
                     )
                   })}
-                  <td className="hm-total">{a.audits}</td>
+                  <td className="hm-total">
+                    <span className="hm-total-bar">
+                      <i style={{ width: `${(a.audits / maxAgent) * 100}%` }} />
+                    </span>
+                    {a.audits}
+                  </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr>
-                <th className="hm-name">All QA agents</th>
-                {cols.map((c, i) => (
-                  <td key={c.key} className="hm-sum" title={`${c.title}: ${colTotal[i]} audits`}>
-                    {colTotal[i] || ''}
-                  </td>
-                ))}
-                <td className="hm-total">{total}</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       ) : null}
