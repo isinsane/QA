@@ -77,6 +77,14 @@ export interface Columns {
   row_values?: string[]
 }
 
+/** A team's finished audits its agents don't see yet. */
+export interface HiddenScores {
+  department_id: string
+  team: string
+  hidden: number
+  last_revealed: string | null
+}
+
 /** An agent's disputes on audits of a period. */
 export interface DisputeAgent {
   employee_id: string
@@ -207,6 +215,8 @@ export interface TaskRow {
   /** An escalation's decision note. */
   finding: string
   order_numbers: string[]
+  /** When the agent got to see it; null = finished but not revealed yet. */
+  revealed_at: string | null
   /** A QA agent's score change waits for a supervisor. */
   change_pending: boolean
   created_at: string
@@ -264,6 +274,8 @@ export interface Task {
   finding: string
   /** The orders the work was about, as the QA agent entered them. */
   order_numbers: string[]
+  /** When the agent got to see it; null = finished but not revealed yet. */
+  revealed_at: string | null
 }
 
 export interface AuditEntry {

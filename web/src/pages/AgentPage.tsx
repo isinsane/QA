@@ -183,7 +183,7 @@ export function AgentPage() {
                         <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} />
                       </td>
                       <td>
-                        <AckBadge status={t.ack_status} />
+                        <AckBadge status={t.ack_status} hidden={!t.revealed_at} />
                       </td>
                       {qaBlind ? null : <td>{t.qa_name ?? '—'}</td>}
                     </tr>

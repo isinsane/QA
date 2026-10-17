@@ -82,7 +82,7 @@ func (s *Server) ownAuditsOnly(r *http.Request, sessions []coachingRow) {
 		return
 	}
 	var shown []string
-	s.db.WithContext(r.Context()).Model(&model.Task{}).Where("id IN ? AND state = 'completed' AND (kind IN "+
+	s.db.WithContext(r.Context()).Model(&model.Task{}).Where("id IN ? AND state = 'completed' AND revealed_at IS NOT NULL AND (kind IN "+
 		model.CountedKinds+" OR kind IN "+model.ReviewedKinds+")", ids).Select("id::text").Scan(&shown)
 	for i := range sessions {
 		sessions[i].TaskIDs = slices.DeleteFunc(slices.Clone(sessions[i].TaskIDs), func(id string) bool { return !slices.Contains(shown, id) })

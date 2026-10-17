@@ -52,13 +52,14 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		CompletedAt    *time.Time
 		AckStatus      string
 		AckComment     string
+		RevealedAt     *time.Time
 		Resolution     string
 		Scorecard      scorecard.Card
 		Answers        scorecard.Answers
 	}
 	if err := db.Table("tasks t").
 		Select(`t.employee_id, e.name AS employee_name, t.external_id, t.order_numbers, t.work_date, tt.name AS task_type_name, t.kind, t.labels,
-		        t.score, t.result, t.critical_failed, ev.name AS qa_name, t.completed_at, t.ack_status, t.ack_comment,
+		        t.score, t.result, t.critical_failed, ev.name AS qa_name, t.completed_at, t.ack_status, t.ack_comment, t.revealed_at,
 		        t.dispute_resolution AS resolution, t.scorecard, t.answers`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
 		Joins("JOIN users e ON e.id = t.employee_id").
@@ -117,7 +118,9 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		case "upheld":
 			t.rejected++
 		case "":
-			t.unacked++
+			if a.RevealedAt != nil { // the agent can't answer what they don't see yet
+				t.unacked++
+			}
 		}
 		t.cards = append(t.cards, cardAnswers{a.Scorecard, a.Answers})
 	}
@@ -179,6 +182,9 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	for _, a := range audits {
 		if qaBlind {
 			a.QAName = nil
+		}
+		if a.AckStatus == "" && a.RevealedAt == nil {
+			a.AckStatus = "hidden"
 		}
 		aud.add(a.EmployeeName, a.WorkDate.Format(time.DateOnly), a.TaskTypeName, string(a.Kind), a.ExternalID, strings.Join(a.OrderNumbers, ", "), strings.Join(a.Labels, ", "),
 			num(a.Score), deref(a.Result), yes(a.CriticalFailed), deref(a.QAName), stamp(a.CompletedAt, tz),
@@ -320,7 +326,7 @@ func stamp(t *time.Time, tz *time.Location) string {
 }
 
 var ackLabels = map[string]string{
-	"": "not acknowledged", "acknowledged": "acknowledged", "disputed": "disputed (supervisor)",
+	"": "not acknowledged", "hidden": "not revealed yet", "acknowledged": "acknowledged", "disputed": "disputed (supervisor)",
 	"dispute_qa": "disputed (QA)", "upheld": "dispute: score kept", "changed": "dispute: score changed",
 }
 

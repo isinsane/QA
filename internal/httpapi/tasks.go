@@ -50,6 +50,63 @@ func (s *Server) routesTasks(r chi.Router, managers func(http.Handler) http.Hand
 	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Post("/tasks/{id}/uphold", s.handleUphold)
 	r.With(managers).Post("/tasks/{id}/dispute/forward", s.handleForwardDispute)
 	r.With(qa).Get("/me/disputes", s.handleMyDisputes)
+	r.With(managers).Get("/reveal", s.handleHidden)
+	r.With(managers).Post("/reveal", s.handleReveal)
+}
+
+// agentKinds are the finished audits an agent sees, once revealed.
+var agentKinds = "(t.kind IN " + model.CountedKinds + " OR t.kind IN " + model.ReviewedKinds + ")"
+
+// handleHidden lists, per team in the caller's scope, the finished audits its
+// agents don't see yet and when its scores were last revealed.
+func (s *Server) handleHidden(w http.ResponseWriter, r *http.Request) {
+	q := s.db.WithContext(r.Context()).Table("tasks t").
+		Select(`d.id AS department_id, d.name AS team,
+		        count(*) FILTER (WHERE t.revealed_at IS NULL) AS hidden, max(t.revealed_at) AS last_revealed`).
+		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
+		Joins("JOIN departments d ON d.id = tt.department_id").
+		Where("t.state = 'completed' AND " + agentKinds).
+		Group("d.id, d.name").Order("d.name")
+	if d := deptScope(me(r)); d != nil {
+		q = q.Where("d.id = ?", *d)
+	}
+	type row struct {
+		DepartmentID uuid.UUID  `json:"department_id"`
+		Team         string     `json:"team"`
+		Hidden       int        `json:"hidden"`
+		LastRevealed *time.Time `json:"last_revealed"`
+	}
+	out := []row{}
+	if err := q.Scan(&out).Error; err != nil {
+		dbError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleReveal shows a team's agents every finished audit they don't see yet.
+func (s *Server) handleReveal(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		DepartmentID uuid.UUID `json:"department_id"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if d := deptScope(me(r)); d != nil { // a supervisor: their own team
+		in.DepartmentID = *d
+	}
+	if in.DepartmentID == uuid.Nil {
+		writeError(w, http.StatusBadRequest, "pick a team")
+		return
+	}
+	res := s.db.WithContext(r.Context()).Exec(`UPDATE tasks t SET revealed_at = now() FROM task_types tt
+		WHERE tt.id = t.task_type_id AND tt.department_id = ? AND t.state = 'completed' AND t.revealed_at IS NULL AND `+agentKinds,
+		in.DepartmentID)
+	if res.Error != nil {
+		dbError(w, res.Error)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"revealed": res.RowsAffected})
 }
 
 // taskRow is a task with the names a list needs.
@@ -77,6 +134,7 @@ type taskRow struct {
 	Resolution     string          `json:"dispute_resolution"`
 	Finding        string          `json:"finding"`
 	OrderNumbers   model.Strings   `json:"order_numbers"`
+	RevealedAt     *time.Time      `json:"revealed_at"`
 	EvaluatedBy    *uuid.UUID      `json:"-"` // to tell a QA agent's own audits apart (forQA)
 	MatchStatus    string          `json:"match_status"`
 	Priority       int             `json:"priority"`
@@ -91,7 +149,7 @@ func (s *Server) taskRows(r *http.Request) *gorm.DB {
 		Select(`t.id, t.external_id, t.work_date, t.state, t.labels, t.score, t.passed, t.critical_failed,
 		        t.completed_at, t.task_type_id, tt.name AS task_type_name, t.employee_id, e.name AS employee_name,
 		        t.assigned_qa_id, coalesce(q.name, ev.name) AS qa_name,
-		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers, t.evaluated_by,
+		        t.kind, t.result, t.ack_status, t.ack_comment, t.ack_at, t.dispute_resolution AS resolution, t.finding, t.order_numbers, t.evaluated_by, t.revealed_at,
 		        t.match_status, t.priority, t.note, coalesce(cb.name, '') AS reported_by, t.created_at,
 		        EXISTS (SELECT 1 FROM evaluation_changes ec WHERE ec.task_id = t.id AND ec.status = 'pending') AS change_pending`).
 		Joins("JOIN task_types tt ON tt.id = t.task_type_id").
@@ -161,7 +219,7 @@ func (s *Server) handleAvailability(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleMyScores(w http.ResponseWriter, r *http.Request) {
 	var rows []taskRow
-	err := s.taskRows(r).Where("t.state = 'completed' AND (t.kind IN "+model.CountedKinds+" OR t.kind IN "+model.ReviewedKinds+") AND t.employee_id = ?", me(r).ID).
+	err := s.taskRows(r).Where("t.state = 'completed' AND t.revealed_at IS NOT NULL AND "+agentKinds+" AND t.employee_id = ?", me(r).ID).
 		Order("t.work_date DESC, t.completed_at DESC").Limit(500).Scan(&rows).Error
 	if err != nil {
 		dbError(w, err)
@@ -206,7 +264,7 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	case "dispute_resolved":
 		q = q.Where("t.ack_status IN ('upheld', 'changed')")
 	case "unacknowledged":
-		q = q.Where("t.state = 'completed' AND t.ack_status = '' AND t.kind IN " + model.CountedKinds)
+		q = q.Where("t.state = 'completed' AND t.ack_status = '' AND t.revealed_at IS NOT NULL AND t.kind IN " + model.CountedKinds)
 	case "live_flagged":
 		q = q.Where("t.kind = 'live' AND t.match_status = 'flagged'")
 	case "change_pending":
@@ -321,7 +379,7 @@ func (s *Server) loadTaskAs(w http.ResponseWriter, r *http.Request, read bool) (
 			visible = n > 0
 		}
 	case model.RoleEmployee:
-		visible = t.EmployeeID == u.ID && t.State == model.StateCompleted && (t.Kind.Counts() || t.Kind.Reviewed())
+		visible = t.EmployeeID == u.ID && t.State == model.StateCompleted && t.RevealedAt != nil && (t.Kind.Counts() || t.Kind.Reviewed())
 	}
 	if !visible {
 		writeError(w, http.StatusNotFound, "task not found")

@@ -176,8 +176,8 @@ const ACK_LABEL: Record<AckStatus, [string, string]> = {
   changed: ['dispute: score changed', 'badge-brand'],
 }
 
-export function AckBadge({ status }: { status: AckStatus }) {
-  const [label, tone] = ACK_LABEL[status]
+export function AckBadge({ status, hidden }: { status: AckStatus; hidden?: boolean }) {
+  const [label, tone] = hidden && status === '' ? ['not revealed yet', 'badge-gray'] : ACK_LABEL[status]
   return <span className={`badge ${tone}`}>{label}</span>
 }
 

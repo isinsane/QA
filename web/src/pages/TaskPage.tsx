@@ -169,7 +169,7 @@ export function TaskView({
         <KindBadge kind={t.kind} match={t.match_status} />
         {t.state === 'completed' && !rep ? <ScoreBadge score={t.score} result={t.result} critical={t.critical_failed} /> : null}
         {t.state === 'completed' && (t.kind === 'sample' || t.kind === 'live' || t.kind === 'escalation') ? (
-          <AckBadge status={t.ack_status} />
+          <AckBadge status={t.ack_status} hidden={!t.revealed_at} />
         ) : null}
         <span className="text-secondary">
           {d.employee.name} · worked {fmtDate(t.work_date)}

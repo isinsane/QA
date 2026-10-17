@@ -138,7 +138,7 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	        round(100.0 * avg(CASE WHEN t.result = 'borderline' THEN 1 ELSE 0 END), 1) AS borderline_rate,
 	        round(100.0 * avg(CASE WHEN t.result = 'fail' THEN 1 ELSE 0 END), 1) AS fail_rate,
 	        count(*) FILTER (WHERE t.critical_failed) AS critical_fails,
-	        count(*) FILTER (WHERE t.ack_status = '') AS unacknowledged,
+	        count(*) FILTER (WHERE t.ack_status = '' AND t.revealed_at IS NOT NULL) AS unacknowledged,
 	        count(*) FILTER (WHERE t.ack_status IN ('disputed', 'dispute_qa')) AS disputed`+done, args...).Scan(&totals)
 	out["totals"] = totals
 

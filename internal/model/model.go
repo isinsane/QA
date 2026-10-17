@@ -362,6 +362,10 @@ type Task struct {
 	// OrderNumbers are the orders the work was about, as the QA agent entered them.
 	OrderNumbers Strings `gorm:"type:jsonb" json:"order_numbers"`
 
+	// RevealedAt is when the agent got to see it: finished audits stay hidden
+	// from them until their team's scores are revealed (handleReveal).
+	RevealedAt *time.Time `json:"revealed_at"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

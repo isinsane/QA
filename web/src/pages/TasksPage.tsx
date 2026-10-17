@@ -247,7 +247,7 @@ export function TasksPage() {
                     </td>
                     <td>
                       {t.state === 'completed' && ['sample', 'live', 'escalation'].includes(t.kind) ? (
-                        <AckBadge status={t.ack_status} />
+                        <AckBadge status={t.ack_status} hidden={!t.revealed_at} />
                       ) : null}
                     </td>
                   </tr>

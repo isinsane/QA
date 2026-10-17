@@ -484,6 +484,11 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   "Fail the whole audit" only takes on a critical metric that scored 0. Disputes has a **By agent** tab (accepted =
   score changed, rejected = score kept, waiting; most rejected first) for managers, and the export's Summary splits
   disputes into waiting, accepted and rejected.
+- **Scores revealed weekly (17 Oct):** agents see a finished audit (and escalations found valid) only once their team's
+  scores are revealed. The Dashboard shows each team's hidden count with **Reveal all scores** (supervisor: their team;
+  admin: any team; view only and team leaders see the count only), which shows every hidden one at once. Until then
+  managers and QA see it as usual, marked "not revealed yet", and it doesn't count as not acknowledged. Audits finished
+  before this (migration 00017) stay visible.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 

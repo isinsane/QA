@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Award, ClipboardCheck, MessageSquareWarning, Target, X } from 'lucide-react'
+import { Award, ClipboardCheck, Eye, EyeOff, MessageSquareWarning, Target, X } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
-import { DateRangePicker, Empty, fmtDate, Labels, rangeFor, ScoreBadge, type DateRange } from '../components/bits'
+import { DateRangePicker, Empty, errorText, fmtDate, Labels, rangeFor, ScoreBadge, type DateRange } from '../components/bits'
 import { Bar, ByLabelCard, pct, ScoreTrendCard, WeakestMetricsCard } from '../components/ReportCards'
 import { ExportButton } from '../components/ExportButton'
 import { StatCard } from '../components/StatCard'
-import { useAuth } from '../auth/AuthContext'
+import { Modal } from '../components/Modal'
+import { ToastStack, useToasts } from '../components/Toasts'
+import { useAuth, useReadOnly } from '../auth/AuthContext'
+import type { HiddenScores } from '../api/types'
 import { KIND_LABEL } from '../scorecard'
 
 type Tab = 'quality' | 'agents' | 'operations' | 'calibration'
@@ -87,6 +90,7 @@ export function DashboardPage() {
         ) : null}
       </div>
 
+      <RevealBar />
       {rep.error ? <div className="inline-warning">{rep.error}</div> : null}
       <div className={`report-body dash-stack${rep.loading && r ? ' is-stale' : ''}`}>
         <div className="stat-grid" style={{ margin: 0 }}>
@@ -416,5 +420,68 @@ export function DashboardPage() {
         ) : null}
       </div>
     </div>
+  )
+}
+
+/** Finished audits a team's agents don't see until its scores are revealed (usually weekly). */
+function RevealBar() {
+  const readOnly = useReadOnly()
+  const teams = useApi(() => api.hiddenScores(), [])
+  const [confirm, setConfirm] = useState<HiddenScores | null>(null)
+  const { toasts, push } = useToasts()
+  const rows = (teams.data ?? []).filter((t) => t.hidden > 0)
+  return (
+    <>
+      {rows.map((t) => (
+        <div key={t.department_id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+          <EyeOff size={18} className="text-tertiary" />
+          <span style={{ flex: 1 }}>
+            <strong>
+              {t.hidden} finished audit{t.hidden === 1 ? '' : 's'}
+            </strong>{' '}
+            of {t.team} {t.hidden === 1 ? 'is' : 'are'} hidden from the agents until you reveal them.
+            {t.last_revealed ? <span className="text-tertiary"> Last revealed {fmtDate(t.last_revealed)}.</span> : null}
+          </span>
+          {readOnly ? null : (
+            <button className="btn btn-primary btn-sm" onClick={() => setConfirm(t)}>
+              <Eye size={14} /> Reveal all scores
+            </button>
+          )}
+        </div>
+      ))}
+      {confirm ? (
+        <Modal
+          title={`Reveal ${confirm.team}'s scores?`}
+          size="sm"
+          onClose={() => setConfirm(null)}
+          onSubmit={() =>
+            void api
+              .reveal(confirm.department_id)
+              .then((res) => push('success', `${res.revealed} score${res.revealed === 1 ? '' : 's'} revealed to the agents`))
+              .catch((err) => push('error', errorText(err)))
+              .finally(() => {
+                setConfirm(null)
+                void teams.reload()
+              })
+          }
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirm(null)}>
+                Not yet
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Reveal {confirm.hidden}
+              </button>
+            </>
+          }
+        >
+          <p style={{ margin: 0 }}>
+            The agents of {confirm.team} will see these {confirm.hidden} audits on My scores and can acknowledge or dispute them. This can't
+            be undone. Audits finished after this stay hidden until the next reveal.
+          </p>
+        </Modal>
+      ) : null}
+      <ToastStack toasts={toasts} />
+    </>
   )
 }
