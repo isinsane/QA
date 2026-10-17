@@ -499,6 +499,12 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   queue and online now; and a grid of audits by hour, day, week or month.
 - **Departments (17 Oct):** an admin can remove a department added by mistake, only while it is empty (nobody in it,
   no task types).
+- **QA productivity heat map (17 Oct):** the Activity heat map leads the page (summary under it): per QA agent per
+  hour / day / week / month, by kind of work (Show: all work, audits, live monitoring, coaching, escalations checked,
+  can't audit; dots mark the last four), and a click on a cell lists each piece of work in it.
+- **QA agents (17 Oct):** see the Dashboard for their team (no QA activity, calibration, rotation or reveal) and the
+  QA productivity heat map of their team's QA agents (no summary). They open only their own cells' work lists, and
+  rotation reads to them as sample audits.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 

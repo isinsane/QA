@@ -3,6 +3,7 @@ package httpapi
 import (
 	"math"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -17,8 +18,10 @@ import (
 func (s *Server) routesReports(r chi.Router, managers func(http.Handler) http.Handler) {
 	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Get("/reports", s.handleReports)
 	r.With(managers).Get("/disputes/agents", s.handleDisputeAgents)
-	r.With(managers).Get("/qa-productivity", s.handleQAProductivity)
-	r.With(managers).Get("/qa-productivity/work", s.handleQAWork)
+	// QA agents too: their team's heat map (handleQAProductivity limits it).
+	withQA := s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)
+	r.With(withQA).Get("/qa-productivity", s.handleQAProductivity)
+	r.With(withQA).Get("/qa-productivity/work", s.handleQAWork)
 	r.With(s.requireRoles(model.RoleEmployee)).Get("/me/summary", s.handleMySummary)
 }
 
@@ -93,10 +96,8 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	scope := deptScope(me(r))
 	if p.Get("employee_id") != "" && me(r).Role != model.RoleTeamLeader { // team leaders: their team only
 		scope = nil
-	} else if me(r).Role == model.RoleQA {
-		writeError(w, http.StatusForbidden, "pick an agent")
-		return
-	}
+	} // else QA agents, like supervisors, see their own team's
+
 	from, to := p.Get("from"), p.Get("to")
 	tz := s.cfg(r).TZ()
 	if from == "" {
@@ -144,16 +145,20 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	        count(*) FILTER (WHERE t.ack_status IN ('disputed', 'dispute_qa')) AS disputed`+done, args...).Scan(&totals)
 	out["totals"] = totals
 
-	var kinds []struct {
+	type kindStat struct {
 		Kind        model.Kind `json:"kind"`
 		Evaluations int        `json:"evaluations"`
 		Open        int        `json:"open"`
 		Flagged     int        `json:"flagged"` // live audits with no matching call
 	}
+	var kinds []kindStat
 	db.Raw(`SELECT t.kind, count(*) FILTER (WHERE t.state = 'completed') AS evaluations,
 	        count(*) FILTER (WHERE t.state IN ('review', 'ready', 'assigned')) AS open,
 	        count(*) FILTER (WHERE t.match_status = 'flagged') AS flagged`+base+
 		` AND t.kind <> 'sample' GROUP BY 1 ORDER BY 1`, args...).Scan(&kinds)
+	if me(r).Role == model.RoleQA { // rotation is the supervisor's to know
+		kinds = slices.DeleteFunc(kinds, func(k kindStat) bool { return k.Kind == model.KindRotation })
+	}
 	out["kinds"] = kinds
 
 	var queue []struct {

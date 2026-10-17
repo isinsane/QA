@@ -45,6 +45,8 @@ export function canAccessPath(role: Role, path: string): boolean {
   if (role === 'qa_agent')
     return (
       path.startsWith('/queue') ||
+      path.startsWith('/dashboard') ||
+      path.startsWith('/qa-productivity') ||
       path.startsWith('/tasks/') ||
       path.startsWith('/escalations') ||
       path.startsWith('/my-audits') ||

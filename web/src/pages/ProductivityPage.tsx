@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
+import { useAuth } from '../auth/AuthContext'
 import type { QAProductivity } from '../api/types'
 import { DateRangePicker, Empty, rangeFor, ScoreBadge, type DateRange } from '../components/bits'
 import { Modal } from '../components/Modal'
@@ -109,8 +110,14 @@ function clock(s: string | null, oneDay: boolean): string {
 
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '—')
 
-/** What each QA agent did, by when they did it: a heat map of their audits, then the period's numbers. */
+/**
+ * What each QA agent did, by when they did it: a heat map of their audits,
+ * then the period's numbers. QA agents see their team's heat map only, and
+ * open only their own work.
+ */
 export function ProductivityPage() {
+  const { user } = useAuth()
+  const qa = user?.role === 'qa_agent'
   const [range, setRange] = useState<DateRange>(() => rangeFor('today'))
   const [by, setBy] = useState<By>('hour')
   const res = useApi(() => api.qaProductivity({ from: range.from, to: range.to, by }), [range.from, range.to, by], { pollMs: 60_000 })
@@ -122,7 +129,11 @@ export function ProductivityPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">QA productivity</h1>
-          <p className="page-subtitle">When each QA agent worked and how much. Updates every minute.</p>
+          <p className="page-subtitle">
+            {qa
+              ? "When your team's QA agents worked. Updates every minute."
+              : 'When each QA agent worked and how much. Updates every minute.'}
+          </p>
         </div>
       </div>
       <div className="dash-filters">
@@ -134,96 +145,106 @@ export function ProductivityPage() {
       </div>
       {res.error ? <div className="inline-warning">{res.error}</div> : null}
 
-      <Heatmap agents={agents} series={res.data?.series ?? []} by={by} onBy={setBy} range={range} loading={res.loading && !res.data} />
+      <Heatmap
+        agents={agents}
+        series={res.data?.series ?? []}
+        by={by}
+        onBy={setBy}
+        range={range}
+        loading={res.loading && !res.data}
+        onlyOpen={qa ? user?.id : undefined}
+      />
 
-      <section className="card">
-        <div className="card-header">
-          <div>
-            <h2 className="card-title">Summary</h2>
-            <p className="card-subtitle">
-              Audits they submitted in the period. Per hour counts only hours with work. Disputes are the agents' answers to those audits.
-            </p>
+      {qa ? null : (
+        <section className="card">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Summary</h2>
+              <p className="card-subtitle">
+                Audits they submitted in the period. Per hour counts only hours with work. Disputes are the agents' answers to those audits.
+              </p>
+            </div>
           </div>
-        </div>
-        {agents.length === 0 && !res.loading ? <Empty title="No QA agents yet" /> : null}
-        {agents.length ? (
-          <div className="table-scroll">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>QA agent</th>
-                  <th>Audits</th>
-                  <th title="Audits per hour with any work">Per hour</th>
-                  <th title="Average of the scores they gave">Avg score</th>
-                  <th>Pass · borderline · fail</th>
-                  <th>Critical fails</th>
-                  <th>Can't audit</th>
-                  <th title="Negatives and team leader escalations they checked">Escalations checked</th>
-                  <th>Coaching</th>
-                  <th title="Disputed by the agent · of those, the score was changed">Disputed · changed</th>
-                  <th>First · last action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents.map((a) => (
-                  <tr key={a.qa_id}>
-                    <td>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                        <span className={`status-dot${a.online ? ' on' : ''}`} title={a.online ? 'Online' : 'Offline'} />
-                        <strong>{a.name}</strong>
-                      </span>
-                      <div className="text-tertiary" style={{ fontSize: 12 }}>
-                        {a.team}
-                        {a.active ? ` · ${a.in_queue} in queue now` : ' · deactivated'}
-                      </div>
-                    </td>
-                    <td>
-                      <strong>{a.audits}</strong>
-                      <div className="text-tertiary" style={{ fontSize: 12 }}>
-                        {(
-                          [
-                            [a.sample, 'sample'],
-                            [a.live, 'live'],
-                            [a.escalation, 'escalation'],
-                            [a.focus, 'focus'],
-                            [a.rotation, 'rotation'],
-                          ] as const
-                        )
-                          .filter(([n]) => n)
-                          .map(([n, k]) => `${n} ${k}`)
-                          .join(' · ')}
-                      </div>
-                    </td>
-                    <td>
-                      {a.active_hours ? (a.audits / a.active_hours).toFixed(1) : '—'}
-                      <div className="text-tertiary" style={{ fontSize: 12 }}>
-                        {a.active_hours} h with work
-                      </div>
-                    </td>
-                    <td>{a.avg_score === null ? '—' : `${a.avg_score}%`}</td>
-                    <td>
-                      {pct(a.pass, a.audits)} · {pct(a.borderline, a.audits)} · {pct(a.fail, a.audits)}
-                    </td>
-                    <td>{a.critical || <span className="text-tertiary">0</span>}</td>
-                    <td>{a.cant_audit || <span className="text-tertiary">0</span>}</td>
-                    <td>{a.checked || <span className="text-tertiary">0</span>}</td>
-                    <td>{a.coaching || <span className="text-tertiary">0</span>}</td>
-                    <td>
-                      {a.disputed} · {a.score_changed}
-                    </td>
-                    <td>
-                      {clock(a.first, oneDay)}
-                      <div className="text-tertiary" style={{ fontSize: 12 }}>
-                        {clock(a.last, oneDay)}
-                      </div>
-                    </td>
+          {agents.length === 0 && !res.loading ? <Empty title="No QA agents yet" /> : null}
+          {agents.length ? (
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>QA agent</th>
+                    <th>Audits</th>
+                    <th title="Audits per hour with any work">Per hour</th>
+                    <th title="Average of the scores they gave">Avg score</th>
+                    <th>Pass · borderline · fail</th>
+                    <th>Critical fails</th>
+                    <th>Can't audit</th>
+                    <th title="Negatives and team leader escalations they checked">Escalations checked</th>
+                    <th>Coaching</th>
+                    <th title="Disputed by the agent · of those, the score was changed">Disputed · changed</th>
+                    <th>First · last action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </section>
+                </thead>
+                <tbody>
+                  {agents.map((a) => (
+                    <tr key={a.qa_id}>
+                      <td>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                          <span className={`status-dot${a.online ? ' on' : ''}`} title={a.online ? 'Online' : 'Offline'} />
+                          <strong>{a.name}</strong>
+                        </span>
+                        <div className="text-tertiary" style={{ fontSize: 12 }}>
+                          {a.team}
+                          {a.active ? ` · ${a.in_queue} in queue now` : ' · deactivated'}
+                        </div>
+                      </td>
+                      <td>
+                        <strong>{a.audits}</strong>
+                        <div className="text-tertiary" style={{ fontSize: 12 }}>
+                          {(
+                            [
+                              [a.sample, 'sample'],
+                              [a.live, 'live'],
+                              [a.escalation, 'escalation'],
+                              [a.focus, 'focus'],
+                              [a.rotation, 'rotation'],
+                            ] as const
+                          )
+                            .filter(([n]) => n)
+                            .map(([n, k]) => `${n} ${k}`)
+                            .join(' · ')}
+                        </div>
+                      </td>
+                      <td>
+                        {a.active_hours ? (a.audits / a.active_hours).toFixed(1) : '—'}
+                        <div className="text-tertiary" style={{ fontSize: 12 }}>
+                          {a.active_hours} h with work
+                        </div>
+                      </td>
+                      <td>{a.avg_score === null ? '—' : `${a.avg_score}%`}</td>
+                      <td>
+                        {pct(a.pass, a.audits)} · {pct(a.borderline, a.audits)} · {pct(a.fail, a.audits)}
+                      </td>
+                      <td>{a.critical || <span className="text-tertiary">0</span>}</td>
+                      <td>{a.cant_audit || <span className="text-tertiary">0</span>}</td>
+                      <td>{a.checked || <span className="text-tertiary">0</span>}</td>
+                      <td>{a.coaching || <span className="text-tertiary">0</span>}</td>
+                      <td>
+                        {a.disputed} · {a.score_changed}
+                      </td>
+                      <td>
+                        {clock(a.first, oneDay)}
+                        <div className="text-tertiary" style={{ fontSize: 12 }}>
+                          {clock(a.last, oneDay)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      )}
     </div>
   )
 }
@@ -279,6 +300,7 @@ function Heatmap({
   onBy,
   range,
   loading,
+  onlyOpen,
 }: {
   agents: Agent[]
   series: Bucket[]
@@ -286,6 +308,8 @@ function Heatmap({
   onBy: (b: By) => void
   range: DateRange
   loading: boolean
+  /** A QA agent's id: only their own cells open (what a teammate did is the supervisor's to know). */
+  onlyOpen?: string
 }) {
   const [show, setShow] = useState<Show>('all')
   const [open, setOpen] = useState<{ agent: Agent; col: Col } | null>(null)
@@ -316,7 +340,8 @@ function Heatmap({
         <div>
           <h2 className="card-title">Activity</h2>
           <p className="card-subtitle">
-            What each QA agent did per {by}. Hover a cell for the breakdown, click it to see each piece of work.
+            What each QA agent did per {by}. Hover a cell for the breakdown, click {onlyOpen ? 'one of yours' : 'it'} to see each piece of
+            work.
           </p>
         </div>
         <div className="segmented">
@@ -435,13 +460,14 @@ function Heatmap({
                     const b = cell.get(`${a.qa_id}|${c.key}`)
                     const n = count(b, keys)
                     const lines = ALL.filter((k) => b?.[k]).map((k) => phrase(b![k], k))
+                    const opens = count(b, ALL) > 0 && (!onlyOpen || onlyOpen === a.qa_id)
                     return (
                       <td
                         key={c.key}
-                        className={`hm-cell${count(b, ALL) ? ' is-clickable' : ''}`}
+                        className={`hm-cell${opens ? ' is-clickable' : ''}`}
                         data-l={level(n, most)}
-                        title={`${a.name} · ${c.title}\n${lines.length ? `${lines.join('\n')}\nClick to see each one` : 'Nothing'}`}
-                        onClick={() => (count(b, ALL) ? setOpen({ agent: a, col: c }) : undefined)}
+                        title={`${a.name} · ${c.title}\n${lines.length ? lines.join('\n') : 'Nothing'}${opens ? '\nClick to see each one' : ''}`}
+                        onClick={() => (opens ? setOpen({ agent: a, col: c }) : undefined)}
                       >
                         {n || ''}
                         {b && marks.some((k) => b[k]) ? (

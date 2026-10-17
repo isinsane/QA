@@ -18,6 +18,9 @@ type Tab = 'quality' | 'agents' | 'operations' | 'calibration'
 export function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  // QA agents see their team's numbers too, without what only supervisors
+  // know (who audited, calibration) or decide (revealing scores).
+  const qa = user?.role === 'qa_agent'
   const [range, setRange] = useState<DateRange>(() => rangeFor('this_month'))
   const [g, setG] = useState({ task_type_id: '', employee_id: '' })
   const f = { ...g, from: range.from, to: range.to }
@@ -41,7 +44,7 @@ export function DashboardPage() {
     ['quality', 'Quality'],
     ['agents', `Agents${r ? ` (${(r.employees ?? []).length})` : ''}`],
     ['operations', 'Operations'],
-    ['calibration', 'QA calibration'],
+    ...(qa ? [] : [['calibration', 'QA calibration'] as [Tab, string]]),
   ]
 
   return (
@@ -90,7 +93,7 @@ export function DashboardPage() {
         ) : null}
       </div>
 
-      <RevealBar />
+      {qa ? null : <RevealBar />}
       {rep.error ? <div className="inline-warning">{rep.error}</div> : null}
       <div className={`report-body dash-stack${rep.loading && r ? ' is-stale' : ''}`}>
         <div className="stat-grid" style={{ margin: 0 }}>
@@ -167,7 +170,8 @@ export function DashboardPage() {
                             <td>
                               <strong>{t.employee_name}</strong>
                               <div className="text-tertiary" style={{ fontSize: 12 }}>
-                                {fmtDate(t.work_date)} · {t.task_type_name} · {t.qa_name}
+                                {fmtDate(t.work_date)} · {t.task_type_name}
+                                {t.qa_name ? ` · ${t.qa_name}` : ''}
                               </div>
                             </td>
                             <td>
@@ -298,36 +302,38 @@ export function DashboardPage() {
               ) : null}
             </section>
 
-            <section className="card">
-              <div className="card-header">
-                <h2 className="card-title">QA activity</h2>
-              </div>
-              {activity.length === 0 ? <Empty title="No evaluations in this range" /> : null}
-              {activity.length ? (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>QA agent</th>
-                      <th>Evaluations</th>
-                      <th>Days active</th>
-                      <th>Per active day</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activity.map(([name, a]) => (
-                      <tr key={name}>
-                        <td>
-                          <strong>{name}</strong>
-                        </td>
-                        <td>{a.evaluations}</td>
-                        <td>{a.days}</td>
-                        <td>{(a.evaluations / a.days).toFixed(1)}</td>
+            {qa ? null : (
+              <section className="card">
+                <div className="card-header">
+                  <h2 className="card-title">QA activity</h2>
+                </div>
+                {activity.length === 0 ? <Empty title="No evaluations in this range" /> : null}
+                {activity.length ? (
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>QA agent</th>
+                        <th>Evaluations</th>
+                        <th>Days active</th>
+                        <th>Per active day</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : null}
-            </section>
+                    </thead>
+                    <tbody>
+                      {activity.map(([name, a]) => (
+                        <tr key={name}>
+                          <td>
+                            <strong>{name}</strong>
+                          </td>
+                          <td>{a.evaluations}</td>
+                          <td>{a.days}</td>
+                          <td>{(a.evaluations / a.days).toFixed(1)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : null}
+              </section>
+            )}
           </>
         ) : null}
 

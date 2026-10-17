@@ -176,6 +176,16 @@ func (s *Server) handleQAProductivity(w http.ResponseWriter, r *http.Request) {
 		out = append(out, s)
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Audits > out[j].Audits })
+	if me(r).Role == model.RoleQA {
+		// The heat map only: who their teammates are and when they worked,
+		// not their numbers; a rotation case reads as an ordinary audit.
+		for i, a := range out {
+			out[i] = qaProd{QAID: a.QAID, Name: a.Name, Team: a.Team, Active: a.Active, Online: a.Online}
+		}
+		for i := range series {
+			series[i].Sample, series[i].Rotation = series[i].Sample+series[i].Rotation, 0
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"from": from, "to": to, "by": by, "agents": out, "series": series})
 }
 
@@ -188,6 +198,11 @@ func (s *Server) handleQAWork(w http.ResponseWriter, r *http.Request) {
 	end, err2 := time.Parse("2006-01-02T15:04", p.Get("end"))
 	if err != nil || err1 != nil || err2 != nil || !end.After(start) {
 		writeError(w, http.StatusBadRequest, "qa_id, start and end (YYYY-MM-DDTHH:MI) are required")
+		return
+	}
+	qaAgent := me(r).Role == model.RoleQA
+	if qaAgent && qa != me(r).ID { // which audits a teammate did is the supervisor's to know
+		writeError(w, http.StatusForbidden, "you can open only your own work")
 		return
 	}
 	args := s.prodArgs(r, start.Format(time.DateOnly), end.Format(time.DateOnly))
@@ -211,6 +226,11 @@ func (s *Server) handleQAWork(w http.ResponseWriter, r *http.Request) {
 	        ORDER BY local LIMIT 500`, args).Scan(&out).Error; err != nil {
 		dbError(w, err)
 		return
+	}
+	for i := range out {
+		if qaAgent && out[i].Type == string(model.KindRotation) {
+			out[i].Type = string(model.KindSample)
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
