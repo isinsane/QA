@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -187,6 +188,14 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// upstreamError reports a failed call to eDesk or the QA API, and logs it.
+// Not 502: Cloudflare, in front of the portal, swaps a 502's body for its own
+// error page, so the page would only say "Request failed (502)".
+func upstreamError(w http.ResponseWriter, err error) {
+	log.Printf("upstream: %v", err)
+	writeError(w, http.StatusFailedDependency, err.Error())
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {

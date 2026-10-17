@@ -6,8 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -177,7 +180,7 @@ func (c *Client) Chat(ctx context.Context, messageIDs []int64) ([]ChatLine, erro
 			var body struct {
 				Data struct {
 					Type           string `json:"type"`
-					Body           string `json:"body"`
+					Body           any    `json:"body"` // false on status events
 					CreatedAt      any    `json:"created_at"`
 					FromConsumerID *int64 `json:"from_consumer_id"`
 					FromUser       *struct {
@@ -190,7 +193,7 @@ func (c *Client) Chat(ctx context.Context, messageIDs []int64) ([]ChatLine, erro
 				return
 			}
 			d := body.Data
-			l := ChatLine{Kind: d.Type, Text: strings.TrimSpace(d.Body), Who: "bot"}
+			l := ChatLine{Kind: d.Type, Text: plainText(d.Body), Who: "bot"}
 			switch {
 			case d.FromUser != nil:
 				l.Who, l.Name = "agent", d.FromUser.Name
@@ -209,6 +212,25 @@ func (c *Client) Chat(ctx context.Context, messageIDs []int64) ([]ChatLine, erro
 			return nil, err
 		}
 	}
+	// Status events and other messages with no text have nothing to show.
+	lines = slices.DeleteFunc(lines, func(l ChatLine) bool { return l.Text == "" })
 	sort.SliceStable(lines, func(i, j int) bool { return lines[i].At < lines[j].At })
 	return lines, nil
+}
+
+var (
+	htmlBreak = regexp.MustCompile(`(?i)<br\s*/?>|</(p|div|li|tr|h[1-6])>`)
+	htmlTag   = regexp.MustCompile(`<[^>]*>`)
+	blankRuns = regexp.MustCompile(`\n\s*\n\s*\n+`)
+)
+
+// plainText is a message body as text: "" when eDesk sends none (false), and
+// an emailed reply's HTML reduced to its words and line breaks.
+func plainText(body any) string {
+	s, _ := body.(string)
+	if strings.Contains(s, "<") {
+		s = htmlTag.ReplaceAllString(htmlBreak.ReplaceAllString(s, "\n"), "")
+		s = blankRuns.ReplaceAllString(html.UnescapeString(s), "\n\n")
+	}
+	return strings.TrimSpace(s)
 }

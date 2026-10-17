@@ -207,7 +207,7 @@ func (s *Server) handlePullTickets(w http.ResponseWriter, r *http.Request) {
 	uid := me(r).ID
 	res, err := s.ticketsPull(r.Context(), tt, day, &uid)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		upstreamError(w, err)
 		return
 	}
 	s.runAssign(r.Context())
@@ -245,7 +245,7 @@ func (s *Server) handlePullChats(w http.ResponseWriter, r *http.Request) {
 	uid := me(r).ID
 	res, err := s.chatsPull(r.Context(), tt, day, &uid)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		upstreamError(w, err)
 		return
 	}
 	s.runAssign(r.Context())

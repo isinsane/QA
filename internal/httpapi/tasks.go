@@ -905,7 +905,7 @@ func (s *Server) handleTaskChat(w http.ResponseWriter, r *http.Request) {
 	}
 	lines, err := s.edeskChat(r.Context(), ids)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		upstreamError(w, err)
 		return
 	}
 	if lines == nil {
@@ -938,7 +938,7 @@ func (s *Server) handleTaskEDesk(w http.ResponseWriter, r *http.Request) {
 	}
 	info, err := s.edeskTicket(r.Context(), t.ExternalID)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		upstreamError(w, err)
 		return
 	}
 	info["fetched_at"] = time.Now().UTC()
