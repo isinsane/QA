@@ -77,6 +77,43 @@ export interface Columns {
   row_values?: string[]
 }
 
+/** QA productivity: per QA agent, what they did in a period, and audits per hour / day / week / month. */
+export interface QAProductivity {
+  from: string
+  to: string
+  by: 'hour' | 'day' | 'week' | 'month'
+  agents: {
+    qa_id: string
+    name: string
+    team: string
+    active: boolean
+    online: boolean
+    in_queue: number
+    audits: number
+    sample: number
+    live: number
+    escalation: number
+    focus: number
+    rotation: number
+    avg_score: number | null
+    pass: number
+    borderline: number
+    fail: number
+    critical: number
+    cant_audit: number
+    checked: number
+    coaching: number
+    disputed: number
+    score_changed: number
+    active_hours: number
+    /** Local wall-clock times. */
+    first: string | null
+    last: string | null
+  }[]
+  /** bucket: local "YYYY-MM-DDTHH:MI" */
+  series: { qa_id: string; bucket: string; audits: number; other: number }[]
+}
+
 /** A team's finished audits its agents don't see yet. */
 export interface HiddenScores {
   department_id: string

@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Siren } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import { useReadOnly } from '../auth/AuthContext'
-import type { TaskType } from '../api/types'
-import { AckBadge, auditedUnder, daysAgo, Empty, errorText, fmtDate, KindBadge, Labels, ScoreBadge, StateBadge } from '../components/bits'
-import { Modal } from '../components/Modal'
+import { AckBadge, daysAgo, Empty, errorText, fmtDate, KindBadge, Labels, ScoreBadge, StateBadge } from '../components/bits'
 import { ToastStack, useToasts } from '../components/Toasts'
 import { KIND_LABEL } from '../scorecard'
 
@@ -29,7 +26,6 @@ const STATES = [
 export function TasksPage() {
   const navigate = useNavigate()
   const [f, setF] = useState({ state: '', kind: '', task_type_id: '', qa_id: '', from: daysAgo(14), to: '', q: '', page: 1 })
-  const [escalating, setEscalating] = useState(false)
   const { toasts, push } = useToasts()
   const types = useApi(() => api.taskTypes(), [])
   const tasks = useApi(() => api.tasks(f), [JSON.stringify(f)])
@@ -102,12 +98,6 @@ export function TasksPage() {
           </p>
         </div>
         <div className="page-actions">
-          {readOnly ? null : (
-            <button className="btn btn-primary" onClick={() => setEscalating(true)}>
-              <Siren size={16} />
-              Escalate an interaction
-            </button>
-          )}
         </div>
       </div>
       <div className="tasks-filter-bar" style={{ gridTemplateColumns: 'minmax(200px, 2fr) repeat(6, minmax(130px, 1fr))' }}>
@@ -300,104 +290,7 @@ export function TasksPage() {
           </button>
         </div>
       ) : null}
-      {escalating ? (
-        <EscalateDialog
-          types={(types.data ?? []).filter((t) => t.active)}
-          onClose={() => setEscalating(false)}
-          onSent={(id) => {
-            setEscalating(false)
-            push('success', 'Sent to the quality team; it goes to the top of a QA queue.')
-            navigate(`/tasks/${id}`)
-          }}
-          onError={(e) => push('error', e)}
-        />
-      ) : null}
       <ToastStack toasts={toasts} />
     </div>
-  )
-}
-
-/** A supervisor sends one interaction to the quality team. */
-function EscalateDialog({
-  types,
-  onClose,
-  onSent,
-  onError,
-}: {
-  types: TaskType[]
-  onClose: () => void
-  onSent: (id: string) => void
-  onError: (e: string) => void
-}) {
-  const agents = useApi(() => api.users('employee'), [])
-  const [f, setF] = useState({ type: types[0]?.id ?? '', external: '', agent: '', reason: '' })
-  const [busy, setBusy] = useState(false)
-  const type = types.find((t) => t.id === f.type)
-  const team = (agents.data ?? []).filter(
-    (a) => a.active && (!type || a.department_id === type.department_id) && auditedUnder(type, a.profile?.department),
-  )
-  const idLabel = type?.source === 'tickets_api' ? 'Ticket ID' : type?.source === 'edesk_chats' ? 'Chat ID' : 'Interaction ID'
-  return (
-    <Modal
-      title="Escalate an interaction"
-      subtitle="It goes to the top of a QA agent's queue in that team, even past the queue cap, and you see the result here."
-      size="md"
-      onClose={onClose}
-      onSubmit={() => {
-        setBusy(true)
-        api
-          .escalate({ task_type_id: f.type, external_id: f.external, employee_id: f.agent, reason: f.reason })
-          .then((r) => onSent(r.task_id))
-          .catch((err) => onError(errorText(err)))
-          .finally(() => setBusy(false))
-      }}
-      footer={
-        <>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={busy || !f.type || !f.external.trim() || !f.agent || !f.reason.trim()}
-          >
-            Send to QA
-          </button>
-        </>
-      }
-    >
-      <div className="form-row">
-        <div className="field">
-          <label className="field-label">Type</label>
-          <select className="select" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value, agent: '' })}>
-            {types.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label className="field-label">{idLabel}</label>
-          <input className="input mono" value={f.external} onChange={(e) => setF({ ...f, external: e.target.value })} />
-        </div>
-      </div>
-      <div className="field">
-        <label className="field-label">Agent</label>
-        <select className="select" value={f.agent} onChange={(e) => setF({ ...f, agent: e.target.value })}>
-          <option value="">Pick the agent…</option>
-          {team.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-              {a.alias_name ? ` (${a.alias_name})` : ''}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label className="field-label">Why should QA look at it?</label>
-        <textarea className="textarea" rows={4} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />
-      </div>
-    </Modal>
   )
 }

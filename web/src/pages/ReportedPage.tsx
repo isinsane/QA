@@ -4,7 +4,7 @@ import { ChevronRight, Plus } from 'lucide-react'
 import { api } from '../api/client'
 import { useApi } from '../api/useApi'
 import type { Kind, Role, TaskRow } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth, useReadOnly } from '../auth/AuthContext'
 import { Empty, errorText, fmtDate, fmtDateTime, KindBadge, ScoreBadge } from '../components/bits'
 import { Modal } from '../components/Modal'
 import { ToastStack, useToasts } from '../components/Toasts'
@@ -64,6 +64,21 @@ export const QA_ESCALATIONS: ReportKind = {
   errorPlaceholder: 'What the agent did, and why it needs a look',
   mineTitle: 'Raised by me',
   sendTo: (team) => `the ${team} supervisor`,
+}
+
+/** A supervisor's escalation: any agent of any team, scored by a QA agent of that team like any audit. */
+export const SUP_ESCALATIONS: ReportKind = {
+  kind: 'escalation',
+  path: '/escalations',
+  role: 'supervisor',
+  reportTitle: 'Escalate an interaction',
+  reporterSubtitle:
+    "For an order or call of any agent, in any team. It goes to the top of a QA agent's queue in the agent's team, even past the queue cap, and is scored like any audit.",
+  agentLabel: 'Agent',
+  errorLabel: 'Why should QA look at it?',
+  errorPlaceholder: 'What the agent did, and why it needs a look',
+  mineTitle: 'Raised by me',
+  sendTo: qaOf,
 }
 
 /** The reporter's page: the form, then what they sent. */
@@ -302,6 +317,8 @@ const SOURCES: [Kind, string][] = [
 export function EscalationsPage() {
   const { user } = useAuth()
   const qa = user?.role === 'qa_agent'
+  // Supervisors (and admins) escalate interactions of any team from here.
+  const escalates = !useReadOnly() && (user?.role === 'supervisor' || user?.role === 'admin')
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('review')
   const [source, setSource] = useState('')
@@ -322,17 +339,17 @@ export function EscalationsPage() {
           <h1 className="page-title">Escalations</h1>
           <p className="page-subtitle">Negatives, team leader and QA escalations. They don't change quality scores.</p>
         </div>
-        {qa ? (
+        {qa || escalates ? (
           <div className="page-actions">
-            <button className="btn btn-secondary" onClick={() => setRaising(true)}>
+            <button className={`btn ${qa ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setRaising(true)}>
               <Plus size={16} />
-              QA escalation
+              {qa ? 'QA escalation' : 'Escalate an interaction'}
             </button>
           </div>
         ) : null}
       </div>
       <div className="tabs" role="tablist">
-        {TABS.filter(([key]) => qa || key !== 'raised').map(([key, label]) => (
+        {TABS.filter(([key]) => qa || escalates || key !== 'raised').map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -354,7 +371,11 @@ export function EscalationsPage() {
       </div>
       <section className="card">
         <div className="card-header">
-          <p className="card-subtitle">{TABS.find(([k]) => k === tab)?.[2]}</p>
+          <p className="card-subtitle">
+            {tab === 'raised' && !qa
+              ? "Interactions you escalated, in any team. A QA agent of the agent's team scores each one like any audit."
+              : TABS.find(([k]) => k === tab)?.[2]}
+          </p>
           {tab !== 'raised' ? (
             <div className="page-actions">
               {qa && tab === 'review' ? (
@@ -459,6 +480,7 @@ export function EscalationsPage() {
       </section>
       {raising ? (
         <RaiseQAEscalation
+          cfg={qa ? QA_ESCALATIONS : SUP_ESCALATIONS}
           onClose={() => setRaising(false)}
           onSent={(msg) => {
             setRaising(false)
@@ -473,10 +495,18 @@ export function EscalationsPage() {
 }
 
 /** The QA escalation form in a dialog (Escalations page and the workspace). */
-export function RaiseQAEscalation({ onClose, onSent }: { onClose: () => void; onSent: (msg: string) => void }) {
+export function RaiseQAEscalation({
+  cfg = QA_ESCALATIONS,
+  onClose,
+  onSent,
+}: {
+  cfg?: ReportKind
+  onClose: () => void
+  onSent: (msg: string) => void
+}) {
   return (
-    <Modal title="QA escalation" subtitle={QA_ESCALATIONS.reporterSubtitle} size="lg" onClose={onClose}>
-      <ReportForm cfg={QA_ESCALATIONS} onCancel={onClose} onSent={onSent} />
+    <Modal title={cfg.reportTitle} subtitle={cfg.reporterSubtitle} size="lg" onClose={onClose}>
+      <ReportForm cfg={cfg} onCancel={onClose} onSent={onSent} />
     </Modal>
   )
 }

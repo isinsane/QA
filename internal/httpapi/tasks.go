@@ -237,6 +237,8 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case u.Role == model.RoleQA && p.Get("mine") == "1": // the audits they submitted (escalations they decided aren't audits)
 		q = q.Where("t.evaluated_by = ? AND t.kind NOT IN "+model.ReviewedKinds, u.ID)
+	case u.Role == model.RoleQA && p.Get("team") == "1": // every audit of their team (not rotation: QA over QA)
+		q = q.Where("tt.department_id = ? AND t.kind NOT IN "+model.ReviewedKinds+" AND t.kind <> ?", u.DepartmentID, model.KindRotation)
 	case u.Role == model.RoleTeamLeader: // their own team's, even on an agent's page
 		q = q.Where("tt.department_id = ?", deptScope(u))
 	case p.Get("employee_id") != "":

@@ -121,6 +121,14 @@ func ImportRoster(ctx context.Context, db *gorm.DB, s *Sheet, o RosterOptions) (
 	for _, id := range settings.Load(ctx, db).RosterIgnoreIDs {
 		ignored[strings.TrimSpace(id)] = true
 	}
+	// The teams the sheet names: someone in a team it never names (live chat,
+	// say, set up by hand on Team) keeps their team.
+	named := map[uuid.UUID]bool{}
+	for _, row := range s.Rows {
+		if d, ok := deptByName[strings.ToLower(col(row, "department"))]; ok {
+			named[d.ID] = true
+		}
+	}
 	seenHR := map[string]bool{}
 	for i, row := range s.Rows {
 		line := i + 2
@@ -190,7 +198,7 @@ func ImportRoster(ctx context.Context, db *gorm.DB, s *Sheet, o RosterOptions) (
 		// Department and active status are only the sheet's to decide for
 		// employees; a QA agent keeps the department they audit.
 		if u.Role == model.RoleEmployee {
-			if u.DepartmentID == nil || *u.DepartmentID != dept.ID {
+			if movesTeam(u.DepartmentID, dept.ID, named) {
 				u.DepartmentID = &dept.ID
 				changed = append(changed, "department")
 			}
@@ -287,4 +295,10 @@ func NameKey(name string) string {
 	}
 	sort.Strings(words)
 	return strings.Join(words, " ")
+}
+
+// movesTeam: the HR sheet puts an employee in the team of their HR department,
+// unless they are in a team the sheet never names (set up by hand on Team).
+func movesTeam(cur *uuid.UUID, next uuid.UUID, named map[uuid.UUID]bool) bool {
+	return cur == nil || *cur != next && named[*cur]
 }

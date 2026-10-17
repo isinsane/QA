@@ -335,17 +335,23 @@ func (s *Server) handleEscalate(w http.ResponseWriter, r *http.Request) {
 		ExternalID string    `json:"external_id"`
 		EmployeeID uuid.UUID `json:"employee_id"`
 		Reason     string    `json:"reason"`
+		Error      string    `json:"error"` // the escalation form's name for it
 	}
 	if !decode(w, r, &in) {
 		return
+	}
+	if in.Reason == "" {
+		in.Reason = in.Error
 	}
 	in.ExternalID, in.Reason = strings.TrimSpace(in.ExternalID), strings.TrimSpace(in.Reason)
 	if in.ExternalID == "" || in.Reason == "" {
 		writeError(w, http.StatusBadRequest, "the call/ticket ID and a reason are required")
 		return
 	}
-	tt, ok := s.teamType(w, r, in.TaskTypeID)
-	if !ok {
+	// Any agent of any team: it goes to a QA agent of the agent's team.
+	tt := &model.TaskType{}
+	if s.db.WithContext(r.Context()).First(tt, "id = ? AND active", in.TaskTypeID).Error != nil {
+		writeError(w, http.StatusNotFound, "task type not found")
 		return
 	}
 	agent, ok := s.agentOf(w, r, in.EmployeeID)
@@ -396,7 +402,7 @@ func (s *Server) handleEscalate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.runAssign(r.Context())
-	writeJSON(w, http.StatusOK, map[string]any{"task_id": task.ID})
+	writeJSON(w, http.StatusOK, map[string]any{"task_id": task.ID, "task_type": tt.Name})
 }
 
 var errAlreadyAudited = errors.New("already audited")

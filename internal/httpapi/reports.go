@@ -17,6 +17,7 @@ import (
 func (s *Server) routesReports(r chi.Router, managers func(http.Handler) http.Handler) {
 	r.With(s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)).Get("/reports", s.handleReports)
 	r.With(managers).Get("/disputes/agents", s.handleDisputeAgents)
+	r.With(managers).Get("/qa-productivity", s.handleQAProductivity)
 	r.With(s.requireRoles(model.RoleEmployee)).Get("/me/summary", s.handleMySummary)
 }
 

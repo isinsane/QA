@@ -7,6 +7,7 @@ import type {
   ChatLine,
   DisputeAgent,
   HiddenScores,
+  QAProductivity,
   ImportRun,
   RosterResult,
   Reports,
@@ -171,6 +172,7 @@ export const api = {
   cancel: (id: string, reason: string) => request(`/tasks/${id}/cancel`, json('POST', { reason })),
 
   reports: (params: Record<string, string | undefined>) => request<Reports>(`/reports${qs(params)}`),
+  qaProductivity: (params: Record<string, string | undefined>) => request<QAProductivity>(`/qa-productivity${qs(params)}`),
   hiddenScores: () => request<HiddenScores[]>('/reveal'),
   reveal: (departmentId: string) => request<{ revealed: number }>('/reveal', json('POST', { department_id: departmentId })),
   disputeAgents: (params: Record<string, string | undefined>) =>

@@ -489,6 +489,14 @@ All of A to G is built (migration 00012), not yet committed or deployed. Differe
   admin: any team; view only and team leaders see the count only), which shows every hidden one at once. Until then
   managers and QA see it as usual, marked "not revealed yet", and it doesn't count as not acknowledged. Audits finished
   before this (migration 00017) stay visible.
+- **17 Oct, later:** a supervisor escalates an interaction of **any agent of any team** from the Escalations page (moved
+  from All tasks); it is still a scored audit, at the top of a QA queue of the agent's team, and shows under **Raised
+  by me** (where it stands, then its score). QA agents' My audits has **Mine / My team** (every audit of their team
+  but rotation cases; other QA agents' names hidden; only their own editable). The HR upload no longer moves someone
+  out of a team the sheet never names (live chat agents set up by hand on Team stay there). New **QA productivity**
+  page (managers): per QA agent for a period, audits by kind, per hour with work, scores given, pass / borderline /
+  fail, critical fails, can't audit, escalations checked, coaching, disputes and score changes, first and last action,
+  queue and online now; and a grid of audits by hour, day, week or month.
 - **E:** Approvals is its own page. The audit page lists each changed metric before -> after; the Approvals list shows the
   score before -> after. The audit's History card is the edit history; QA agents see it on their own audits only.
 

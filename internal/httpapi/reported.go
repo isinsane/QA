@@ -53,6 +53,8 @@ func (s *Server) routesReported(r chi.Router, managers func(http.Handler) http.H
 	checkers := s.requireRoles(model.RoleAdmin, model.RoleSupervisor, model.RoleQA)
 	r.With(checkers).Post("/tasks/{id}/decide", s.handleDecide)
 	r.With(checkers).Get("/escalations", s.handleEscalations)
+	// Agents of every team for a supervisor's escalation (POST /escalations).
+	r.With(managers).Get("/escalations/agents", s.reportAgents(reporter{}))
 }
 
 // canDecide: the supervisor (their team) decides any escalation; the team's
@@ -268,14 +270,18 @@ func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) {
 // agents see their team's (and the ones they raised); supervisors their team's.
 func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
 	u, p := me(r), r.URL.Query()
-	q := s.taskRows(r).Where("t.kind IN " + model.ReviewedKinds)
+	q, order := s.taskRows(r), "t.created_at"
 	switch {
+	case p.Get("raised") == "1": // what they raised, in any team; a supervisor's are scored audits
+		q = q.Where("t.created_by = ? AND (t.kind IN "+model.ReviewedKinds+" OR t.kind = ?)", u.ID, model.KindEscalation)
+		order = "t.created_at DESC"
 	case u.Role == model.RoleQA:
-		q = q.Where("(tt.department_id = ? OR t.created_by = ?)", u.DepartmentID, u.ID)
+		q = q.Where("t.kind IN "+model.ReviewedKinds+" AND (tt.department_id = ? OR t.created_by = ?)", u.DepartmentID, u.ID)
 	case deptScope(u) != nil:
-		q = q.Where("tt.department_id = ?", *deptScope(u))
+		q = q.Where("t.kind IN "+model.ReviewedKinds+" AND tt.department_id = ?", *deptScope(u))
+	default:
+		q = q.Where("t.kind IN " + model.ReviewedKinds)
 	}
-	order := "t.created_at"
 	switch p.Get("state") {
 	case "", "review":
 		q = q.Where("t.state = 'review'")
@@ -289,9 +295,6 @@ func (s *Server) handleEscalations(w http.ResponseWriter, r *http.Request) {
 	}
 	if p.Get("mine") == "1" {
 		q = q.Where("t.assigned_qa_id = ?", u.ID)
-	}
-	if p.Get("raised") == "1" {
-		q = q.Where("t.created_by = ?", u.ID)
 	}
 	if v := p.Get("employee_id"); v != "" {
 		q = q.Where("t.employee_id = ?", v)
